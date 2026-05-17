@@ -2,19 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0B1538" />
 <title>XPL Keyed — Fortnite Coaching | Unlock the Unreal Rank</title>
 <meta name="description" content="Personalized async Fortnite coaching from XPL Keyed, Unreal-ranked tournament player. Weekly PowerPoint lessons with voiceover plus a live 30-minute coaching call. First call free." />
 
-<!-- Open Graph / social -->
 <meta property="og:title" content="XPL Keyed — Fortnite Coaching" />
 <meta property="og:description" content="Unlock the Unreal rank. Weekly async coaching from a 7-year competitive Fortnite player." />
 <meta property="og:type" content="website" />
 
-<!-- Favicon: lime green key on dark navy -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230B1538'/%3E%3Ctext x='16' y='22' font-family='Arial Black, sans-serif' font-size='18' font-weight='900' fill='%23C7FF3D' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E" />
 
-<!-- Fonts: Anton (display) + Inter (body). Anton is the chunky compressed sans that gives XPL/Fortnite energy. -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -32,13 +30,17 @@
     --text-dim: rgba(255,255,255,0.75);
     --text-faint: rgba(255,255,255,0.55);
     --border: rgba(255,255,255,0.12);
-    /* Fortnite rarity */
     --uncommon: #319236;
     --rare: #4C51F7;
     --epic: #C80715;
     --legendary: #F5A623;
     --font-display: 'Anton', 'Impact', sans-serif;
     --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --fs-hero-1: clamp(40px, 8vw, 84px);
+    --fs-hero-2: clamp(64px, 14vw, 140px);
+    --fs-section-title: clamp(32px, 6vw, 56px);
+    --fs-cred: clamp(40px, 8vw, 72px);
+    --section-pad: clamp(56px, 9vw, 96px);
   }
 
   html { scroll-behavior: smooth; }
@@ -46,14 +48,15 @@
     font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
-    line-height: 1.5;
+    line-height: 1.55;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
+  body.menu-open { overflow: hidden; }
 
   a { color: inherit; text-decoration: none; }
 
-  .container { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+  .container { max-width: 1180px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 32px); }
 
   /* ============ NAV ============ */
   nav {
@@ -69,103 +72,162 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 32px;
+    padding: 14px clamp(20px, 4vw, 32px);
     max-width: 1180px;
     margin: 0 auto;
   }
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
+  .logo { display: flex; align-items: center; gap: 12px; }
   .logo-mark {
-    width: 36px;
-    height: 36px;
+    width: 36px; height: 36px;
     border-radius: 6px;
     background: var(--lime);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     color: var(--bg);
     font-family: var(--font-display);
-    font-size: 18px;
-    letter-spacing: 1px;
+    font-size: 18px; letter-spacing: 1px;
   }
   .logo-text {
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: clamp(16px, 3.5vw, 20px);
     letter-spacing: 2px;
   }
+
   .nav-links {
-    display: flex;
-    align-items: center;
+    display: flex; align-items: center;
     gap: 8px;
     margin-left: auto;
   }
   .nav-links a.link {
     padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 14px; font-weight: 500;
     color: var(--text-dim);
     transition: color 0.2s;
   }
   .nav-links a.link:hover { color: var(--text); }
+
+  .hamburger {
+    display: none;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    width: 44px; height: 44px;
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+    margin-left: 12px;
+    transition: border-color 0.2s, background 0.2s;
+    z-index: 101;
+  }
+  .hamburger:active { background: rgba(255,255,255,0.05); }
+  .hamburger span {
+    position: absolute;
+    left: 11px;
+    width: 22px; height: 2px;
+    background: var(--lime);
+    transition: transform 0.3s, opacity 0.2s, top 0.3s;
+  }
+  .hamburger span:nth-child(1) { top: 14px; }
+  .hamburger span:nth-child(2) { top: 21px; }
+  .hamburger span:nth-child(3) { top: 28px; }
+  body.menu-open .hamburger span:nth-child(1) { top: 21px; transform: rotate(45deg); }
+  body.menu-open .hamburger span:nth-child(2) { opacity: 0; }
+  body.menu-open .hamburger span:nth-child(3) { top: 21px; transform: rotate(-45deg); }
+
+  .mobile-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+    background: rgba(11, 21, 56, 0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+  body.menu-open .mobile-menu { opacity: 1; pointer-events: auto; }
+  .mobile-menu a {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 9vw, 56px);
+    letter-spacing: 1px;
+    color: var(--text);
+    transform: translateY(20px);
+    opacity: 0;
+    transition: transform 0.4s, opacity 0.4s, color 0.2s;
+    padding: 8px 24px;
+  }
+  body.menu-open .mobile-menu a {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  body.menu-open .mobile-menu a:nth-child(1) { transition-delay: 0.08s; }
+  body.menu-open .mobile-menu a:nth-child(2) { transition-delay: 0.14s; }
+  body.menu-open .mobile-menu a:nth-child(3) { transition-delay: 0.20s; }
+  body.menu-open .mobile-menu a:nth-child(4) { transition-delay: 0.26s; }
+  .mobile-menu a:nth-child(1):active { color: var(--uncommon); }
+  .mobile-menu a:nth-child(2):active { color: var(--rare); }
+  .mobile-menu a:nth-child(3):active { color: var(--epic); }
+  .mobile-menu a:nth-child(4) {
+    background: var(--lime);
+    color: var(--bg);
+    border-radius: 10px;
+    padding: 14px 32px;
+  }
 
   /* ============ BUTTONS ============ */
   .btn {
     display: inline-block;
     padding: 14px 22px;
     font-family: var(--font-body);
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 14px; font-weight: 600;
     letter-spacing: 0.5px;
     border-radius: 6px;
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
     border: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-primary {
     background: var(--lime);
     color: var(--bg);
-    box-shadow: 0 0 0 0 rgba(199, 255, 61, 0.4);
   }
   .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 28px rgba(199, 255, 61, 0.35);
   }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
   .btn-ghost {
     background: rgba(11, 21, 56, 0.4);
     backdrop-filter: blur(8px);
     color: var(--text);
     border: 1.5px solid rgba(255, 255, 255, 0.4);
   }
-  .btn-ghost:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.6);
-  }
+  .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.6); }
+  .btn-ghost:active { transform: scale(0.98); }
   .btn-outline-lime {
     background: transparent;
     color: var(--lime);
     border: 1.5px solid var(--lime);
   }
-  .btn-outline-lime:hover {
-    background: var(--lime);
-    color: var(--bg);
-  }
+  .btn-outline-lime:hover { background: var(--lime); color: var(--bg); }
+  .btn-outline-lime:active { transform: scale(0.98); }
   .btn-sm { padding: 10px 18px; font-size: 13px; }
 
   /* ============ HERO ============ */
   .hero {
     position: relative;
     overflow: hidden;
-    padding: 80px 0 96px;
+    padding: clamp(56px, 9vw, 80px) 0 clamp(64px, 10vw, 96px);
     background-image:
       linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-    background-size: 48px 48px;
+    background-size: clamp(28px, 4vw, 48px) clamp(28px, 4vw, 48px);
   }
 
-  /* Animated rarity-color blobs */
   .blob {
     position: absolute;
     border-radius: 50%;
@@ -173,60 +235,18 @@
     pointer-events: none;
     z-index: 0;
   }
-  .blob-1 {
-    width: 480px; height: 480px;
-    background: var(--uncommon);
-    top: -120px; left: -100px;
-    opacity: 0.5;
-    animation: drift-1 18s ease-in-out infinite;
-  }
-  .blob-2 {
-    width: 420px; height: 420px;
-    background: var(--rare);
-    top: 80px; right: -80px;
-    opacity: 0.5;
-    animation: drift-2 22s ease-in-out infinite;
-  }
-  .blob-3 {
-    width: 380px; height: 380px;
-    background: var(--epic);
-    bottom: -100px; left: 30%;
-    opacity: 0.35;
-    animation: drift-3 25s ease-in-out infinite;
-  }
-  .blob-4 {
-    width: 340px; height: 340px;
-    background: var(--legendary);
-    top: 30%; left: 40%;
-    opacity: 0.3;
-    animation: drift-4 20s ease-in-out infinite;
-  }
+  .blob-1 { width: 480px; height: 480px; background: var(--uncommon); top: -120px; left: -100px; opacity: 0.5; animation: drift-1 18s ease-in-out infinite; }
+  .blob-2 { width: 420px; height: 420px; background: var(--rare); top: 80px; right: -80px; opacity: 0.5; animation: drift-2 22s ease-in-out infinite; }
+  .blob-3 { width: 380px; height: 380px; background: var(--epic); bottom: -100px; left: 30%; opacity: 0.35; animation: drift-3 25s ease-in-out infinite; }
+  .blob-4 { width: 340px; height: 340px; background: var(--legendary); top: 30%; left: 40%; opacity: 0.3; animation: drift-4 20s ease-in-out infinite; }
 
-  @keyframes drift-1 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33%      { transform: translate(30%, -20%) scale(1.2); }
-    66%      { transform: translate(-20%, 15%) scale(0.9); }
-  }
-  @keyframes drift-2 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33%      { transform: translate(-25%, 20%) scale(1.1); }
-    66%      { transform: translate(20%, -15%) scale(1.3); }
-  }
-  @keyframes drift-3 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50%      { transform: translate(20%, 25%) scale(1.25); }
-  }
-  @keyframes drift-4 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50%      { transform: translate(-30%, -20%) scale(1.15); }
-  }
+  @keyframes drift-1 { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(30%,-20%) scale(1.2); } 66% { transform: translate(-20%,15%) scale(0.9); } }
+  @keyframes drift-2 { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(-25%,20%) scale(1.1); } 66% { transform: translate(20%,-15%) scale(1.3); } }
+  @keyframes drift-3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20%,25%) scale(1.25); } }
+  @keyframes drift-4 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-30%,-20%) scale(1.15); } }
 
-  .hero-content {
-    position: relative;
-    z-index: 2;
-  }
+  .hero-content { position: relative; z-index: 2; }
 
-  /* Decorative rarity bars — fill the hero's right side, drop further on hover */
   .rarity-bars {
     position: absolute;
     top: 0;
@@ -235,14 +255,11 @@
     gap: 14px;
     z-index: 3;
   }
-  /* Invisible hover hit zone extending left so the hover triggers easily */
   .rarity-bars::before {
     content: "";
     position: absolute;
-    top: 0;
-    right: 0;
-    width: 600px;
-    height: 100%;
+    top: 0; right: 0;
+    width: 600px; height: 100%;
     pointer-events: auto;
     z-index: -1;
   }
@@ -264,12 +281,12 @@
   .rarity-bars:hover div:nth-child(4) { height: 700px; box-shadow: 0 0 40px rgba(245, 166, 35, 0.5); transition-delay: 0.24s; }
 
   .eyebrow {
-    font-size: 12px;
+    font-size: clamp(11px, 1.3vw, 12px);
     letter-spacing: 3px;
     color: var(--lime);
     font-weight: 600;
     text-transform: uppercase;
-    margin-bottom: 24px;
+    margin-bottom: clamp(16px, 2.5vw, 24px);
   }
 
   .hero h1 {
@@ -277,52 +294,46 @@
     font-weight: 400;
     letter-spacing: -1px;
     line-height: 0.95;
-    margin-bottom: 28px;
+    margin-bottom: clamp(20px, 3vw, 28px);
     overflow: hidden;
+    padding-bottom: 0.08em;
   }
-  .hero h1 .line-1,
-  .hero h1 .line-2 {
+  .hero h1 .line-1, .hero h1 .line-2 {
     display: block;
     transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s;
   }
   .hero h1 .line-1 {
-    font-size: clamp(48px, 7vw, 84px);
+    font-size: var(--fs-hero-1);
     color: var(--text);
   }
   .hero h1 .line-2 {
-    font-size: clamp(72px, 11vw, 140px);
+    font-size: var(--fs-hero-2);
     color: var(--lime);
     text-shadow: 0 4px 32px rgba(11, 21, 56, 0.7);
     letter-spacing: -2px;
+    line-height: 0.9;
   }
-  .hero h1:hover .line-1 {
-    animation: slide-in-left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .hero h1:hover .line-2 {
-    animation: slide-in-left 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
-  }
+  .hero h1:hover .line-1 { animation: slide-in-left 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+  .hero h1:hover .line-2 { animation: slide-in-left 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
   @keyframes slide-in-left {
     0%   { transform: translateX(-110%); opacity: 0; }
     100% { transform: translateX(0); opacity: 1; }
   }
 
   .hero-sub {
-    font-size: 18px;
+    font-size: clamp(15px, 1.8vw, 18px);
     max-width: 560px;
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 36px;
+    margin-bottom: clamp(28px, 4vw, 36px);
   }
-  .hero-sub .keyed {
-    color: var(--lime);
-    font-weight: 600;
-  }
+  .hero-sub .keyed { color: var(--lime); font-weight: 600; }
 
   .hero-ctas {
     display: flex;
     gap: 14px;
     align-items: center;
-    margin-bottom: 56px;
+    margin-bottom: clamp(40px, 6vw, 56px);
     flex-wrap: wrap;
   }
 
@@ -330,8 +341,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 72px;
-    padding-top: 48px;
+    gap: clamp(32px, 6vw, 72px);
+    padding-top: clamp(32px, 5vw, 48px);
     margin-top: 24px;
     border-top: 1px solid rgba(255, 255, 255, 0.15);
     flex-wrap: wrap;
@@ -343,16 +354,16 @@
     align-items: center;
     justify-content: center;
   }
-  .cred-item .cred-num {
+  .cred-num {
     font-family: var(--font-display);
-    font-size: clamp(48px, 6vw, 72px);
+    font-size: var(--fs-cred);
     color: var(--lime);
     letter-spacing: 1px;
     line-height: 1;
-    margin-bottom: 14px;
+    margin-bottom: clamp(8px, 1.5vw, 14px);
   }
-  .cred-item .cred-label {
-    font-size: 13px;
+  .cred-label {
+    font-size: clamp(11px, 1.3vw, 13px);
     letter-spacing: 2px;
     color: var(--text-faint);
     text-transform: uppercase;
@@ -360,11 +371,11 @@
   }
 
   /* ============ SECTIONS ============ */
-  section { padding: 80px 0; position: relative; }
+  section { padding: var(--section-pad) 0; position: relative; }
   .section-alt { background: var(--bg-2); }
 
   .section-eyebrow {
-    font-size: 12px;
+    font-size: clamp(11px, 1.3vw, 12px);
     letter-spacing: 3px;
     color: var(--lime);
     font-weight: 600;
@@ -373,7 +384,7 @@
   }
   .section-title {
     font-family: var(--font-display);
-    font-size: clamp(36px, 5vw, 56px);
+    font-size: var(--fs-section-title);
     font-weight: 400;
     letter-spacing: -1px;
     line-height: 1.0;
@@ -382,27 +393,37 @@
   .section-title-wrap {
     overflow: hidden;
     margin-bottom: 16px;
+    padding-bottom: 0.1em;
   }
   .section-title-wrap .section-title { margin-bottom: 0; }
-  .section-title-wrap:hover .section-title {
-    animation: slide-in-left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Scroll-triggered slide-in for section titles (replaces hover) */
+  .section-title-wrap .section-title {
+    transform: translateX(-40px);
+    opacity: 0;
+    transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.8s ease;
+  }
+  .section-title-wrap.is-visible .section-title {
+    transform: translateX(0);
+    opacity: 1;
   }
   .section-lede {
-    font-size: 16px;
+    font-size: clamp(15px, 1.8vw, 16px);
     color: var(--text-dim);
     max-width: 560px;
-    margin-bottom: 48px;
+    margin-bottom: clamp(36px, 5vw, 48px);
   }
 
   /* ============ HOW IT WORKS ============ */
   .steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
+    gap: clamp(14px, 2vw, 16px);
   }
   .step {
     background: rgba(255, 255, 255, 0.04);
-    padding: 24px 22px;
+    padding: clamp(22px, 3vw, 28px) clamp(20px, 2.5vw, 24px);
     border-radius: 8px;
     border-left: 4px solid;
     transition: transform 0.2s, background 0.2s;
@@ -429,12 +450,12 @@
   .step-4 .step-day { color: #FAC775; }
 
   .step-title {
-    font-size: 17px;
+    font-size: clamp(16px, 2vw, 17px);
     font-weight: 600;
     margin-bottom: 8px;
   }
   .step-desc {
-    font-size: 14px;
+    font-size: clamp(14px, 1.7vw, 15px);
     color: var(--text-dim);
     line-height: 1.55;
   }
@@ -443,10 +464,10 @@
   .curriculum {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    gap: clamp(14px, 2vw, 20px);
   }
   .skill {
-    padding: 40px 32px;
+    padding: clamp(28px, 3.5vw, 40px) clamp(24px, 3vw, 32px);
     background: rgba(199, 255, 61, 0.05);
     border: 1px solid rgba(199, 255, 61, 0.18);
     border-radius: 12px;
@@ -460,20 +481,24 @@
     border-color: rgba(199, 255, 61, 0.4);
     background: rgba(199, 255, 61, 0.08);
   }
+  .skill:active {
+    background: rgba(199, 255, 61, 0.12);
+    border-color: rgba(199, 255, 61, 0.5);
+  }
   .skill-icon {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 20px;
+    width: clamp(40px, 5vw, 48px);
+    height: clamp(40px, 5vw, 48px);
+    margin-bottom: clamp(16px, 2.5vw, 20px);
     color: var(--lime);
   }
   .skill-title {
     font-family: var(--font-display);
-    font-size: 30px;
+    font-size: clamp(24px, 3.5vw, 30px);
     letter-spacing: 1px;
     margin-bottom: 10px;
   }
   .skill-desc {
-    font-size: 16px;
+    font-size: clamp(15px, 1.8vw, 16px);
     color: var(--text-dim);
     line-height: 1.6;
   }
@@ -482,13 +507,13 @@
   .pricing {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 18px;
+    gap: clamp(16px, 2vw, 18px);
   }
   .price-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 32px;
+    padding: clamp(24px, 3.5vw, 32px);
     transition: transform 0.2s, border-color 0.2s;
     position: relative;
   }
@@ -524,7 +549,7 @@
   .price-card.featured .price-tier { color: var(--lime); }
   .price-amount {
     font-family: var(--font-display);
-    font-size: 56px;
+    font-size: clamp(48px, 6vw, 56px);
     line-height: 1;
     margin-bottom: 4px;
     letter-spacing: -1px;
@@ -543,7 +568,7 @@
   .price-features {
     list-style: none;
     margin: 0 0 28px;
-    font-size: 14px;
+    font-size: clamp(14px, 1.7vw, 15px);
     color: var(--text-dim);
   }
   .price-features li {
@@ -558,22 +583,26 @@
     font-weight: 700;
     flex-shrink: 0;
   }
-  .price-card .btn { display: block; text-align: center; width: 100%; }
+  .price-card .btn {
+    display: block;
+    text-align: center;
+    width: 100%;
+  }
 
   /* ============ AUDIENCE ============ */
   .audience {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 56px;
+    gap: clamp(32px, 5vw, 56px);
     align-items: start;
   }
   .audience-block .section-title {
-    font-size: clamp(28px, 3.5vw, 40px);
+    font-size: clamp(28px, 4.5vw, 40px);
     line-height: 1.05;
     margin-bottom: 18px;
   }
   .audience-block p {
-    font-size: 15px;
+    font-size: clamp(15px, 1.8vw, 16px);
     line-height: 1.65;
     color: var(--text-dim);
   }
@@ -585,19 +614,21 @@
   }
   .faq details {
     border-top: 1px solid var(--border);
-    padding: 20px 0;
+    padding: clamp(18px, 2.5vw, 22px) 0;
     cursor: pointer;
   }
   .faq details:last-child { border-bottom: 1px solid var(--border); }
   .faq summary {
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: clamp(18px, 2.5vw, 22px);
     letter-spacing: 0.5px;
     list-style: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
     transition: color 0.2s;
+    min-height: 32px;
   }
   .faq summary::-webkit-details-marker { display: none; }
   .faq summary::after {
@@ -605,13 +636,15 @@
     color: var(--lime);
     font-size: 28px;
     font-weight: 300;
-    transition: transform 0.2s;
+    transition: transform 0.3s;
+    flex-shrink: 0;
+    line-height: 1;
   }
   .faq details[open] summary::after { transform: rotate(45deg); }
-  .faq summary:hover { color: var(--lime); }
+  .faq summary:hover, .faq summary:active { color: var(--lime); }
   .faq details p {
     margin-top: 14px;
-    font-size: 15px;
+    font-size: clamp(15px, 1.8vw, 16px);
     line-height: 1.65;
     color: var(--text-dim);
   }
@@ -620,47 +653,30 @@
   .final-cta {
     position: relative;
     overflow: hidden;
-    padding: 96px 0;
+    padding: clamp(72px, 10vw, 96px) 0;
     text-align: center;
     background: var(--bg-2);
   }
-  .final-cta .blob {
-    z-index: 0;
-  }
-  .final-cta .blob-a {
-    width: 380px; height: 380px;
-    background: var(--rare);
-    top: -40%; left: 20%;
-    opacity: 0.35;
-    animation: drift-2 24s ease-in-out infinite;
-  }
-  .final-cta .blob-b {
-    width: 320px; height: 320px;
-    background: var(--legendary);
-    bottom: -40%; right: 20%;
-    opacity: 0.3;
-    animation: drift-4 20s ease-in-out infinite;
-  }
+  .final-cta .blob { z-index: 0; }
+  .final-cta .blob-a { width: 380px; height: 380px; background: var(--rare); top: -40%; left: 20%; opacity: 0.35; animation: drift-2 24s ease-in-out infinite; }
+  .final-cta .blob-b { width: 320px; height: 320px; background: var(--legendary); bottom: -40%; right: 20%; opacity: 0.3; animation: drift-4 20s ease-in-out infinite; }
   .final-cta .container { position: relative; z-index: 2; }
   .final-cta h2 {
     font-family: var(--font-display);
-    font-size: clamp(40px, 6vw, 68px);
+    font-size: clamp(40px, 7vw, 68px);
     letter-spacing: -1px;
     line-height: 1;
     margin-bottom: 18px;
     font-weight: 400;
   }
   .final-cta p {
-    font-size: 16px;
+    font-size: clamp(15px, 1.8vw, 16px);
     color: var(--text-dim);
     max-width: 520px;
     margin: 0 auto 32px;
     line-height: 1.6;
   }
-  .final-cta .btn-primary {
-    padding: 18px 32px;
-    font-size: 15px;
-  }
+  .final-cta .btn-primary { padding: 18px 32px; font-size: 15px; }
 
   /* ============ FOOTER ============ */
   footer {
@@ -677,47 +693,166 @@
     gap: 12px;
   }
 
-  /* ============ RESPONSIVE ============ */
-  @media (max-width: 1024px) {
-    .curriculum { grid-template-columns: repeat(2, 1fr); }
+  /* ============ SCROLL REVEAL ============ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  @media (max-width: 768px) {
-    .container { padding: 0 20px; }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ============ TABLET ============ */
+  @media (max-width: 991px) {
+    .curriculum { grid-template-columns: repeat(2, 1fr); }
+    .audience { gap: 40px; }
+    .rarity-bars { right: 28px; gap: 10px; }
+    .rarity-bars div { width: 16px; }
+    .rarity-bars div:nth-child(1) { height: 130px; }
+    .rarity-bars div:nth-child(2) { height: 180px; }
+    .rarity-bars div:nth-child(3) { height: 230px; }
+    .rarity-bars div:nth-child(4) { height: 280px; }
+  }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 767px) {
+    .nav-links { display: none; }
+    .hamburger { display: block; }
+    .nav-inner { padding: 12px 20px; }
+
+    .hero {
+      padding: 56px 0 64px;
+      background-size: 28px 28px;
+    }
+    .hero h1 { line-height: 0.92; }
+    .hero h1 .line-1 { font-size: clamp(36px, 11vw, 48px); }
+    .hero h1 .line-2 {
+      font-size: clamp(56px, 18vw, 84px);
+      letter-spacing: -1.5px;
+    }
+    .hero-sub {
+      font-size: 16px;
+      max-width: none;
+    }
+
+    .hero-ctas {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+    .hero-ctas .btn {
+      width: 100%;
+      text-align: center;
+      padding: 16px 22px;
+      font-size: 15px;
+    }
+
+    .credentials {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px 24px;
+      padding-top: 36px;
+    }
+    .cred-num { font-size: 44px; }
+
+    /* Rarity bars: ambient, static, gentle pulse only */
+    .rarity-bars {
+      right: 16px;
+      gap: 7px;
+      opacity: 0.6;
+    }
+    .rarity-bars::before { display: none; }
+    .rarity-bars div {
+      width: 10px;
+      transition: none;
+      box-shadow: none !important;
+      animation: bar-pulse 4s ease-in-out infinite;
+    }
+    .rarity-bars div:nth-child(1) { height: 80px !important; animation-delay: 0s; }
+    .rarity-bars div:nth-child(2) { height: 110px !important; animation-delay: 0.4s; }
+    .rarity-bars div:nth-child(3) { height: 140px !important; animation-delay: 0.8s; }
+    .rarity-bars div:nth-child(4) { height: 170px !important; animation-delay: 1.2s; }
+    @keyframes bar-pulse {
+      0%, 100% { opacity: 0.6; }
+      50%      { opacity: 0.95; }
+    }
+
+    /* Blobs: reduce for performance */
+    .blob-1 { width: 320px; height: 320px; filter: blur(70px); opacity: 0.45; }
+    .blob-2 { width: 280px; height: 280px; filter: blur(70px); opacity: 0.4; }
+    .blob-3 { display: none; }
+    .blob-4 { display: none; }
+
+    .steps { grid-template-columns: 1fr; gap: 14px; }
+    .step { padding: 24px 22px; }
+
     .curriculum { grid-template-columns: 1fr; gap: 14px; }
     .skill { padding: 28px 24px; min-height: 0; }
     .skill-title { font-size: 26px; }
-    .nav-inner { padding: 12px 20px; }
-    .nav-links a.link { display: none; }
-    .hero { padding: 56px 0 72px; }
-    .rarity-bars { right: 16px; gap: 8px; }
-    .rarity-bars::before { width: 300px; }
-    .rarity-bars div { width: 12px; }
-    .rarity-bars div:nth-child(1) { height: 100px; }
-    .rarity-bars div:nth-child(2) { height: 140px; }
-    .rarity-bars div:nth-child(3) { height: 180px; }
-    .rarity-bars div:nth-child(4) { height: 220px; }
-    .rarity-bars:hover div:nth-child(1) { height: 260px; }
-    .rarity-bars:hover div:nth-child(2) { height: 300px; }
-    .rarity-bars:hover div:nth-child(3) { height: 340px; }
-    .rarity-bars:hover div:nth-child(4) { height: 380px; }
-    .credentials { gap: 32px; }
-    .cred-item .cred-num { font-size: 40px; }
-    section { padding: 56px 0; }
-    .audience { grid-template-columns: 1fr; gap: 40px; }
-    .price-card { padding: 24px; }
+
+    .pricing { grid-template-columns: 1fr; gap: 16px; }
+    .price-card.featured {
+      transform: scale(1.02);
+      box-shadow: 0 0 32px rgba(199, 255, 61, 0.18);
+    }
+    .price-card.featured:hover { transform: scale(1.02); }
+
+    .audience {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .audience-block + .audience-block {
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+    .audience-block .section-title { font-size: clamp(28px, 8vw, 36px); }
+
+    .faq details { padding: 20px 0; }
+    .faq summary { font-size: 18px; }
+
+    .final-cta { padding: 72px 0; }
+    .final-cta h2 { font-size: clamp(36px, 10vw, 48px); line-height: 1.05; }
+    .final-cta .btn-primary {
+      width: 100%;
+      padding: 18px 24px;
+    }
+    .final-cta .blob-a { width: 240px; height: 240px; opacity: 0.3; }
+    .final-cta .blob-b { width: 200px; height: 200px; opacity: 0.25; }
+
+    .footer-inner {
+      flex-direction: column;
+      text-align: center;
+      gap: 8px;
+    }
+
+    /* Kill hero hover animations on touch — they fire on first tap and look broken */
+    .hero h1:hover .line-1,
+    .hero h1:hover .line-2 { animation: none; }
+  }
+
+  /* ============ SMALL MOBILE ============ */
+  @media (max-width: 479px) {
+    .container { padding: 0 18px; }
+    .hero h1 .line-1 { font-size: 36px; }
+    .hero h1 .line-2 { font-size: 56px; }
+    .cred-num { font-size: 36px; }
+    .skill-title { font-size: 24px; }
+    .price-amount { font-size: 44px; }
   }
 
   /* ============ REDUCED MOTION ============ */
   @media (prefers-reduced-motion: reduce) {
-    .blob { animation: none !important; }
-    * { transition: none !important; }
+    .blob, .rarity-bars div { animation: none !important; }
+    * { transition: none !important; animation-duration: 0.01ms !important; }
     html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; }
   }
 </style>
 </head>
 <body>
 
-<!-- ============ NAV ============ -->
 <nav>
   <div class="nav-inner">
     <a href="#top" class="logo">
@@ -730,10 +865,19 @@
       <a href="#faq" class="link">FAQ</a>
       <a href="#trial" class="btn btn-primary btn-sm">Free trial</a>
     </div>
+    <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </nav>
 
-<!-- ============ HERO ============ -->
+<div class="mobile-menu" id="mobile-menu" role="dialog" aria-modal="true" aria-label="Site navigation">
+  <a href="#how" data-close>How it works</a>
+  <a href="#pricing" data-close>Pricing</a>
+  <a href="#faq" data-close>FAQ</a>
+  <a href="#trial" data-close>Free trial</a>
+</div>
+
 <header class="hero" id="top">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -780,29 +924,28 @@
   </div>
 </header>
 
-<!-- ============ HOW IT WORKS ============ -->
 <section id="how" class="section-alt">
   <div class="container">
-    <div class="section-eyebrow">How it works</div>
-    <div class="section-title-wrap"><h2 class="section-title">A weekly rhythm.<br />Real homework.</h2></div>
+    <div class="section-eyebrow reveal">How it works</div>
+    <div class="section-title-wrap reveal"><h2 class="section-title">A weekly rhythm.<br />Real homework.</h2></div>
 
     <div class="steps">
-      <div class="step step-1">
+      <div class="step step-1 reveal">
         <div class="step-day">Sunday</div>
         <div class="step-title">Lesson lands in inbox</div>
         <div class="step-desc">PowerPoint + voiceover walking through that week's focus area. Built around your specific gaps.</div>
       </div>
-      <div class="step step-2">
+      <div class="step step-2 reveal">
         <div class="step-day">Mon–Tue</div>
         <div class="step-title">Study the deck</div>
         <div class="step-desc">Student reviews on their own time. Re-watch as needed. Take notes.</div>
       </div>
-      <div class="step step-3">
+      <div class="step step-3 reveal">
         <div class="step-day">Mid-Week</div>
         <div class="step-title">30-min live call</div>
         <div class="step-desc">Keyed quizzes the material, answers questions, drills the concepts in real time.</div>
       </div>
-      <div class="step step-4">
+      <div class="step step-4 reveal">
         <div class="step-day">Or</div>
         <div class="step-title">VOD review week</div>
         <div class="step-desc">Swap the lesson for a full breakdown of student's own gameplay, frame by frame.</div>
@@ -811,40 +954,39 @@
   </div>
 </section>
 
-<!-- ============ CURRICULUM ============ -->
 <section>
   <div class="container">
-    <div class="section-eyebrow">Curriculum</div>
-    <div class="section-title-wrap"><h2 class="section-title">Every part of your game.</h2></div>
-    <p class="section-lede">Nothing about your game is too small to fix. Lessons rotate through every dimension of high-level play.</p>
+    <div class="section-eyebrow reveal">Curriculum</div>
+    <div class="section-title-wrap reveal"><h2 class="section-title">Every part of your game.</h2></div>
+    <p class="section-lede reveal">Nothing about your game is too small to fix. Lessons rotate through every dimension of high-level play.</p>
 
     <div class="curriculum">
-      <div class="skill">
+      <div class="skill reveal">
         <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         <div class="skill-title">Building</div>
         <div class="skill-desc">90s, tunnels, retakes, piece control.</div>
       </div>
-      <div class="skill">
+      <div class="skill reveal">
         <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
         <div class="skill-title">Editing</div>
         <div class="skill-desc">Speed, accuracy, edit courses, reset edits.</div>
       </div>
-      <div class="skill">
+      <div class="skill reveal">
         <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         <div class="skill-title">Aim training</div>
         <div class="skill-desc">Tracking, flicks, recoil, peek timing.</div>
       </div>
-      <div class="skill">
+      <div class="skill reveal">
         <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
         <div class="skill-title">Game sense</div>
         <div class="skill-desc">Rotations, zone reads, loadout choices.</div>
       </div>
-      <div class="skill">
+      <div class="skill reveal">
         <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
         <div class="skill-title">Mental game</div>
         <div class="skill-desc">Tilt control, focus, post-game review habits.</div>
       </div>
-      <div class="skill">
+      <div class="skill reveal">
         <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
         <div class="skill-title">Tournament prep</div>
         <div class="skill-desc">Comp meta, point chasing, late-game IQ.</div>
@@ -853,15 +995,14 @@
   </div>
 </section>
 
-<!-- ============ PRICING ============ -->
 <section id="pricing" class="section-alt">
   <div class="container">
-    <div class="section-eyebrow">Pricing</div>
-    <div class="section-title-wrap"><h2 class="section-title">Start free.<br />Stay only if it works.</h2></div>
-    <p class="section-lede">Cancel anytime. Give 24 hours' notice for a session and get a full credit refund; no questions.</p>
+    <div class="section-eyebrow reveal">Pricing</div>
+    <div class="section-title-wrap reveal"><h2 class="section-title">Start free.<br />Stay only if it works.</h2></div>
+    <p class="section-lede reveal">Cancel anytime. Give 24 hours' notice for a session and get a full credit refund; no questions.</p>
 
     <div class="pricing">
-      <div class="price-card" id="trial">
+      <div class="price-card reveal" id="trial">
         <div class="price-tier">Free Trial</div>
         <div class="price-amount">$0</div>
         <div class="price-cycle">One 30-minute intro call</div>
@@ -873,7 +1014,7 @@
         <a href="https://calendly.com/REPLACE-WITH-YOUR-LINK" class="btn btn-outline-lime">Book free call</a>
       </div>
 
-      <div class="price-card">
+      <div class="price-card reveal">
         <div class="price-tier">Single Lesson</div>
         <div class="price-amount">$14</div>
         <div class="price-cycle">Per lesson cycle</div>
@@ -885,7 +1026,7 @@
         <a href="mailto:REPLACE@EMAIL.COM?subject=Single%20lesson%20booking" class="btn btn-ghost">Book a lesson</a>
       </div>
 
-      <div class="price-card featured">
+      <div class="price-card featured reveal">
         <div class="featured-badge">Best Value</div>
         <div class="price-tier">Monthly</div>
         <div class="price-amount">$56<span class="price-unit">/mo</span></div>
@@ -901,16 +1042,15 @@
   </div>
 </section>
 
-<!-- ============ AUDIENCE SPLIT ============ -->
 <section>
   <div class="container">
     <div class="audience">
-      <div class="audience-block">
+      <div class="audience-block reveal">
         <div class="section-eyebrow">For Parents</div>
         <div class="section-title-wrap"><h3 class="section-title">Screen time<br />with structure.</h3></div>
         <p>Lessons are studied like school material. Your kid reviews a PowerPoint with a voiceover, takes notes, and gets quizzed on it. Sessions are short (30 minutes), scheduled, and async-first. No late-night calls. No surprise charges.</p>
       </div>
-      <div class="audience-block">
+      <div class="audience-block reveal">
         <div class="section-eyebrow">For Players</div>
         <div class="section-title-wrap"><h3 class="section-title">Climb faster.<br />Stay there.</h3></div>
         <p>Skip the YouTube rabbit holes. Get a real curriculum from someone who's actually Unreal and competing in tournaments, and who's close enough to your age to know what's holding you back.</p>
@@ -919,14 +1059,13 @@
   </div>
 </section>
 
-<!-- ============ FAQ ============ -->
 <section id="faq" class="section-alt">
   <div class="container">
-    <div class="section-eyebrow" style="text-align: center;">Questions</div>
-    <div class="section-title-wrap" style="text-align: center;"><h2 class="section-title">Before you book.</h2></div>
+    <div class="section-eyebrow reveal" style="text-align: center;">Questions</div>
+    <div class="section-title-wrap reveal" style="text-align: center;"><h2 class="section-title">Before you book.</h2></div>
     <div style="height: 48px;"></div>
 
-    <div class="faq">
+    <div class="faq reveal">
       <details>
         <summary>How is this different from YouTube tutorials?</summary>
         <p>YouTube is general. These lessons are built around your specific weaknesses. Keyed watches your gameplay, identifies what's holding you back, and builds a deck that targets exactly that. Then he quizzes you on it live.</p>
@@ -955,18 +1094,16 @@
   </div>
 </section>
 
-<!-- ============ FINAL CTA ============ -->
 <section class="final-cta">
   <div class="blob blob-a"></div>
   <div class="blob blob-b"></div>
   <div class="container">
-    <h2>Ready to drop in?</h2>
-    <p>First call is free. 30 minutes with XPL Keyed.</p>
-    <a href="https://calendly.com/REPLACE-WITH-YOUR-LINK" class="btn btn-primary">Claim your free trial call</a>
+    <h2 class="reveal">Ready to drop in?</h2>
+    <p class="reveal">First call is free. 30 minutes with XPL Keyed.</p>
+    <a href="https://calendly.com/REPLACE-WITH-YOUR-LINK" class="btn btn-primary reveal">Claim your free trial call</a>
   </div>
 </section>
 
-<!-- ============ FOOTER ============ -->
 <footer>
   <div class="container">
     <div class="footer-inner">
@@ -975,6 +1112,58 @@
     </div>
   </div>
 </footer>
+
+<script>
+  (function () {
+    var hamburger = document.getElementById('hamburger');
+    var menu = document.getElementById('mobile-menu');
+    if (!hamburger || !menu) return;
+
+    function openMenu() {
+      document.body.classList.add('menu-open');
+      hamburger.setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu() {
+      document.body.classList.remove('menu-open');
+      hamburger.setAttribute('aria-expanded', 'false');
+    }
+    function toggleMenu() {
+      if (document.body.classList.contains('menu-open')) closeMenu();
+      else openMenu();
+    }
+
+    hamburger.addEventListener('click', toggleMenu);
+
+    menu.querySelectorAll('[data-close]').forEach(function (a) {
+      a.addEventListener('click', closeMenu);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && document.body.classList.contains('menu-open')) closeMenu();
+    });
+
+    menu.addEventListener('click', function (e) {
+      if (e.target === menu) closeMenu();
+    });
+  })();
+
+  (function () {
+    if (!('IntersectionObserver' in window)) {
+      document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('is-visible'); });
+      return;
+    }
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(function (el) { observer.observe(el); });
+  })();
+</script>
 
 </body>
 </html>
