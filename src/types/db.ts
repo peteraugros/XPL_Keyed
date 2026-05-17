@@ -547,6 +547,39 @@ export type Database = {
           },
         ]
       }
+      pending_intake_verifications: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          intake_id: string
+          parent_email: string
+          parent_first_name: string
+          token: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          intake_id: string
+          parent_email: string
+          parent_first_name: string
+          token: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          intake_id?: string
+          parent_email?: string
+          parent_first_name?: string
+          token?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           age: number
@@ -865,6 +898,23 @@ export type Database = {
       family_id_for_user: { Args: never; Returns: string }
       is_coach: { Args: never; Returns: boolean }
       player_id_for_user: { Args: never; Returns: string }
+      rpc_intake: {
+        Args: {
+          p_intake_id: string
+          p_kid_age: number
+          p_kid_auth_user_id: string
+          p_kid_current_rank: string
+          p_kid_discord_username: string
+          p_kid_first_name: string
+          p_kid_fortnite_username: string
+          p_kid_hours_per_week: number
+          p_kid_platform: string
+          p_parent_auth_user_id: string
+          p_parent_email: string
+          p_parent_first_name: string
+        }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
