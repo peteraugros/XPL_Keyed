@@ -7,6 +7,8 @@
 //     known data; new actions get a "You're offline" toast from the client)
 //   * Cross-origin (fonts, images): cache-first with expiration
 
+/// <reference lib="webworker" />
+
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
