@@ -1,0 +1,290 @@
+/* Intake form styles. Tokens come from globals.css :root.
+   Mobile-first, dash-free copy per Hard rule #8. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px 20px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.shell::before,
+.shell::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.25;
+  pointer-events: none;
+}
+.shell::before { width: 360px; height: 360px; background: var(--rare); top: -120px; right: -80px; }
+.shell::after  { width: 320px; height: 320px; background: var(--legendary); bottom: -100px; left: -60px; opacity: 0.18; }
+
+.frame {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--lime);
+  margin-bottom: 24px;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.progressLabel {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+.progressCount {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+}
+
+.xpTrack {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+.xpFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.45s ease, background 0.3s ease;
+}
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 22px;
+}
+
+.levelTitle {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.levelKicker {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-bottom: 22px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+.fieldLabel {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.fieldInput,
+.fieldSelect {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  min-height: 48px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.fieldInput:focus,
+.fieldSelect:focus {
+  outline: none;
+  border-color: var(--lime);
+  background: #182b66;
+}
+.fieldInput::placeholder { color: rgba(255, 255, 255, 0.35); }
+.fieldHint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.fieldError {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #FF9CA8;
+}
+
+.gate {
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(200, 7, 21, 0.45);
+  background: linear-gradient(180deg, rgba(200, 7, 21, 0.10), rgba(200, 7, 21, 0.02));
+}
+.gateHeading {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: var(--epic);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.gateBody {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+.gateStatus {
+  margin-top: 12px;
+  font-size: 13px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+.gateStatusOk {
+  border-color: var(--lime);
+  color: var(--lime);
+  background: rgba(199, 255, 61, 0.08);
+}
+.gateStatusErr {
+  border-color: rgba(255, 156, 168, 0.5);
+  color: #FFB8C2;
+  background: rgba(200, 7, 21, 0.08);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+.btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 14px 22px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.btn:active { transform: scale(0.98); }
+.btnPrimary {
+  background: var(--lime);
+  color: var(--bg);
+}
+.btnPrimary:hover { background: var(--lime-dim); }
+.btnPrimary:disabled,
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.btnGhost {
+  background: transparent;
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.btnGhost:hover { background: rgba(255, 255, 255, 0.06); }
+
+.helperRow {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* ============ Level 4 Calendly + completion states ============ */
+
+.calendlyHint {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+}
+.calendlyEmbed {
+  width: 100%;
+  min-height: 700px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+}
+.submittingCard,
+.successCard,
+.failureCard {
+  text-align: center;
+  padding: 16px 4px 8px;
+}
+.unlockedKicker {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--legendary);
+  margin-bottom: 8px;
+}
+.unlockedHeadline {
+  font-family: var(--font-display);
+  font-size: 36px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+.successBody {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin: 0 auto 18px;
+  max-width: 440px;
+}
+.successDetail {
+  display: block;
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-top: 12px;
+}
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid rgba(199, 255, 61, 0.25);
+  border-top-color: var(--lime);
+  animation: spin 0.9s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xpFill { transition: none; }
+}
