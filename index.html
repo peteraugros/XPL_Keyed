@@ -693,6 +693,69 @@
     gap: 12px;
   }
 
+  /* ============ COUNT-UP TIMER ============ */
+  .timer {
+    margin-top: clamp(48px, 7vw, 72px);
+    text-align: center;
+  }
+  .timer-label {
+    font-family: var(--font-body);
+    font-size: clamp(11px, 1.3vw, 12px);
+    letter-spacing: 3px;
+    color: var(--lime);
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .timer-grid {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: clamp(6px, 1.5vw, 14px);
+    flex-wrap: nowrap;
+  }
+  .timer-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: clamp(48px, 9vw, 92px);
+  }
+  .timer-num {
+    font-family: var(--font-display);
+    font-size: clamp(32px, 6vw, 64px);
+    color: var(--lime);
+    letter-spacing: 1px;
+    line-height: 1;
+    margin-bottom: 8px;
+    font-variant-numeric: tabular-nums;
+    transition: transform 0.2s ease;
+  }
+  .timer-num.tick {
+    transform: scale(1.08);
+  }
+  .timer-unit-label {
+    font-size: clamp(10px, 1.2vw, 12px);
+    letter-spacing: 2px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .timer-sep {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 56px);
+    color: var(--text-faint);
+    line-height: 1;
+    padding-top: clamp(2px, 0.5vw, 4px);
+    opacity: 0.5;
+  }
+  @media (max-width: 479px) {
+    .timer-sep { display: none; }
+    .timer-grid { gap: 4px; }
+    .timer-unit { min-width: 0; flex: 1; }
+    .timer-num { font-size: 28px; }
+    .timer-unit-label { font-size: 9px; letter-spacing: 1.5px; }
+  }
+
   /* ============ SCROLL REVEAL ============ */
   .reveal {
     opacity: 0;
@@ -942,7 +1005,7 @@
       </div>
       <div class="step step-2 reveal">
         <div class="step-day">Mon–Tue</div>
-        <div class="step-title">Study the deck</div>
+        <div class="step-title">Study the PowerPoint</div>
         <div class="step-desc">Student reviews on their own time. Re-watch as needed. Take notes.</div>
       </div>
       <div class="step step-3 reveal">
@@ -1073,7 +1136,7 @@
     <div class="faq reveal">
       <details>
         <summary>How is this different from YouTube tutorials?</summary>
-        <p>YouTube is general. These lessons are built around your specific weaknesses. Keyed watches your gameplay, identifies what's holding you back, and builds a deck that targets exactly that. Then he quizzes you on it live.</p>
+        <p>YouTube is general. These lessons are built around your specific weaknesses. Keyed watches your gameplay, identifies what's holding you back, and builds a PowerPoint that targets exactly that. Then he quizzes you on it live.</p>
       </details>
       <details>
         <summary>What platform does my kid need to play on?</summary>
@@ -1095,6 +1158,21 @@
         <summary>What if my kid is a total beginner?</summary>
         <p>That's fine, the free intro call is partly a skill assessment. If the fit is right, lessons start from wherever the student is. If not, Keyed will say so honestly.</p>
       </details>
+    </div>
+
+    <div class="timer reveal" aria-live="polite">
+      <div class="timer-label">Days of experience</div>
+      <div class="timer-grid">
+        <div class="timer-unit"><div class="timer-num" id="t-years">0</div><div class="timer-unit-label">Years</div></div>
+        <div class="timer-sep">:</div>
+        <div class="timer-unit"><div class="timer-num" id="t-days">0</div><div class="timer-unit-label">Days</div></div>
+        <div class="timer-sep">:</div>
+        <div class="timer-unit"><div class="timer-num" id="t-hours">0</div><div class="timer-unit-label">Hours</div></div>
+        <div class="timer-sep">:</div>
+        <div class="timer-unit"><div class="timer-num" id="t-minutes">0</div><div class="timer-unit-label">Minutes</div></div>
+        <div class="timer-sep">:</div>
+        <div class="timer-unit"><div class="timer-num" id="t-seconds">0</div><div class="timer-unit-label">Seconds</div></div>
+      </div>
     </div>
   </div>
 </section>
@@ -1167,6 +1245,56 @@
     }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
     document.querySelectorAll('.reveal').forEach(function (el) { observer.observe(el); });
+  })();
+
+  // Count-up timer since Feb 20, 2020 (Chapter 2 Season 2 launch)
+  (function () {
+    var startDate = new Date('2020-02-20T00:00:00');
+    var els = {
+      years:   document.getElementById('t-years'),
+      days:    document.getElementById('t-days'),
+      hours:   document.getElementById('t-hours'),
+      minutes: document.getElementById('t-minutes'),
+      seconds: document.getElementById('t-seconds')
+    };
+    if (!els.seconds) return;
+
+    var last = { years: -1, days: -1, hours: -1, minutes: -1, seconds: -1 };
+
+    function tick() {
+      var now = new Date();
+
+      // Calendar-accurate years (handles leap years correctly)
+      var years = now.getFullYear() - startDate.getFullYear();
+      var anniversaryThisYear = new Date(startDate);
+      anniversaryThisYear.setFullYear(now.getFullYear());
+      if (now < anniversaryThisYear) years--;
+
+      // Days since the most recent anniversary
+      var anchor = new Date(startDate);
+      anchor.setFullYear(startDate.getFullYear() + years);
+      var msSinceAnchor = now - anchor;
+      var days    = Math.floor(msSinceAnchor / 86400000);
+      var hours   = Math.floor((msSinceAnchor % 86400000) / 3600000);
+      var minutes = Math.floor((msSinceAnchor % 3600000) / 60000);
+      var seconds = Math.floor((msSinceAnchor % 60000) / 1000);
+
+      var values = { years: years, days: days, hours: hours, minutes: minutes, seconds: seconds };
+      Object.keys(values).forEach(function (key) {
+        if (values[key] !== last[key]) {
+          els[key].textContent = values[key];
+          last[key] = values[key];
+          // Subtle pulse on seconds tick
+          if (key === 'seconds') {
+            els.seconds.classList.add('tick');
+            setTimeout(function () { els.seconds.classList.remove('tick'); }, 180);
+          }
+        }
+      });
+    }
+
+    tick();
+    setInterval(tick, 1000);
   })();
 </script>
 
