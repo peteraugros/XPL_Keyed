@@ -371,6 +371,122 @@ Three tables. JSONB used where structure is per-lesson-authored and never querie
 
 ---
 
+## Long-term thesis: build, prove, sell
+
+XPL Keyed is not just Tim's coaching business. **Tim's instance is n=1 of a sellable platform asset.** The end-state goal is to prove the operator-pair model in esports coaching, run it cleanly for 6–24 months with 1–3 operator pairs, then sell the platform to an acquirer with the legal, T&S, and capital infrastructure to scale it to hundreds or thousands of operators. Peter does not intend to run the platform indefinitely. Same exit-oriented framing as Elements of Chess; the two builds share a thesis with two case studies in two adjacent kids-services categories.
+
+### What's actually being built
+
+An acquirer is not buying revenue (they can build that). They're buying:
+
+- **The parent-trust playbook** — the Hard Rules, the trust signals, the coaching server architecture, the translation pair (Hard Rule #4), the "for your back pocket" mechanism, the COPPA-safe intake.
+- **The operator-pair pattern** — parent is the legal entity, kid is the talent, platform is the trust scaffolding. Tim + Peter are the canonical pair. This is the first structure in this space that is both legally clean and emotionally resonant. Outschool / Varsity Tutors / GamerSensei / Metafy tried adult-instructor models and missed the "same generation" magic; Roblox tried kid-as-creator without a parent layer and ate years of lawsuits. The operator-pair model threads that needle.
+- **The content-distribution-to-customer flywheel** — Tim's organic TikTok comment funnel converting to free calls to paying clients. Proof that a kid coach's authentic expertise compounds without paid ads.
+- **The tech stack** — multi-tenant operator economics, RLS by operator, Stripe Connect, white-label theming. Shared shape with Elements of Chess; Peter has built this machinery twice by acquisition time.
+
+### Operator-pair structure (locked)
+
+Every operator on the platform is a **parent-kid pair**, not an individual kid.
+
+The **parent**:
+- Holds the Stripe Connect account (a minor cannot sign Connect ToS).
+- Signs the platform ToS as the operator-of-record.
+- Is the legal entity for the small business (LLC or sole prop, their choice).
+- Handles client-parent communication for escalations.
+- Is the named adult on the coaching server, observable by client parents.
+- Passes a background check (see pressure tests).
+
+The **kid**:
+- Provides the coaching expertise.
+- Runs the day-to-day content (lessons, calls, messages).
+- Operates under the same Hard Rules as Tim — no exceptions, no opt-outs.
+- Is **never** the platform's contractor. The platform's only legal counterparty is the parent.
+
+The **platform** (XPL Keyed today, likely "Keyed" or similar umbrella brand once operator #2 lands):
+- Owns the infrastructure, the trust playbook, the brand standards.
+- Charges each operator a platform fee (structure is a pressure test).
+- Enforces the Hard Rules globally.
+- Provides the recruiting funnel, the operator onboarding sequence, and the safety/compliance scaffolding.
+
+### Hard age floor for operator kids: 13 minimum, 14 canonical
+
+- **Under 13 as a coach is a non-starter.** 13 is the COPPA cliff; below it, the operator kid is themselves a regulated user, and the compliance burden compounds catastrophically.
+- 14 matches Tim's age and the marketing framing. A 14-year-old coaching 8-to-14-year-olds is the sweet spot.
+- Verification mechanism is a pressure test — self-attestation is the floor, but stronger checks (gov ID via parent, video verification call, tournament-result cross-check) are required before operator approval.
+
+### Subdomain / branding structure (Option B, locked)
+
+Each operator gets their own subdomain or domain branded around their kid (e.g. `jordan.keyed.gg` or `coachjordan.com`). `xplkeyed.com` stays Tim's. The platform brand is an umbrella, **not a marketplace** listing operators against each other.
+
+Marketplace-style listings were rejected because they (a) pit operators against each other, (b) dilute each operator's individual brand, (c) create marketplace-platform liability exposure. SaaS-vendor-to-small-family-business is the structurally clean model — same shape as Elements of Chess.
+
+### Geographic gating (initial)
+
+- **US only at launch.**
+- Add Canada / UK / Australia only after operator-pair pattern is proven and acquirer interest is real.
+- EU (GDPR), Brazil (LGPD), China, and anywhere with hard child-labor regimes deferred indefinitely. Those are acquirer problems.
+
+### The TikTok funnel (primary acquisition channel)
+
+Tim's organic-comment strategy on Fortnite-creator TikToks is the platform's primary acquisition channel and its most valuable demo asset for the eventual acquirer. Tim is already posting expert tactical comments and pulling 200–400 likes per comment. Flywheel:
+
+1. Tim comments expertly on Fortnite-creator TikToks → kids visit his profile.
+2. Profile bio links to `xplkeyed.com`.
+3. Site converts kid + parent to free intro call (Stage A intake).
+4. Free call converts to paid lessons (Stage C conversion).
+5. Satisfied clients reference back; Tim's content compounds.
+
+**Tracked from day one** (hand-tracked spreadsheet → analytics later):
+- Comments posted per week.
+- Likes/replies per comment.
+- Profile visits → site visits (UTM tag on bio link).
+- Site visits → free call booked.
+- Free call → paid conversion.
+- Time from first comment exposure to paying client.
+
+**Every viral comment is saved.** Tim screenshots each comment that pops off (the parent video, the comment text, like count, any replies). This becomes the operator-#2 playbook's first chapter: "Here are the 20 comments that got Tim from 0 to his first 10 clients." Single most valuable asset this business produces in 2026.
+
+**Tim's safety as the funnel scales:**
+- Hard Rule #1 (no photos of Tim) is non-negotiable, especially as audience grows. Pressure to "show face for engagement" will get louder; the rule does not bend.
+- TikTok bio and profile scrubbed of school name, real last name, city, tournament results under real identity. "XPL Keyed, 14, Unreal, coaching at xplkeyed.com" is plenty.
+- **Canned DM response** for every stranger-kid DM (TikTok, Fortnite party invite, Instagram): *"Hey! I only coach through my site so your parents can be involved. Have them check out xplkeyed.com and book the free call. Looking forward to playing with you there."* Tim builds this habit early. No off-platform coaching, ever.
+
+### Intake throttling when the funnel turns on hot
+
+Tim's cap is 12 active clients but the funnel will likely deliver more free-call requests than he can handle:
+
+- Calendly free-call event capped at 5 calls/week.
+- Intake form adds pre-screening fields (hours/week, rank, goal) so Tim filters to the ~30% most likely to convert.
+- Overflow becomes operator-#2's pipeline once they exist; before then, overflow joins the waitlist mechanic.
+
+### Operator recruiting funnel
+
+- Navbar link on every operator's marketing site: *"Interested in starting your own business like this?"*
+- Google form, **parent-facing primarily** (kid-facing version exists as a soft funnel that requires parent email before serious qualification).
+- Form **disqualifies aggressively** — required fields like parent LinkedIn URL, day job, kid rank screenshot, BG check willingness, multi-choice on Hard Rules. Should feel slightly intimidating to a non-serious parent.
+- Of every 100 submissions, target is 5–10 worth a real conversation, 1–2 worth onboarding. Form does the filtering automatically.
+
+### Operator #1 (Tim) → Operator #2 sequencing
+
+- **2026:** Tim's n=1 instance reaches 6–12 paying clients with clean operations, parent testimonials, zero safety incidents, clean P&L. TikTok funnel runs. Comment patterns documented.
+- **Late 2026 / early 2027:** Operator #2 recruited from Tim's pipeline (overflow free-call families, recruiting form submissions, Tim's competitive Fortnite network filtered through parent screening).
+- Operator #2 launches with 2–3 of Tim's overflow clients (pre-qualified soft handoff, framed as a choice: "Coach Jordan is also Unreal ranked and is taking new clients — want to meet him?").
+- **90-day platform-supervised trial period** before full autonomy. See pressure tests.
+
+**Do not** rebuild XPL Keyed as multi-tenant before operator #2 commits. Tim's instance stays single-tenant. When operator #2 signs, the minimum multi-tenant work happens then: tenants table, scoped queries, subdomain routing, separate Stripe Connect accounts. Same migration pattern Peter has done on Day & Knight.
+
+**Do not** custom-build for operator #2's preferences. Hard Rules are non-negotiable. Branding, pricing, and curriculum content within those constraints are theirs. Platform-enforced rules vs. operator-chosen content is exactly the line that makes this acquirable.
+
+**Do not** launch operator #2 for free. They pay something real from day one (low setup fee + low ongoing, or low monthly + low rev share). Acquirers want to see paying operators, not promotional ones.
+
+### Acquirer pitch shape (target ~end of 2027)
+
+> *"Keyed is the operator-pair coaching platform for esports. We've proven the model with our flagship operator (Tim, 14, Unreal ranked) running at full cap for 18 months with zero safety incidents and 70% retention. We've onboarded 2–5 additional operator pairs, each running clean under our trust playbook. Here's the parent-trust playbook. Here's the organic content-to-customer flywheel. Here's the operator-pair legal structure. Here's the tech stack. Take it from here."*
+
+Plausible acquirers: Epic Games, Discord, Take-Two, EA, Chegg, Outschool, kids-services PE roll-ups. Same acquirer pool may overlap with Elements of Chess (kids-activities holding companies, ed-tech).
+
+---
+
 ## What's still open (design conversation)
 
 All major design topics are locked. New questions land here as they surface during the build.
@@ -387,6 +503,76 @@ For 1–10 clients. Manual fallbacks are OK; we'll automate as it hurts.
 4. **Tim's admin** (week 3–4) — Client list with prep indicators, curriculum drafter, lesson assignment, message inbox, revenue dashboard, coach notes, post-call action panel (Take on / Decline / Still deciding).
 5. **Automation** (week 4) — Sunday cron (assigns + emails with translated curriculum + "back pocket"), 24hr-cancel enforcement via Calendly webhook + Stripe credit, payment failure handling, Discord DM bot for 20-min reminders.
 6. **Custom editor** (phase 2, several weeks later) — Web-native editor with per-slide audio recording, PDF export. MP4 export later. .pptx export only if a real user need surfaces. During MVP, Tim makes lessons in Google Slides + records audio in QuickTime.
+
+---
+
+## Pressure tests before operator #2
+
+Open work items to flush out before the platform takes on a second operator pair. **None of these block Tim's n=1 launch** — Tim's instance can run safely under the existing Hard Rules without any of these resolved. They become blockers the moment the operator-recruiting form goes live and a second pair is in serious conversation.
+
+**Safety of minors is the dominant lens.** Every item below is "what could go wrong, and how do we make it not." The platform's defensibility — and its acquirability — depends on getting this right at n=1 so the structure is provable at n=2.
+
+### Coach-side safety (operator kids)
+
+1. **Hard age floor enforcement: 13 minimum, 14 canonical.** Self-attestation is the floor. Stronger layers: parent uploads kid's school ID or passport, live verification call with Peter (sees the kid on video, confirms age-appropriate), tournament-result cross-check (Unreal ranked players are documented in public bracket sites). Lock the verification stack before operator #2 onboards.
+2. **Identity scrub protocol.** Every operator kid gets a pre-launch checklist: school name removed from all social bios, real last name removed, city removed, tournament results scrubbed of real-identity links. Platform provides the checklist and audits before the operator's site goes live. Periodic re-audits (quarterly) as audiences grow.
+3. **No-DM rule enforcement and spot-check.** Every operator kid signs the no-DM rule in onboarding and is issued the canned response script. Platform spot-checks: occasional search of operator kid's TikTok / Discord / Instagram for evidence of off-platform coaching. Violation = warning → suspension → termination.
+4. **No-photo rule extends to all operator kids.** Hard Rule #1 was specific to Tim; it generalizes platform-wide. No headshots, no face-cam streams, no avatars depicting the kid. Operator marketing sites use the same visual treatment as `xplkeyed.com` (rank-as-credential, not face).
+5. **Coaching server template.** Every operator runs their own Discord server, not a shared one. Platform provides a template config: required channels, required roles, required parent-observer setup, required recording bot. Operator cannot deviate without platform approval.
+6. **Operator-kid welfare check.** If an operator kid shows signs of burnout, parent neglect, or behavior suggesting the parent isn't doing the work (parent unresponsive, kid taking too many clients, recording quality degrading), platform escalates. Document the trigger thresholds and the protocol — probably starts with a private check-in call with the parent.
+
+### Coach-side safety (operator parents)
+
+7. **Operator parent background check.** Required before onboarding. Provider candidates: Checkr ($30–60/check, modern API), Sterling, GoodHire. Lock the disqualifier list: sex offender registry (hard no), violence convictions past 10 years (hard no), financial fraud convictions (hard no), recent DUIs (case-by-case). Renewal: annual. Funding: platform absorbs, baked into setup fee.
+8. **Operator parent identity verification.** Stripe Connect KYC handles payout identity. Additional layer: video call with Peter before approval. Confirms parent is real, articulate, organized, understands the trust model, will be the named adult on the coaching server.
+9. **Written operator agreement.** Contract every operator parent signs. Includes Hard Rules verbatim, code of conduct, recording retention policy, incident reporting obligations, indemnification, termination conditions, dispute resolution. Lawyer review (see #19).
+10. **90-day supervised trial period.** Every new operator runs 2–3 clients for 90 days with closer platform oversight: weekly check-in call, platform reviews recorded sessions, platform reviews chat threads, platform shadow-replies to client-parent escalations. Operator graduates to full autonomy only after a clean 90 days.
+
+### Client-side safety (kids being coached)
+
+11. **COPPA intake stress test.** Re-read Stage A intake specifically through the lens of "this user is 10 and got here from a TikTok comment, no parent in the room." First field after age disclosure must be parent email, gated; no other data collected from the kid until the parent acts. Verify the existing design holds.
+12. **Parent email verification for under-13 intake.** What stops a 10-year-old from typing a fake parent email and continuing? Magic-link verification before any further data is collected. Confirm and harden.
+13. **Recording access and retention.** Who can access call recordings, for how long? Lock the matrix: client parent has read access via portal; platform (Peter) has admin access for audit; operator parent has access to their own kid's recordings only. Retention: 12 months minimum (incident investigation), purge after 24 months unless flagged. Document in privacy policy.
+14. **Anomaly detection.** Platform-level monitoring: operator kid messaging client kid outside the coaching server, operator parent not responding to client parent within 48 hours, operator kid exceeding stated client cap, unusual cancellation patterns, recordings deleted before retention window. Each anomaly fires a platform alert to Peter.
+
+### Incident response
+
+15. **"Report a concern" mechanism.** One-click in the client parent dashboard plus a public `safety@` email. 24-hour platform response SLA. Escalation tree: acknowledge within 24h → triage within 48h → decision within 7d → operator suspension during investigation if warranted.
+16. **Operator off-boarding protocol.** If an operator is removed, how do their clients transition? Options: refund remaining cycle and release, transition to another operator if available, platform takes over temporarily (only viable if Peter can backfill). Lock the parent communication script: honest but not alarming.
+
+### Legal, insurance, tax
+
+17. **Lawyer review before operator #2 onboards.** Specialty firm in children's online business. Specifically reviewing: operator agreement, platform ToS, privacy policy, COPPA compliance, FLSA exposure on operator kids, multi-state nexus, indemnification structure. Budget several thousand dollars.
+18. **Platform insurance.** General liability, cyber / data breach, errors & omissions. Quote multiple carriers; specialty kids-services carriers exist.
+19. **State child-labor compliance audit.** For each state where the platform has an operator: work permits, school-night restrictions, hour caps. California is among the strictest. May restrict which states we accept operators from initially.
+20. **Tax structure for operators.** Each operator parent files as their own small business (LLC or sole prop). Platform issues 1099s where appropriate. Multi-state nexus grows as operators join — accountant review.
+
+### Trust signals visible to client parents (non-Tim operators)
+
+21. **Operator profile page standards.** Every operator's marketing site displays the same trust badges: "Parent background check verified," "Coach age verified," "All sessions recorded and parent-accessible," "Platform safety promise." Standardized so a client parent reading two operator sites sees the same guarantees.
+22. **"What happens if there's a problem" public page.** Explains the incident response, the platform's role, the safety guarantees. Mandatory link in every operator-site footer.
+
+### Quality assurance
+
+23. **Mystery-shopper trial calls.** Platform periodically books a free trial call on each operator under a fake family identity to verify call quality, trust signals, conversion script. Quarterly minimum.
+24. **Client parent NPS.** Survey at 30, 60, 90 days post-conversion. NPS below threshold flags the operator for platform review.
+25. **Platform-level satisfaction guarantee.** If an operator violates the Hard Rules, platform refunds the family directly and disputes with the operator separately. This is a trust signal AND a structural enforcement lever.
+
+### Economic structure
+
+26. **Platform fee structure.** Currently undefined. Options: flat monthly per operator, revenue share, hybrid (low monthly + low rev share), setup fee + low ongoing. Pressure test: what's fair to a parent-kid pair earning $4K–$8K/year while still funding BG checks + insurance + platform oversight, while still being attractive to an acquirer? Lock the number before operator-#2 conversations start.
+27. **Setup fee for new operators.** One-time fee to qualify-out non-serious operators. EOC analog: Edwin paid $500/mo with a free first year. XPL Keyed setup is probably $500–$2,000 one-time. Pressure test the number against operator-funnel conversion.
+
+### Recruiting form
+
+28. **Parent-side qualifying questions.** Draft set: LinkedIn URL, day job, willingness to handle Stripe Connect setup, response time commitment, multi-choice on the Hard Rules (basic comprehension quiz), willingness to undergo background check. Should feel slightly intimidating to a non-serious parent.
+29. **Kid-side qualifying questions.** Rank screenshot (not self-reported), tournament history if any, why they want to coach, explicit agreement to no-photo and no-DM rules.
+30. **Application volume vs. throughput.** Target: of 100 submissions, 5–10 worth a real conversation, 1–2 worth onboarding. Build the form to do that filtering automatically — Peter's time is too scarce to vet hundreds manually.
+
+### Sunset planning
+
+31. **Operator kid aging out.** When an operator kid turns 18, they're an adult coach. Does the parent stay as operator-of-record, or does the kid take over the Stripe Connect account directly? Probably the latter — kid transitions to a standard adult-coach model, parent steps back. Document the transition flow.
+32. **Operator kid quitting.** If the kid loses interest and the parent wants to keep going, that's no longer an operator pair — it's an adult tutoring business in a different category. Platform should require close-out (refund or transition clients), not allow the operator pair to morph into something the platform was never designed for.
 
 ---
 
@@ -486,6 +672,15 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - VAPID keypair from `npx web-push generate-vapid-keys`.
 - **`xplkeyed.com` purchased and verified in Resend (2026-05-17).** Domain is sendable; `tim@xplkeyed.com` works for outbound. Note: no inbox at that address yet — replies bounce until either a forwarding rule at the registrar, Google Workspace, or a Resend `replyTo` header is wired up.
 - **Stripe CLI authed against XPL_Keyed sandbox (2026-05-17)** via `stripe login`. Webhook secret captured via `stripe listen --print-secret`.
+- **Calendly account configured (2026-05-17).**
+  - Workspace renamed to `xpl-keyed` (brand-locked to XPL Keyed, no Augros family name in infrastructure URL). Standard plan ($12/mo) for webhooks + custom questions + minimum-notice.
+  - Event type **"30 minute free intro call"** published at `https://calendly.com/xpl-keyed/intro-call`. This is the URL the Stage A Level 4 step will embed.
+  - **Locked settings:** 30 min duration · 15-min before/after buffers · 2/day, 5/week meeting cap (capacity gate for when the TikTok funnel scales) · 24hr minimum notice · 60-day max date range · notetaker OFF (consent/privacy with minors) · autofill from prior bookings OFF (prevents phone number injection) · invitee guests OFF · US federal holidays auto-block ON · availability Wed/Thu/Fri 4–6pm + Sat 1–5pm only.
+  - **Location:** Custom, dash-free copy. *"Discord voice call. After you book, Tim will send the XPL Keyed coaching server invite to the Discord username you provide below. The call happens there at your scheduled time. We never call or text your phone."* Visibility set to "only after booking confirmation" so the trust copy lands in the email at peak relevance, not the public page.
+  - **Invitee form: phone field removed.** Top-level Name + Email captures the **parent** (the person booking). Five custom questions: kid's first name (req), kid's Discord username (req, with help text), kid's Fortnite IGN (req), kid's age (req), what they want to get better at (optional, multi-line).
+  - **Design decision locked: kid's Discord username, NOT parent's.** The original spec assumed parent's Discord. Corrected at setup because 90%+ of parents don't use Discord and would bounce. Parent's observer role in the coaching server happens via post-conversion invite, not at the booking form. **This generalizes: parent Discord is never collected at any intake surface.** Trust model unchanged; conversion friction removed.
+  - **Personal Access Token generated** and pasted into `.env.local` as `CALENDLY_PAT`. Scopes: all Scheduling (10) + all Webhooks (2). Token name "XPL Keyed dev."
+  - **Not yet done:** cancellation/reschedule window setting (couldn't be found in Standard-tier UI; not blocking the intro call which is free with no cycle math; revisit when paid-lessons event type is built — see Open decisions). Webhook subscription registration (blocked on a public callback URL — see Next coding tasks #4).
 
 #### 🔧 Setup (blocking the next coding work)
 
@@ -493,9 +688,9 @@ This section is the running source of truth for what's on Peter's plate. Update 
    - `icon-192.png` (192×192)
    - `icon-512.png` (512×512)
    - `icon-maskable-512.png` (512×512, safe-zone padding for Android maskable)
-2. **Calendly account:** create the 30-min free-call event type; set the cancel/reschedule window to **0hr** in Calendly settings so all cancels reach our webhook. Generate a Personal Access Token (`CALENDLY_PAT`) and a webhook signing secret (`CALENDLY_WEBHOOK_SECRET`) and paste into `.env.local`.
-3. **Discord developer app:** create the "XPL Keyed Bot" application in the Developer Portal, generate the bot token, and invite it to Tim's coaching server with permissions to (a) DM Tim and (b) post in any per-client channel. Populate `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` in `.env.local`.
-4. **Inbox at `tim@xplkeyed.com`** so parent replies don't bounce. Cheapest: forwarding rule at registrar → Peter's gmail. Most "real": Google Workspace ($6/mo) for a full inbox. Or skip-and-defer by adding `replyTo` to `_shared/resend.ts`.
+2. **Discord developer app:** create the "XPL Keyed Bot" application in the Developer Portal, generate the bot token, and invite it to Tim's coaching server with permissions to (a) DM Tim and (b) post in any per-client channel. Populate `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` in `.env.local`.
+3. **Inbox at `tim@xplkeyed.com`** so parent replies don't bounce. Cheapest: forwarding rule at registrar → Peter's gmail. Most "real": Google Workspace ($6/mo) for a full inbox. Or skip-and-defer by adding `replyTo` to `_shared/resend.ts`.
+4. **Verify Calendly booking flow end-to-end** — load `https://calendly.com/xpl-keyed/intro-call` in incognito, walk through as a fake parent, confirm: no phone field, all 5 custom questions render, 24hr min notice enforced, 60-day max range enforced, daily/weekly caps respected, confirmation email arrives with the dash-free Discord trust copy as the location. Cancel the test booking after to keep Tim's calendar clean. Quick verification, not a build task.
 
 #### 🚢 Deployment (when MVP is ready to ship)
 
@@ -512,7 +707,8 @@ This section is the running source of truth for what's on Peter's plate. Update 
 - ✅ `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 - ✅ `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
 - ✅ `NEXT_PUBLIC_APP_URL=http://localhost:3000` (swap to `https://xplkeyed.com` in Vercel for prod)
-- ⏳ `CALENDLY_PAT`, `CALENDLY_WEBHOOK_SECRET` — blocked on Calendly setup
+- ✅ `CALENDLY_PAT` (Standard plan, scopes: Scheduling + Webhooks, token name "XPL Keyed dev")
+- ⏳ `CALENDLY_WEBHOOK_SECRET` — pending. Returned only when POSTing to Calendly's `/webhook_subscriptions` with a publicly reachable `callback_url`. Path forward in Next coding tasks #4: ship the webhook handler to a Vercel preview, register the subscription against the preview URL, capture the `signing_key` from the response.
 - ⏳ `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` — blocked on Discord setup
 
 #### ⚙️ Post-deploy DB config (when the live Supabase project exists)
@@ -530,18 +726,18 @@ Without these rows, `cron_fire()` logs a NOTICE and bails (intentional, no cron 
 #### 🎛️ Per-service dashboard config
 
 - **Stripe dashboard:** disable Stripe's own dunning emails so our branded D3/D6 emails from `cron-dunning-parent-reminders` own the voice. Stripe's expiring-card emails (30/15/7-day) should stay enabled.
-- **Calendly:** confirm cancel/reschedule window is 0hr (mentioned above; restated because it matters and is easy to miss). Our backend governs the 24hr rule, not Calendly.
+- **Calendly:** 0hr cancel/reschedule window is required only on the **paid-lessons event type** (not yet built) so our backend governs the 24hr rule. The intro-call event type is free with no cycle math, so its cancel window doesn't matter. The setting wasn't visible in the Standard-tier UI as of 2026-05-17; revisit when building the paid-lessons event type — see Open decisions.
 
 #### 🤔 Open decisions
 
-_(None currently. New items surfaced during work land here until Peter resolves them.)_
+- **0hr cancel/reschedule window on the paid-lessons Calendly event type.** Setting wasn't findable in the Standard-tier UI during the 2026-05-17 intro-call setup. Possibly Teams-tier ($16/mo) only, possibly buried in a sub-section we missed. Critical for paid lessons (backend needs to see all late cancels to govern the 24hr rule). Resolution options before paid-lessons event type goes live: (a) find the setting in Standard, (b) upgrade to Teams, (c) design around it — the parent dashboard's [Cancel this week] CTA deep-links Calendly's cancel page, so most cancels route through us anyway; the Calendly-email path is the minority and could be handled with a "you can only cancel via the parent portal" UX nudge.
 
 ### Next coding tasks (in order)
 
 1. ~~Port `index.html` into `src/app/page.tsx`.~~ **DONE 2026-05-17.** Static design lives at `archive/index.html` for reference; live site at `src/app/page.tsx` + `src/components/MarketingClient.tsx` + `src/app/globals.css`. All marketing copy is dash-free per Hard rule #8.
 2. ~~The remaining 6 cron Edge Functions under `supabase/functions/`.~~ **DONE 2026-05-17.** All 6 plus the `_shared/` helpers (`discord.ts`, `resend.ts`) and migration `20260517000400_dunning_reminder_columns.sql` are in place. See Project layout above for per-function summaries. Functions are functional stubs at the same fidelity as the existing example: real DB queries, real outbound, real idempotency, placeholder content with dash-free copy (Hard rule #8). Follow-ups when the time is right: refactor `cron-twenty-min-pre-call-reminder` to use `_shared/discord.ts`; layer in `notification_log` writes for audit; replace minimal email HTML with real branded templates.
 3. ~~**Stripe webhook handler** at `src/app/api/stripe-webhook/route.ts`.~~ **DONE 2026-05-17.** Verifies Stripe-Signature, dispatches the four events. Notes diverging from the original sketch: (a) `invoice.paid` does NOT increment `cycle_lessons_delivered` — that's the Sunday cron's job. Instead, `invoice.paid` resets the cycle (lessons=0, cancels=0, clears dunning state) because each paid invoice is a cycle BOUNDARY. (b) Only `subscription_create` / `subscription_cycle` invoices reset cycle state; proration / manual invoices are ignored. (c) `pending_cancel` is preserved against all Stripe transitions except final `canceled`. (d) `past_due_started_at` is anchored on first occurrence so the dunning crons stay aligned. (e) Validated end-to-end against the Stripe sandbox.
-4. **Calendly webhook handler** at `src/app/api/calendly-webhook/route.ts` — **DRAFTED but UNCOMMITTED 2026-05-17.** File exists on Peter's machine (untracked in git) and typechecks clean. Held back from commit until the Calendly account is set up and we can verify against real signed payloads. What the draft covers: HMAC-SHA256 signature verification with 5-minute replay tolerance (Calendly uses `t=<unix>,v1=<hex_hmac>` like Stripe); `invitee.canceled` dispatch only (`invitee.created` and the reschedule chain are stubbed until intake exists); host vs invitee `canceler_type` branching (host → `coach_cancels` row, no cap impact; invitee → credit/forfeit per the 24hr rule); credit increments `cycle_cancels_used` and leaves `cycle_lessons_delivered`; forfeit increments `cycle_lessons_delivered` and leaves the cap; 3rd credit triggers `pending_cancel` with `pending_cancel_started_at` + `pending_cancel_auto_confirm_at = now+7d`, calls Stripe `subscriptions.update(..., cancel_at_period_end: true)`, sends the [Confirm end]/[Undo cancel] email and DMs Tim; `cancellation_events` audit row written each time; defensive payload access (`payload.event ?? payload.scheduled_event?.uri`) for Calendly API version drift; email shells dash-free per Hard rule #8. **Test-loop friction discovered:** Calendly webhook subscriptions are API-only (no dashboard UI), the callback URL must be publicly reachable (ngrok or a deploy preview for local dev), and the cancel/reschedule window in Calendly settings must be set to 0hr for our backend to govern the 24hr rule. Self-signed local testing is viable (fake `CALENDLY_WEBHOOK_SECRET` + hand-signed payload + manually inserted test rows in `curriculum_slots` / `curricula` / `subscriptions`), but was deferred at the late-night stop point.
+4. **Calendly webhook handler** at `src/app/api/calendly-webhook/route.ts` — **DRAFTED but UNCOMMITTED as of 2026-05-17.** File exists on Peter's machine (untracked in git) and typechecks clean. What the draft covers: HMAC-SHA256 signature verification with 5-minute replay tolerance (Calendly uses `t=<unix>,v1=<hex_hmac>` like Stripe); `invitee.canceled` dispatch only (`invitee.created` and the reschedule chain are stubbed until intake exists); host vs invitee `canceler_type` branching (host → `coach_cancels` row, no cap impact; invitee → credit/forfeit per the 24hr rule); credit increments `cycle_cancels_used` and leaves `cycle_lessons_delivered`; forfeit increments `cycle_lessons_delivered` and leaves the cap; 3rd credit triggers `pending_cancel` with `pending_cancel_started_at` + `pending_cancel_auto_confirm_at = now+7d`, calls Stripe `subscriptions.update(..., cancel_at_period_end: true)`, sends the [Confirm end]/[Undo cancel] email and DMs Tim; `cancellation_events` audit row written each time; defensive payload access (`payload.event ?? payload.scheduled_event?.uri`) for Calendly API version drift; email shells dash-free per Hard rule #8. **Path forward (Calendly account now configured):** (a) commit the route.ts as-is to a feature branch; (b) push and grab the Vercel deploy preview URL; (c) `POST https://api.calendly.com/webhook_subscriptions` with `Authorization: Bearer $CALENDLY_PAT`, body `{ "url": "<preview-url>/api/calendly-webhook", "events": ["invitee.canceled", "invitee.created"], "scope": "user", "user": "<user-uri>", "organization": "<org-uri>" }`; (d) capture `resource.signing_key` from the response into `CALENDLY_WEBHOOK_SECRET` in both `.env.local` and Vercel env, flip the env var status to ✅; (e) e2e test: book a real slot through the preview, cancel it via Calendly UI, verify the webhook fires, signature verifies, handler dispatches correctly and writes the expected rows (manual seed of `curriculum_slots` / `curricula` / `subscriptions` first, since intake doesn't exist yet to create them). Self-signed local testing remains an option for iterating on handler logic without burning bookings.
 5. **Intake flow** — Stage A 4-level gamified form + `rpc.intake()` SECURITY DEFINER function that atomically creates `families` + `parents` + `players` + `auth.users` + first quest_completion + sends magic link.
 6. **Auth routes** — `/login`, `/auth/callback`, plus the synthetic-email-for-kids magic-link routing: kids under 13 get a generated `kid+{uuid}@xplkeyed.internal` auth identity; magic-link delivery is intercepted server-side and routed to `parents.email` instead. Document the email override hook in a `src/lib/supabase/auth.ts` helper.
 
