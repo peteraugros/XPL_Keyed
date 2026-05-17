@@ -54,7 +54,6 @@
   a { color: inherit; text-decoration: none; }
 
   .container { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
-  .container-wide { max-width: 1600px; margin: 0 auto; padding: 0 48px; }
 
   /* ============ NAV ============ */
   nav {
@@ -379,15 +378,14 @@
     letter-spacing: -1px;
     line-height: 1.0;
     margin-bottom: 16px;
+  }
+  .section-title-wrap {
     overflow: hidden;
-    display: inline-block;
+    margin-bottom: 16px;
   }
-  .section-title:hover {
-    animation: slide-in-right 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  @keyframes slide-in-right {
-    0%   { transform: translateX(110%); opacity: 0; }
-    100% { transform: translateX(0); opacity: 1; }
+  .section-title-wrap .section-title { margin-bottom: 0; }
+  .section-title-wrap:hover .section-title {
+    animation: slide-in-left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .section-lede {
     font-size: 16px;
@@ -681,12 +679,10 @@
 
   /* ============ RESPONSIVE ============ */
   @media (max-width: 1024px) {
-    .container-wide { padding: 0 32px; }
     .curriculum { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 768px) {
     .container { padding: 0 20px; }
-    .container-wide { padding: 0 20px; }
     .curriculum { grid-template-columns: 1fr; gap: 14px; }
     .skill { padding: 28px 24px; min-height: 0; }
     .skill-title { font-size: 26px; }
@@ -788,7 +784,7 @@
 <section id="how" class="section-alt">
   <div class="container">
     <div class="section-eyebrow">How it works</div>
-    <h2 class="section-title">A weekly rhythm.<br />Real homework.</h2>
+    <div class="section-title-wrap"><h2 class="section-title">A weekly rhythm.<br />Real homework.</h2></div>
 
     <div class="steps">
       <div class="step step-1">
@@ -817,9 +813,9 @@
 
 <!-- ============ CURRICULUM ============ -->
 <section>
-  <div class="container-wide">
+  <div class="container">
     <div class="section-eyebrow">Curriculum</div>
-    <h2 class="section-title">Every part of your game.</h2>
+    <div class="section-title-wrap"><h2 class="section-title">Every part of your game.</h2></div>
     <p class="section-lede">Nothing about your game is too small to fix. Lessons rotate through every dimension of high-level play.</p>
 
     <div class="curriculum">
@@ -861,7 +857,7 @@
 <section id="pricing" class="section-alt">
   <div class="container">
     <div class="section-eyebrow">Pricing</div>
-    <h2 class="section-title">Start free.<br />Stay only if it works.</h2>
+    <div class="section-title-wrap"><h2 class="section-title">Start free.<br />Stay only if it works.</h2></div>
     <p class="section-lede">Cancel anytime. Give 24 hours' notice for a session and get a full credit refund; no questions.</p>
 
     <div class="pricing">
@@ -911,12 +907,12 @@
     <div class="audience">
       <div class="audience-block">
         <div class="section-eyebrow">For Parents</div>
-        <h3 class="section-title">Screen time<br />with structure.</h3>
+        <div class="section-title-wrap"><h3 class="section-title">Screen time<br />with structure.</h3></div>
         <p>Lessons are studied like school material. Your kid reviews a PowerPoint with a voiceover, takes notes, and gets quizzed on it. Sessions are short (30 minutes), scheduled, and async-first. No late-night calls. No surprise charges.</p>
       </div>
       <div class="audience-block">
         <div class="section-eyebrow">For Players</div>
-        <h3 class="section-title">Climb faster.<br />Stay there.</h3>
+        <div class="section-title-wrap"><h3 class="section-title">Climb faster.<br />Stay there.</h3></div>
         <p>Skip the YouTube rabbit holes. Get a real curriculum from someone who's actually Unreal and competing in tournaments, and who's close enough to your age to know what's holding you back.</p>
       </div>
     </div>
@@ -927,7 +923,7 @@
 <section id="faq" class="section-alt">
   <div class="container">
     <div class="section-eyebrow" style="text-align: center;">Questions</div>
-    <h2 class="section-title" style="text-align: center;">Before you book.</h2>
+    <div class="section-title-wrap" style="text-align: center;"><h2 class="section-title">Before you book.</h2></div>
     <div style="height: 48px;"></div>
 
     <div class="faq">
