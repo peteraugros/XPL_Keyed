@@ -1110,6 +1110,16 @@ This section is the running source of truth for what's on Peter's plate. Update 
     5. **Tim ↔ Dad channel** for guidance notes.
     6. **Banner on Tim's `/admin`** when a Stuck was resolved with a note — currently Tim has no surfacing.
 
+- **Stuck-return banner + done-today streak (2026-05-18 late night).** Two follow-ups from the Dad-admin commit closed. `npx tsc --noEmit` clean.
+  - **Migration `20260518000700_stuck_tim_seen.sql`** — adds `stuck_events.tim_seen_at TIMESTAMPTZ`. Filtered index covers the unseen-with-note query that powers the banner.
+  - **`StuckReturnBanner`** above FocusedHome / CommandPipeline on `/admin`. Renders unseen Dad-notes (resolved Stucks with `resolution_note IS NOT NULL AND tim_seen_at IS NULL`). Each row has Dad's note, the object type, and a **Got it** button. Multi-note state adds a **Got it on all N** shortcut. `POST /api/admin/stuck-ack` stamps `tim_seen_at` on the supplied IDs. Optimistic dismissal — UI marks dismissed immediately; server ack happens in background.
+  - **Migration `20260518000800_task_completions.sql`** — new `task_completions` table (coach_id, source_table, source_id, completed_at). RLS: coach can SELECT all; writes happen via SECURITY DEFINER triggers (bypass RLS). Two AFTER triggers per table (`messages`, `subscriptions`, `curricula`, `cancellation_events`):
+    - `log_task_completion()` on UPDATE OF waiting_on — fires when value transitions from `'TIM'` to anything else.
+    - `log_task_completion_on_insert()` on INSERT — fires for new `messages` with `sender_role='coach'` (Tim replied = completion).
+    - Coach attribution defaults to the oldest active coach (single-coach MVP). Multi-coach attribution lands later via session var or `auth.uid()` lookup.
+  - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
+  - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
+
 #### 🔧 Setup (blocking the next coding work)
 
 1. ~~**PNG icons** for the PWA.~~ **DONE 2026-05-17 night via SVG.** `public/icons/icon.svg` (full-bleed, rounded corners, blue `#0B1538` + white "K") and `public/icons/icon-maskable.svg` (no corners, K shrunk to fit the central 80% safe zone for Android launcher masking). `manifest.json` updated to two entries (`purpose:"any"` + `purpose:"maskable"`), `sizes:"any"`, `type:"image/svg+xml"`. Android Chrome + Edge handle SVG manifest icons; iOS "Add to Home Screen" ignores manifest icons entirely and reads `<link rel="apple-touch-icon">` (which must be a PNG). If iOS adoption matters pre-launch, rasterize `icon.svg` to a 180×180 PNG and add `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">` in `src/app/layout.tsx`. The in-tab favicon (data-URI SVG in layout.tsx) is separate and stays as lime-K on dark blue.
