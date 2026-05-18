@@ -1082,6 +1082,27 @@ Without these rows, `cron_fire()` logs a NOTICE and bails (intentional, no cron 
 
 ## Pointers
 
+### Admin spec set (the canonical four)
+
+Peter dropped a full admin redesign spec into the repo on 2026-05-18. The four documents below are **the set** — they describe an admin product significantly more ambitious than the MVP `/admin` page that ships in this repo today. Read together; they're internally consistent.
+
+- [`Coach Dashboard Spec/CEO/admin-spec-focused.md`](Coach%20Dashboard%20Spec/CEO/admin-spec-focused.md) — **Focused mode.** One-thing-at-a-time, scaffolded decisions, warm tone. Default for Tim and ADHD/novice operators. Supersedes `Coach Dashboard Spec/admin-spec.md` (the original draft is kept for posterity but the focused-mode file is canonical).
+- [`Coach Dashboard Spec/CEO/admin-spec-command.md`](Coach%20Dashboard%20Spec/CEO/admin-spec-command.md) — **Command mode.** Pipeline (kanban), Inbox tab, Money dashboard with bar chart, Operations tab, keyboard-first (`cmd+K` palette, `j/k` nav, `g p / g i / g c` tab switching). Power-user surface, *not* "Focused minus warmth" — different mindset, not different level.
+- [`Coach Dashboard Spec/CEO/admin-modes.md`](Coach%20Dashboard%20Spec/CEO/admin-modes.md) — **Meta-spec for how the two modes coexist.** Toggle UI (top-right, `cmd+\`), per-user persistence, context preservation across switches, shared infrastructure, per-mode preferences, onboarding nudge thresholds. **Default for new users is Focused.** Tim-specific note: suppress the Command-mode suggestion for at least 6 months because the responsibility curriculum is the point of the product for him.
+- [`Coach Dashboard Spec/backend-spec.md`](Coach%20Dashboard%20Spec/backend-spec.md) — **The `waiting_on` field and lifecycle state model.** Small but load-bearing. The Tasks abstraction, Home queue, stale-client detection, and Stuck-button flow all depend on this. Build the backend first; admin features ladder on top.
+
+Companion Dad spec (separate product, same family):
+
+- [`Coach Dashboard Spec/dad-admin-spec.md`](Coach%20Dashboard%20Spec/dad-admin-spec.md) — **Peter's admin surface.** Stuck queue (Tim's escalations), operational alerts (Stripe/Discord/Calendly/Resend health), Tim activity summary, read-only "View as Tim" mirror. Tone: safety net, not control panel. "Send back with a note" preserves Tim as the operator.
+
+### What's in the repo vs. what's in the spec
+
+**Built today** (`src/app/admin/...`): single-mode dashboard. Stats strip (Paying/12, Trials this week, Waitlist, Revenue MTD), New Trials cards with Stage C panel (take on / decline / drafter) + inline Discord URL form + Messages thread per kid, Active Clients list, Lesson library list + author form, basic coach-gated auth + auto-link. No modes, no Tasks abstraction, no `waiting_on` field, no Pipeline view, no Inbox tab, no Stuck button, no Tim ↔ Dad channel, no Coach Mode for live calls, no Dad admin at all.
+
+**The spec describes** a substantial rebuild. Treat current code as the data-layer + early-product scaffolding that the spec'd admin will eventually rebuild on top of. Don't assume continuity of UI patterns — the spec is opinionated and the built UI doesn't match it.
+
+### Memory files (user-level, auto-loaded across sessions)
+
 Detailed reasoning behind specific decisions lives in user-level memory at `~/.claude/projects/-Users-peteraugros-Desktop-XPL-Keyed/memory/` — auto-loaded by future Claude sessions. Files include:
 
 - `user_peter_tim.md` — who Peter and Tim are, roles
