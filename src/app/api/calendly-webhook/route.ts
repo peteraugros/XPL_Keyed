@@ -170,6 +170,11 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
             cycle_cancels_used: cycleCancelsUsedAfter,
             cycle_lessons_delivered: cycleLessonsDeliveredAfter,
             status: "pending_cancel",
+            lifecycle_state: "PENDING_CANCEL",
+            // waiting_on='PARENT' per backend-spec section 2 "Reschedule
+            // / cancel requests": 3rd credit triggers pending_cancel,
+            // parent now confirms or undoes during the 7-day window.
+            waiting_on: "PARENT",
             pending_cancel_started_at: nowIso,
             pending_cancel_auto_confirm_at: new Date(
               Date.now() + PENDING_CANCEL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
@@ -184,7 +189,10 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
     .eq("id", subscription.id);
   if (subErr) throw subErr;
 
-  // Audit row
+  // Audit row. waiting_on='SYSTEM' because our handler auto-classifies
+  // credit vs forfeit per the 24hr rule; Tim does not currently review.
+  // Backend-spec section 2 envisions a "Tim reviews credit" flow that
+  // would set waiting_on='TIM' here instead; not built yet.
   const { error: evErr } = await supabase.from("cancellation_events").insert({
     subscription_id: subscription.id,
     curriculum_slot_id: slot.id,
@@ -193,6 +201,7 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
     classification,
     cycle_cancels_used_after: cycleCancelsUsedAfter,
     triggered_pending_cancel: triggeredPendingCancel,
+    waiting_on: "SYSTEM",
   });
   if (evErr) throw evErr;
 

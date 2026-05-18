@@ -117,12 +117,14 @@ async function handleCheckoutSessionCompleted(
     return;
   }
 
-  // Flip the curriculum row.
+  // Flip the curriculum row. waiting_on transitions from PARENT to
+  // SYSTEM per backend-spec section 2 (Stripe activates → no human turn).
   const curriculumUpdate = await supabase
     .from("curricula")
     .update({
       status: "active",
       approved_at: new Date().toISOString(),
+      waiting_on: "SYSTEM",
     } as never)
     .eq("id", curriculumId);
   if (curriculumUpdate.error) {
@@ -140,6 +142,8 @@ async function handleCheckoutSessionCompleted(
     .update({
       tier: "monthly",
       status: "active",
+      lifecycle_state: "ACTIVE",
+      waiting_on: "SYSTEM",
       cycle_started_at: new Date().toISOString(),
       cycle_lessons_delivered: 0,
       cycle_cancels_used: 0,
@@ -175,6 +179,9 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, supabase: Sup
     .from("subscriptions")
     .update({
       status: "past_due",
+      lifecycle_state: "PAST_DUE",
+      // waiting_on stays SYSTEM until day-6 dunning cron flips it to TIM
+      // per backend-spec section 2 "Dunning" table.
       // Preserve original Day 0 across retried events so the dunning clock
       // (cron-day7-dunning-ping, cron-dunning-parent-reminders) stays anchored.
       past_due_started_at: existing.past_due_started_at ?? nowIso,
@@ -206,6 +213,8 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, supabase: Supa) {
     .from("subscriptions")
     .update({
       status: "active",
+      lifecycle_state: "ACTIVE",
+      waiting_on: "SYSTEM",
       cycle_started_at: nowIso,
       cycle_lessons_delivered: 0,
       cycle_cancels_used: 0,

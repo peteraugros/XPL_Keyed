@@ -63,6 +63,7 @@ export type Database = {
           initiated_via: string
           subscription_id: string
           triggered_pending_cancel: boolean
+          waiting_on: Database["public"]["Enums"]["waiting_on_t"]
         }
         Insert: {
           classification: string
@@ -74,6 +75,7 @@ export type Database = {
           initiated_via: string
           subscription_id: string
           triggered_pending_cancel?: boolean
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Update: {
           classification?: string
@@ -85,6 +87,7 @@ export type Database = {
           initiated_via?: string
           subscription_id?: string
           triggered_pending_cancel?: boolean
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Relationships: [
           {
@@ -195,6 +198,7 @@ export type Database = {
           player_id: string
           status: string
           updated_at: string
+          waiting_on: Database["public"]["Enums"]["waiting_on_t"]
         }
         Insert: {
           approval_token?: string | null
@@ -206,6 +210,7 @@ export type Database = {
           player_id: string
           status?: string
           updated_at?: string
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Update: {
           approval_token?: string | null
@@ -217,6 +222,7 @@ export type Database = {
           player_id?: string
           status?: string
           updated_at?: string
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Relationships: [
           {
@@ -394,6 +400,7 @@ export type Database = {
           read_by_recipient_at: string | null
           sender_id: string | null
           sender_role: string
+          waiting_on: Database["public"]["Enums"]["waiting_on_t"]
         }
         Insert: {
           body: string
@@ -404,6 +411,7 @@ export type Database = {
           read_by_recipient_at?: string | null
           sender_id?: string | null
           sender_role: string
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Update: {
           body?: string
@@ -414,6 +422,7 @@ export type Database = {
           read_by_recipient_at?: string | null
           sender_id?: string | null
           sender_role?: string
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Relationships: [
           {
@@ -712,6 +721,60 @@ export type Database = {
           },
         ]
       }
+      stuck_events: {
+        Row: {
+          created_at: string
+          id: string
+          object_id: string
+          object_type: string
+          reason: string | null
+          resolution_note: string | null
+          resolution_type: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          tim_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          object_id: string
+          object_type: string
+          reason?: string | null
+          resolution_note?: string | null
+          resolution_type?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          tim_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          object_id?: string
+          object_type?: string
+          reason?: string | null
+          resolution_note?: string | null
+          resolution_type?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          tim_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stuck_events_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "parents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stuck_events_tim_user_id_fkey"
+            columns: ["tim_user_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -720,6 +783,7 @@ export type Database = {
           cycle_started_at: string | null
           id: string
           last_cancel_at: string | null
+          lifecycle_state: Database["public"]["Enums"]["lifecycle_state_t"]
           notified_at_day7_dunning: string | null
           notified_at_dunning_day3: string | null
           notified_at_dunning_day6: string | null
@@ -734,6 +798,7 @@ export type Database = {
           stripe_subscription_id: string | null
           tier: string
           updated_at: string
+          waiting_on: Database["public"]["Enums"]["waiting_on_t"]
         }
         Insert: {
           created_at?: string
@@ -742,6 +807,7 @@ export type Database = {
           cycle_started_at?: string | null
           id?: string
           last_cancel_at?: string | null
+          lifecycle_state?: Database["public"]["Enums"]["lifecycle_state_t"]
           notified_at_day7_dunning?: string | null
           notified_at_dunning_day3?: string | null
           notified_at_dunning_day6?: string | null
@@ -756,6 +822,7 @@ export type Database = {
           stripe_subscription_id?: string | null
           tier: string
           updated_at?: string
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Update: {
           created_at?: string
@@ -764,6 +831,7 @@ export type Database = {
           cycle_started_at?: string | null
           id?: string
           last_cancel_at?: string | null
+          lifecycle_state?: Database["public"]["Enums"]["lifecycle_state_t"]
           notified_at_day7_dunning?: string | null
           notified_at_dunning_day3?: string | null
           notified_at_dunning_day6?: string | null
@@ -778,6 +846,7 @@ export type Database = {
           stripe_subscription_id?: string | null
           tier?: string
           updated_at?: string
+          waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
         Relationships: [
           {
@@ -897,7 +966,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      derived_tasks_view: {
+        Row: {
+          age_in_state: string | null
+          client_id: string | null
+          client_name: string | null
+          priority_score: number | null
+          source_object_id: string | null
+          task_payload: Json | null
+          task_type: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cron_fire: { Args: { trigger_name: string }; Returns: number }
@@ -925,7 +1005,16 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
-      [_ in never]: never
+      lifecycle_state_t:
+        | "TRIAL_PREP"
+        | "TRIAL_SCHEDULED"
+        | "TRIAL_DONE"
+        | "ACTIVE"
+        | "PAST_DUE"
+        | "PENDING_CANCEL"
+        | "CANCELED"
+        | "WAITLIST"
+      waiting_on_t: "TIM" | "PARENT" | "KID" | "SYSTEM" | "DAD"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1055,7 +1144,19 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      lifecycle_state_t: [
+        "TRIAL_PREP",
+        "TRIAL_SCHEDULED",
+        "TRIAL_DONE",
+        "ACTIVE",
+        "PAST_DUE",
+        "PENDING_CANCEL",
+        "CANCELED",
+        "WAITLIST",
+      ],
+      waiting_on_t: ["TIM", "PARENT", "KID", "SYSTEM", "DAD"],
+    },
   },
 } as const
 

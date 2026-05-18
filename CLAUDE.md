@@ -1004,6 +1004,38 @@ This section is the running source of truth for what's on Peter's plate. Update 
     4. **Storage cleanup.** Deleting a lesson row doesn't currently delete the associated files in storage. Low priority at scale; lessons are kept for posterity anyway.
     5. **Signed-URL minting for parents/players.** Sunday cron currently has a TODO for "deliver lesson email with slides+audio." When that's wired, the cron + the /play lesson detail view will need to mint signed URLs for each slide file (1-hour TTL is typical).
 
+- **Admin rebuild: backend foundation (2026-05-18 afternoon).** First commit of the admin rebuild per `Coach Dashboard Spec/backend-spec.md`. Data layer only — Home queue UI + Stuck button flow + Tasks abstraction land on top in later commits. `npx tsc --noEmit` clean.
+  - **Migration `20260518000100_waiting_on_lifecycle.sql`** — adds two enum types and denormalizes `waiting_on` onto four state-bearing tables.
+    - `waiting_on_t` enum: `TIM` | `PARENT` | `KID` | `SYSTEM` | `DAD`. Per spec section 12 we chose the denormalized field over a separate ownership table for query simplicity.
+    - `lifecycle_state_t` enum: `TRIAL_PREP` | `TRIAL_SCHEDULED` | `TRIAL_DONE` | `ACTIVE` | `PAST_DUE` | `PENDING_CANCEL` | `CANCELED` | `WAITLIST`. Distinct concept from `subscriptions.status` (which stays as the Stripe-flavored field).
+    - `waiting_on` added to `messages`, `curricula`, `cancellation_events`, `subscriptions`. Default `SYSTEM`. Backfilled from real data: latest-message sender_role for threads; curriculum.status='pending_approval' → PARENT; subscription.status='trial' → TIM; subscription.status='pending_cancel' → PARENT; everything else → SYSTEM.
+    - `lifecycle_state` added to `subscriptions` only (other state-bearing rows derive their state from related tables). Backfilled from `subscriptions.status`: trial → TRIAL_PREP, active → ACTIVE, past_due → PAST_DUE, pending_cancel → PENDING_CANCEL, canceled → CANCELED, declined → CANCELED.
+    - Partial indexes on `(waiting_on, *_at)` for fast Home queue queries — filtered to `waiting_on = 'TIM'` rows only.
+  - **Migration `20260518000200_stuck_events.sql`** — new table per spec section 7. Columns: `id`, `tim_user_id` (coach FK), `object_type` (CHECK: message_thread / trial_decision / checklist_item / curriculum_approval / cancellation_event / dunning / other), `object_id` (UUID), `reason` (Tim's optional note), `resolved_by` (parent FK, NULL until Dad resolves), `resolved_at`, `resolution_type` (handled_directly / returned_to_tim / no_action_needed), `resolution_note` (Dad's note back to Tim). Three partial indexes (open events / by-object / by-tim). RLS: coach-only via `stuck_events_coach_all`. Dad's admin reads via service-role until the Dad auth surface is built.
+  - **Migration `20260518000300_derived_tasks_view.sql`** — `derived_tasks_view` per spec section 6. Phase 1 unions three task sources:
+    1. **`message_thread`**: latest message per kid where `waiting_on='TIM'` (DISTINCT ON player_id). Priority 50 if kid-sender, 60 if parent-sender (parent-channel reserved for future).
+    2. **`trial_decision`**: subscriptions in `status='trial'` with `waiting_on='TIM'`. Priority 80.
+    3. **`cancellation_event`**: cancellation_events with `waiting_on='TIM'`. Priority 20.
+    - Future phase additions (deferred): checklist items, dunning day-6+, curriculum approvals (TIM-side), quiet-client check-ins.
+    - View inherits RLS from source tables. Coach-authed reads see every row; non-coach reads only family-scoped rows. Home queue queries should run coach-authed.
+    - Sanity check: against the existing local test data the view emits 13 tasks (one trial_decision per existing test trial family).
+  - **Write paths updated** to set `waiting_on` going forward:
+    - `/api/play/message` (kid sends) → `waiting_on='TIM'` on the new message row.
+    - `/api/admin/message` (Tim sends) → `waiting_on='KID'`.
+    - `/api/admin/conversion/take-on` → curricula INSERT with `waiting_on='PARENT'` + subscription UPDATE `waiting_on='SYSTEM'`, `lifecycle_state='TRIAL_DONE'`.
+    - `/api/admin/conversion/decline` → subscription UPDATE adds `lifecycle_state='CANCELED'`, `waiting_on='SYSTEM'`.
+    - `/api/stripe-webhook` `checkout.session.completed` → curricula UPDATE adds `waiting_on='SYSTEM'`; subscription UPDATE adds `lifecycle_state='ACTIVE'`, `waiting_on='SYSTEM'`.
+    - `/api/stripe-webhook` `invoice.payment_failed` → subscription UPDATE adds `lifecycle_state='PAST_DUE'` (waiting_on stays SYSTEM until day-6 dunning cron flips it).
+    - `/api/stripe-webhook` `invoice.paid` (recovery) → subscription UPDATE adds `lifecycle_state='ACTIVE'`, `waiting_on='SYSTEM'`.
+    - `/api/calendly-webhook` `invitee.canceled` with 3rd-cancel pending_cancel → subscription UPDATE adds `lifecycle_state='PENDING_CANCEL'`, `waiting_on='PARENT'`. Audit `cancellation_events` row sets `waiting_on='SYSTEM'` (auto-classified, no Tim review yet).
+  - **Open follow-ups (next phase):**
+    1. **Home queue UI on `/admin`.** Server-side fetch from `derived_tasks_view` ordered by `priority_score DESC, age_in_state DESC`. Single top task in Focused-mode-Home; full list in Command-mode-Pipeline. Renders both modes off the same view.
+    2. **Stuck button flow.** Button on each task surface in `/admin`. Writes `stuck_events` row. Sets the source object's `waiting_on='DAD'`. Sends Discord DM via the existing `dmTim` helper but addressed to Dad's user id. Dad's admin doesn't exist yet — that's the next-next chunk.
+    3. **Trial substages.** Currently `TRIAL_PREP / TRIAL_SCHEDULED / TRIAL_DONE` all collapse to `TRIAL_PREP` on backfill because we don't yet store the Calendly event time on subscriptions. Wiring: pass `event_scheduled` URI to `/api/intake/submit`, store + transition `TRIAL_PREP → TRIAL_SCHEDULED` on `invitee.created` webhook, daily cron flips `TRIAL_SCHEDULED → TRIAL_DONE` when event end time passes. Paired with the trial-call-date wiring follow-up on `/portal`.
+    4. **Day-6 dunning flips waiting_on='TIM'.** Cron-side, not webhook. Existing `cron-day7-dunning-ping` already runs at day 7; the spec wants `waiting_on='TIM'` set at day 6. Either move the cron forward a day or add a separate day-6 trigger.
+    5. **Backfill imperfections.** All current trial subscriptions backfilled to `waiting_on='TIM'`, which over-classifies (the kid hasn't done the trial call yet for most). That's resolved when the Calendly substage wiring lands (TRIAL_SCHEDULED won't be TIM-waiting; TRIAL_DONE will).
+    6. **`derived_tasks_view` performance.** Re-evaluated as a materialized view once volume grows. Current view recomputes on every query; fine at 1-10 client scale.
+
 #### 🔧 Setup (blocking the next coding work)
 
 1. ~~**PNG icons** for the PWA.~~ **DONE 2026-05-17 night via SVG.** `public/icons/icon.svg` (full-bleed, rounded corners, blue `#0B1538` + white "K") and `public/icons/icon-maskable.svg` (no corners, K shrunk to fit the central 80% safe zone for Android launcher masking). `manifest.json` updated to two entries (`purpose:"any"` + `purpose:"maskable"`), `sizes:"any"`, `type:"image/svg+xml"`. Android Chrome + Edge handle SVG manifest icons; iOS "Add to Home Screen" ignores manifest icons entirely and reads `<link rel="apple-touch-icon">` (which must be a PNG). If iOS adoption matters pre-launch, rasterize `icon.svg` to a 180×180 PNG and add `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">` in `src/app/layout.tsx`. The in-tab favicon (data-URI SVG in layout.tsx) is separate and stays as lime-K on dark blue.

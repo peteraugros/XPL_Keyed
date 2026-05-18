@@ -144,6 +144,8 @@ export async function POST(req: Request) {
 
   // ---- 2. Create the curriculum row --------------------------------------
   const approvalToken = crypto.randomBytes(32).toString("hex");
+  // waiting_on='PARENT' per backend-spec section 2: Tim sent the plan,
+  // parent now needs to approve (and pay).
   const curriculumInsert = await supabase
     .from("curricula")
     .insert({
@@ -152,6 +154,7 @@ export async function POST(req: Request) {
       status: "pending_approval",
       approval_token: approvalToken,
       personalization_note: body.personalization_note,
+      waiting_on: "PARENT",
     } as never)
     .select("id")
     .single();
@@ -191,6 +194,23 @@ export async function POST(req: Request) {
       console.error("[take-on] slot insert failed", slot.error);
       return NextResponse.json({ error: "slot_insert_failed" }, { status: 500 });
     }
+  }
+
+  // Flip the subscription off Tim's queue — the ball is in the parent's
+  // court now. lifecycle_state advances to TRIAL_DONE (the call happened
+  // and Tim made his decision); the curriculum's pending_approval status
+  // is the source of truth for "waiting on parent to subscribe."
+  const subUpdate = await supabase
+    .from("subscriptions")
+    .update({
+      waiting_on: "SYSTEM",
+      lifecycle_state: "TRIAL_DONE",
+    } as never)
+    .eq("player_id", player.id);
+  if (subUpdate.error) {
+    console.error("[take-on] subscription waiting_on update failed", subUpdate.error);
+    // Non-fatal — the curriculum is written and the email goes out.
+    // Tim can manually correct waiting_on if needed.
   }
 
   // ---- 4. Send conversion email -----------------------------------------

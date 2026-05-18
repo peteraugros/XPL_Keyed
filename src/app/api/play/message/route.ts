@@ -44,11 +44,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "not_a_player" }, { status: 403 });
   }
 
+  // waiting_on='TIM' per backend-spec section 2: an inbound message from
+  // the kid (or parent) flips the thread to Tim's turn.
   const row: TablesInsert<"messages"> = {
     player_id: player.id,
     sender_role: "player",
     sender_id: userResult.data.user.id,
     body: parsed.body,
+    waiting_on: "TIM",
   };
   const insert = await supabase
     .from("messages")

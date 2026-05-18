@@ -78,7 +78,13 @@ export async function POST(req: Request) {
   }
 
   // Subscription update via cookie-bound client; coach RLS permits.
-  const patch: TablesUpdate<"subscriptions"> = { status: "declined" };
+  // status='declined' + lifecycle_state='CANCELED' + waiting_on='SYSTEM'
+  // per backend-spec section 4 (decline is terminal; no further actions).
+  const patch: TablesUpdate<"subscriptions"> = {
+    status: "declined",
+    lifecycle_state: "CANCELED",
+    waiting_on: "SYSTEM",
+  };
   const updateResult = await supabase
     .from("subscriptions")
     .update(patch as never)

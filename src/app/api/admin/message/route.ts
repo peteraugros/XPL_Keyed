@@ -45,11 +45,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  // waiting_on='KID' per backend-spec section 2: Tim sends a message to
+  // the kid (our schema's only message recipient today), so the thread
+  // now waits on the kid.
   const row: TablesInsert<"messages"> = {
     player_id: parsed.player_id,
     sender_role: "coach",
     sender_id: coach.id,
     body: parsed.body,
+    waiting_on: "KID",
   };
   const insert = await supabase
     .from("messages")
