@@ -34,6 +34,7 @@
 import { redirect as _redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton, NudgeButton, SendPlayerLinkButton } from "./PortalClient";
+import MessageThread from "@/components/MessageThread";
 import styles from "./page.module.css";
 
 // next/navigation's redirect is typedRoutes-aware. Several targets here
@@ -153,7 +154,7 @@ export default async function PortalPage() {
     redirect("/login?error=portal_player");
   }
 
-  const [subscriptionLookup, questLookup] = await Promise.all([
+  const [subscriptionLookup, questLookup, messageLookup] = await Promise.all([
     supabase
       .from("subscriptions")
       .select("tier, status")
@@ -163,12 +164,24 @@ export default async function PortalPage() {
       .from("quest_completions")
       .select("quest_key, completed_at")
       .eq("player_id", player.id),
+    supabase
+      .from("messages")
+      .select("id, sender_role, body, created_at")
+      .eq("player_id", player.id)
+      .order("created_at", { ascending: true })
+      .limit(100),
   ]);
 
   const subscription = subscriptionLookup.data as SubscriptionLookup | null;
   const questRows = (questLookup.data ?? []) as QuestLookup[];
   const completedQuestKeys = new Set<string>(questRows.map((row) => row.quest_key));
   const completedCount = QUESTS.filter((q) => completedQuestKeys.has(q.key)).length;
+  const messages = (messageLookup.data ?? []) as Array<{
+    id: string;
+    sender_role: "coach" | "player" | "bot";
+    body: string;
+    created_at: string;
+  }>;
 
   return (
     <div className={styles.shell}>
@@ -255,6 +268,22 @@ export default async function PortalPage() {
         </section>
 
         <section className={styles.card}>
+          <div className={styles.cardEyebrow}>Messages</div>
+          <h2 className={styles.cardTitle}>Between {player.first_name} and Tim</h2>
+          <p className={styles.cardBody}>
+            Read only. You see every message {player.first_name} sends to Tim and
+            every reply. Coaching happens here in writing and in the Discord
+            coaching server, never by phone.
+          </p>
+          <MessageThread
+            initialMessages={messages}
+            viewerRole="parent"
+            kidFirstName={player.first_name}
+            endpoint={null}
+          />
+        </section>
+
+        <section className={styles.card}>
           <div className={styles.cardEyebrow}>What to expect</div>
           <h2 className={styles.cardTitle}>The 30 minute call</h2>
           <ul className={styles.bullets}>
@@ -284,12 +313,6 @@ export default async function PortalPage() {
               <div className={styles.controlTitle}>Call recordings</div>
               <div className={styles.controlEmpty}>Tim records every paid call. Trial calls are not recorded.</div>
             </div>
-            <div className={styles.controlCard}>
-              <div className={styles.controlTitle}>Message audit</div>
-              <div className={styles.controlEmpty}>
-                You will see every message between {player.first_name} and Tim here.
-              </div>
-            </div>
           </div>
           {subscription?.status === "trial" ? (
             <div className={styles.trailing}>
@@ -306,7 +329,9 @@ export default async function PortalPage() {
             <div>
               <div className={styles.contactEyebrow}>Questions before the call?</div>
               <div className={styles.contactBody}>
-                Email Tim at <a className={styles.contactLink} href="mailto:tim@xplkeyed.com">tim@xplkeyed.com</a>.
+                Have {player.first_name} message Tim in the Messages panel above.
+                Tim sees it on his end and replies there. Everything stays in
+                your dashboard.
               </div>
             </div>
           </div>

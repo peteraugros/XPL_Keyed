@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
+import MessageThread, { type MessageRow } from "@/components/MessageThread";
 
 type QuestKey = "signup" | "drop_vod" | "answer_questions" | "join_discord";
 
@@ -63,11 +64,13 @@ export default function PlayClient({
   initialCompletedQuests,
   initialVodUrl,
   initialPrep,
+  initialMessages,
 }: {
   playerFirstName: string;
   fortniteUsername: string | null;
   initialCompletedQuests: string[];
   initialVodUrl: string | null;
+  initialMessages: MessageRow[];
   initialPrep: PrepState;
 }) {
   const router = useRouter();
@@ -490,6 +493,18 @@ export default function PlayClient({
         </article>
       </section>
 
+      {/* Message Tim — open from intake. Parent-visible. */}
+      <section className={styles.card}>
+        <div className={styles.cardEyebrow}>Messages</div>
+        <h2 className={styles.cardTitle}>Message Tim</h2>
+        <MessageThread
+          initialMessages={initialMessages}
+          viewerRole="player"
+          kidFirstName={playerFirstName}
+          endpoint="/api/play/message"
+        />
+      </section>
+
       {/* Locked sections */}
       <section className={styles.lockedBlock}>
         <article className={styles.lockedCard}>
@@ -497,13 +512,6 @@ export default function PlayClient({
           <h3 className={styles.lockedTitle}>Lesson library</h3>
           <p className={styles.lockedCopy}>
             Unlocks the Sunday after your first paid lesson drops.
-          </p>
-        </article>
-        <article className={styles.lockedCard}>
-          <div className={styles.lockedEyebrow}>Locked</div>
-          <h3 className={styles.lockedTitle}>Message Tim</h3>
-          <p className={styles.lockedCopy}>
-            Opens after Tim takes you on. Your parent can read every message.
           </p>
         </article>
       </section>

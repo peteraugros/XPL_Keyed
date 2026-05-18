@@ -103,6 +103,14 @@ type PrepRow = {
   q3_reflection: string;
 };
 
+type MessageRow = {
+  id: string;
+  player_id: string;
+  sender_role: "coach" | "player" | "bot";
+  body: string;
+  created_at: string;
+};
+
 type WaitlistRow = { created_at: string };
 
 export default async function AdminPage() {
@@ -199,6 +207,7 @@ export default async function AdminPage() {
   let quests: QuestRow[] = [];
   let vods: VodRow[] = [];
   let preps: PrepRow[] = [];
+  let messages: MessageRow[] = [];
   if (playerIds.length > 0) {
     const playerLookup = await supabase
       .from("players")
@@ -209,7 +218,7 @@ export default async function AdminPage() {
     players = (playerLookup.data ?? []) as PlayerRow[];
 
     const familyIds = Array.from(new Set(players.map((p) => p.family_id)));
-    const [parentLookup, questLookup, vodLookup, prepLookup] = await Promise.all([
+    const [parentLookup, questLookup, vodLookup, prepLookup, messageLookup] = await Promise.all([
       supabase
         .from("parents")
         .select("family_id, first_name, email")
@@ -227,11 +236,18 @@ export default async function AdminPage() {
         .from("prep_responses")
         .select("player_id, q1_choice, q1_other_text, q2_choice, q2_other_text, q3_reflection")
         .in("player_id", playerIds),
+      supabase
+        .from("messages")
+        .select("id, player_id, sender_role, body, created_at")
+        .in("player_id", playerIds)
+        .order("created_at", { ascending: true })
+        .limit(500),
     ]);
     parents = (parentLookup.data ?? []) as ParentRow[];
     quests = (questLookup.data ?? []) as QuestRow[];
     vods = (vodLookup.data ?? []) as VodRow[];
     preps = (prepLookup.data ?? []) as PrepRow[];
+    messages = (messageLookup.data ?? []) as MessageRow[];
   }
 
   // Stats
@@ -258,6 +274,12 @@ export default async function AdminPage() {
     if (!vodByPlayer.has(v.player_id)) vodByPlayer.set(v.player_id, v.url);
   }
   const prepByPlayer = new Map(preps.map((p) => [p.player_id, p]));
+  const messagesByPlayer = new Map<string, MessageRow[]>();
+  for (const m of messages) {
+    const arr = messagesByPlayer.get(m.player_id) ?? [];
+    arr.push(m);
+    messagesByPlayer.set(m.player_id, arr);
+  }
 
   const trialCards = trials.map((sub) => {
     const player = playersById.get(sub.player_id);
@@ -271,6 +293,7 @@ export default async function AdminPage() {
       completed_quest_keys: Array.from(completed),
       latest_vod_url: vodByPlayer.get(sub.player_id) ?? null,
       prep: prepByPlayer.get(sub.player_id) ?? null,
+      messages: messagesByPlayer.get(sub.player_id) ?? [],
       created_at: sub.created_at,
     };
   });
@@ -280,10 +303,12 @@ export default async function AdminPage() {
     const parent = player ? parentByFamily.get(player.family_id) : undefined;
     return {
       subscription_id: sub.id,
+      player_id: sub.player_id,
       player_first_name: player?.first_name ?? "(unknown)",
       parent_first_name: parent?.first_name ?? "(unknown)",
       cycle_lessons_delivered: sub.cycle_lessons_delivered,
       cycle_cancels_used: sub.cycle_cancels_used,
+      messages: messagesByPlayer.get(sub.player_id) ?? [],
     };
   });
 

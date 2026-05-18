@@ -85,7 +85,7 @@ export default async function PlayPage() {
     redirect("/login?error=no_role");
   }
 
-  const [questLookup, vodLookup, prepLookup] = await Promise.all([
+  const [questLookup, vodLookup, prepLookup, messageLookup] = await Promise.all([
     supabase.from("quest_completions").select("quest_key").eq("player_id", player.id),
     supabase
       .from("vod_uploads")
@@ -99,12 +99,24 @@ export default async function PlayPage() {
       .select("q1_choice, q1_other_text, q2_choice, q2_other_text, q3_reflection")
       .eq("player_id", player.id)
       .maybeSingle(),
+    supabase
+      .from("messages")
+      .select("id, sender_role, body, created_at")
+      .eq("player_id", player.id)
+      .order("created_at", { ascending: true })
+      .limit(100),
   ]);
 
   const questRows = (questLookup.data ?? []) as QuestLookup[];
   const completed = new Set(questRows.map((q) => q.quest_key));
   const vod = vodLookup.data as VodLookup | null;
   const prep = prepLookup.data as PrepLookup | null;
+  const messages = (messageLookup.data ?? []) as Array<{
+    id: string;
+    sender_role: "coach" | "player" | "bot";
+    body: string;
+    created_at: string;
+  }>;
 
   return (
     <div className={styles.shell}>
@@ -113,6 +125,7 @@ export default async function PlayPage() {
         fortniteUsername={player.fortnite_username}
         initialCompletedQuests={Array.from(completed)}
         initialVodUrl={vod?.url ?? null}
+        initialMessages={messages}
         initialPrep={
           prep
             ? {

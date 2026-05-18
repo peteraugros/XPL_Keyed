@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
+import MessageThread, { type MessageRow } from "@/components/MessageThread";
 
 const Q1_LABELS: Record<string, string> = {
   lose_fights: "Loses fights they should win",
@@ -64,15 +65,18 @@ type TrialCard = {
   completed_quest_keys: string[];
   latest_vod_url: string | null;
   prep: Prep | null;
+  messages: MessageRow[];
   created_at: string;
 };
 
 type ActiveRow = {
   subscription_id: string;
+  player_id: string;
   player_first_name: string;
   parent_first_name: string;
   cycle_lessons_delivered: number;
   cycle_cancels_used: number;
+  messages: MessageRow[];
 };
 
 export default function AdminClient({
@@ -165,19 +169,31 @@ export default function AdminClient({
           <ul className={styles.activeList}>
             {activeRows.map((row) => (
               <li key={row.subscription_id} className={styles.activeRow}>
-                <div className={styles.activeName}>
-                  <span className={styles.activeKid}>{row.player_first_name}</span>
-                  <span className={styles.activeSubtle}>
-                    Parent: {row.parent_first_name}
-                  </span>
+                <div className={styles.activeHeader}>
+                  <div className={styles.activeName}>
+                    <span className={styles.activeKid}>{row.player_first_name}</span>
+                    <span className={styles.activeSubtle}>
+                      Parent: {row.parent_first_name}
+                    </span>
+                  </div>
+                  <div className={styles.activeMeta}>
+                    <span className={styles.metaPill}>
+                      Cycle {row.cycle_lessons_delivered}/4
+                    </span>
+                    <span className={styles.metaPill}>
+                      Cancels {row.cycle_cancels_used}/2
+                    </span>
+                  </div>
                 </div>
-                <div className={styles.activeMeta}>
-                  <span className={styles.metaPill}>
-                    Cycle {row.cycle_lessons_delivered}/4
-                  </span>
-                  <span className={styles.metaPill}>
-                    Cancels {row.cycle_cancels_used}/2
-                  </span>
+                <div className={styles.messagesBlock}>
+                  <div className={styles.fieldLabel}>Messages with {row.player_first_name}</div>
+                  <MessageThread
+                    initialMessages={row.messages}
+                    viewerRole="coach"
+                    kidFirstName={row.player_first_name}
+                    endpoint="/api/admin/message"
+                    playerId={row.player_id}
+                  />
                 </div>
               </li>
             ))}
@@ -382,6 +398,17 @@ function TrialCardView({
         </div>
         {error ? <div className={styles.alert}>{error}</div> : null}
       </form>
+
+      <div className={styles.messagesBlock}>
+        <div className={styles.fieldLabel}>Messages with {player.first_name}</div>
+        <MessageThread
+          initialMessages={card.messages}
+          viewerRole="coach"
+          kidFirstName={player.first_name}
+          endpoint="/api/admin/message"
+          playerId={player.id}
+        />
+      </div>
     </article>
   );
 }

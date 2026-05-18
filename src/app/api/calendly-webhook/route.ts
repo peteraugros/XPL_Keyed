@@ -371,7 +371,7 @@ function bookingConfirmationHtml(args: {
   <li>Tim never calls or texts your phone.</li>
   <li>No payment info needed today.</li>
 </ul>
-<p>Questions? Just reply to this email and Tim or I will get back to you within 24 hours. Otherwise, see you ${esc(args.fullDate.split(",")[0])}.</p>
+<p>Questions? Sign in to your XPL Keyed dashboard and message Tim in the Messages panel. Tim sees it and replies there. Otherwise, see you ${esc(args.fullDate.split(",")[0])}.</p>
 <p style="margin-top:24px;">Peter<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">(Tim's dad, who runs the back end of XPL Keyed)</span></p>
 <p style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.6);border-top:1px solid rgba(255,255,255,0.12);padding-top:16px;">Need to come back later? Sign in any time at <a href="${APP_URL}/login" style="color:#C7FF3D;">${APP_URL.replace(/^https?:\/\//, "")}/login</a>.</p>
 </div>
