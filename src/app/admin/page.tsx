@@ -114,6 +114,13 @@ type MessageRow = {
 
 type WaitlistRow = { created_at: string };
 
+type TimDadRow = {
+  id: string;
+  sender_role: "tim" | "dad";
+  body: string;
+  created_at: string;
+};
+
 export default async function AdminPage() {
   const supabase = await createClient();
   const userResult = await supabase.auth.getUser();
@@ -364,6 +371,16 @@ export default async function AdminPage() {
   const doneToday =
     (doneTodayLookup as unknown as { count: number | null }).count ?? 0;
 
+  // Tim ↔ Dad channel — operator-to-operator 1:1 thread.
+  // Per Coach Dashboard Spec/dad-admin-spec.md + admin-modes.md (shared
+  // across both modes).
+  const timDadLookup = await supabase
+    .from("tim_dad_messages")
+    .select("id, sender_role, body, created_at")
+    .order("created_at", { ascending: true })
+    .limit(50);
+  const timDadMessages = (timDadLookup.data ?? []) as TimDadRow[];
+
   // Command-mode Pipeline needs waitlist entries too (own column on the
   // kanban). Focused mode doesn't surface them on Home; the spec's
   // intake-funnel narrative keeps them muted.
@@ -419,6 +436,7 @@ export default async function AdminPage() {
         waitlistEntries={waitlistEntries}
         returnedStucks={returnedStucks}
         doneToday={doneToday}
+        timDadMessages={timDadMessages}
       />
     </div>
   );

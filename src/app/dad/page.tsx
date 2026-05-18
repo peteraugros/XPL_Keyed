@@ -35,6 +35,13 @@ type StuckRow = {
   created_at: string;
 };
 
+type TimDadRow = {
+  id: string;
+  sender_role: "tim" | "dad";
+  body: string;
+  created_at: string;
+};
+
 export default async function DadPage() {
   const supabase = await createClient();
   const userResult = await supabase.auth.getUser();
@@ -222,6 +229,14 @@ export default async function DadPage() {
     }
   }
 
+  // Tim ↔ Dad channel — operator-to-operator 1:1 thread, shared with /admin.
+  const timDadLookup = await supabase
+    .from("tim_dad_messages")
+    .select("id, sender_role, body, created_at")
+    .order("created_at", { ascending: true })
+    .limit(50);
+  const timDadMessages = (timDadLookup.data ?? []) as TimDadRow[];
+
   // Pass everything to the client component for rendering.
   const queue = stucks.map((s) => ({
     id: s.id,
@@ -238,7 +253,11 @@ export default async function DadPage() {
 
   return (
     <div className={styles.shell}>
-      <DadClient dadName={coach.display_name} queue={queue} />
+      <DadClient
+        dadName={coach.display_name}
+        queue={queue}
+        timDadMessages={timDadMessages}
+      />
     </div>
   );
 }

@@ -242,6 +242,10 @@
   color: var(--epic);
 }
 
+.channelBlock {
+  margin-top: 8px;
+}
+
 .footer {
   text-align: center;
   font-size: 12px;

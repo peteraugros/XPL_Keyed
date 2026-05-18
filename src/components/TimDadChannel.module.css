@@ -1,0 +1,134 @@
+/* Tim ↔ Dad channel — compact 1:1 thread. */
+
+.panel {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.subtle {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text-faint);
+  text-align: center;
+  padding: 16px;
+  background: var(--bg-3);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.message {
+  display: flex;
+}
+.messageOwn { justify-content: flex-end; }
+.messageOther { justify-content: flex-start; }
+
+.bubble {
+  max-width: 78%;
+  padding: 9px 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.messageOwn .bubble {
+  background: rgba(199, 255, 61, 0.10);
+  border-color: rgba(199, 255, 61, 0.40);
+}
+
+.sender {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.messageOwn .sender { color: var(--lime); }
+
+.body {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.timestamp {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.input {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 56px;
+  outline: none;
+}
+.input:focus {
+  border-color: var(--lime);
+  background: var(--bg);
+}
+.composerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sendBtn {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  min-height: 36px;
+  cursor: pointer;
+}
+.sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.error {
+  font-size: 12px;
+  color: var(--epic);
+}

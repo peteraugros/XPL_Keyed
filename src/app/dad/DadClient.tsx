@@ -15,6 +15,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
+import TimDadChannel, { type TimDadMessage } from "@/components/TimDadChannel";
 
 type QueueItem = {
   id: string;
@@ -34,9 +35,11 @@ type ResolutionType = "handled_directly" | "returned_to_tim" | "no_action_needed
 export default function DadClient({
   dadName,
   queue,
+  timDadMessages,
 }: {
   dadName: string;
   queue: QueueItem[];
+  timDadMessages: TimDadMessage[];
 }) {
   const router = useRouter();
 
@@ -77,6 +80,10 @@ export default function DadClient({
           ))}
         </ul>
       ) : null}
+
+      <section className={styles.channelBlock}>
+        <TimDadChannel initialMessages={timDadMessages} viewerRole="dad" />
+      </section>
 
       <footer className={styles.footer}>
         Phase 1 Dad surface. Operational alerts, business glance, and View as Tim land later.

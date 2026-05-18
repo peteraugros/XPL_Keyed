@@ -905,6 +905,27 @@ export type Database = {
           },
         ]
       }
+      tim_dad_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sender_role: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          sender_role: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sender_role?: string
+        }
+        Relationships: []
+      }
       vod_uploads: {
         Row: {
           created_at: string

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import MessageThread, { type MessageRow } from "@/components/MessageThread";
+import TimDadChannel, { type TimDadMessage } from "@/components/TimDadChannel";
 
 const Q1_LABELS: Record<string, string> = {
   lose_fights: "Loses fights they should win",
@@ -128,6 +129,7 @@ export default function AdminClient({
   waitlistEntries,
   returnedStucks,
   doneToday,
+  timDadMessages,
 }: {
   coachName: string;
   coachMode: "focused" | "command";
@@ -145,6 +147,7 @@ export default function AdminClient({
   waitlistEntries: WaitlistEntry[];
   returnedStucks: ReturnedStuck[];
   doneToday: number;
+  timDadMessages: TimDadMessage[];
 }) {
   const router = useRouter();
 
@@ -261,6 +264,10 @@ export default function AdminClient({
             ))}
           </ul>
         )}
+      </section>
+
+      <section className={styles.block}>
+        <TimDadChannel initialMessages={timDadMessages} viewerRole="tim" />
       </section>
 
       <footer className={styles.footer}>
