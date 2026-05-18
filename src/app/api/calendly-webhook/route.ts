@@ -67,9 +67,7 @@ export async function POST(req: Request) {
         await handleInviteeCanceled(body.payload, supabase);
         break;
       case "invitee.created":
-        // Deferred until the intake flow lands. New bookings happen during
-        // intake; reschedule chains depend on rescheduled_from lookup that
-        // also runs through the intake-created curriculum_slot.
+        await handleInviteeCreated(body.payload);
         break;
       default:
         break;
@@ -222,6 +220,166 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
     await notifyTimCancelThird(subscription, supabase);
   }
 }
+
+// ---------------------------------------------------------------------------
+// invitee.created — branded booking confirmation
+// ---------------------------------------------------------------------------
+// Calendly's stock invitee email is generic and verbose (see CLAUDE.md
+// "branded confirmation email"). Peter turns it off in the event type
+// settings; this handler owns the parent-facing confirmation.
+//
+// For MVP every invitee.created we see is a trial intro call — paid lessons
+// aren't bookable via Calendly until the paid-lessons event type ships.
+// When it does, branch here on `scheduled_event.event_type` URI / slug.
+//
+// Reschedules also fire invitee.created (with rescheduled_from set). For now
+// we send the same branded email — content reads identically and the parent
+// gets confirmation of the new time. Reschedule-specific copy can be a
+// follow-up.
+
+async function handleInviteeCreated(payload: InviteePayload) {
+  const startIso = payload.scheduled_event?.start_time;
+  const parentEmail = payload.email;
+  if (!startIso || !parentEmail) {
+    console.warn("[calendly-webhook] invitee.created missing start_time or email", {
+      hasStart: !!startIso,
+      hasEmail: !!parentEmail,
+    });
+    return;
+  }
+
+  const parentFirstName =
+    payload.first_name?.trim() ||
+    payload.name?.split(" ")[0]?.trim() ||
+    "there";
+
+  // Q&A order from Calendly setup is fixed in the event type definition.
+  // Calendly numbers positions 0-indexed in the webhook payload:
+  //   0: kid first name, 1: kid Discord, 2: kid Fortnite IGN,
+  //   3: kid age, 4: what they want to get better at (optional)
+  // We match by position to avoid breakage if the question label is edited.
+  const qa = payload.questions_and_answers ?? [];
+  const findByPos = (n: number) =>
+    qa.find((row) => row.position === n)?.answer?.trim() || null;
+  const kidFirstName = findByPos(0);
+  const kidDiscord = findByPos(1);
+
+  const tz = payload.timezone || "America/Los_Angeles";
+  const startDate = new Date(startIso);
+  const fullDate = formatFullDate(startDate, tz); // "Saturday, May 23, 2026"
+  const subjectDate = formatSubjectDate(startDate, tz); // "Saturday, May 23"
+  const timeStr = formatTime(startDate, tz); // "2:30pm PT"
+
+  const subject = `You're booked. See you ${subjectDate}.`;
+  const html = bookingConfirmationHtml({
+    parentFirstName,
+    kidFirstName,
+    fullDate,
+    timeStr,
+    kidDiscord,
+  });
+
+  try {
+    await resend.emails.send({
+      from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
+      to: parentEmail,
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error("[calendly-webhook] confirmation send failed", err);
+  }
+}
+
+function formatFullDate(date: Date, tz: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: tz,
+  }).format(date);
+}
+
+function formatSubjectDate(date: Date, tz: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: tz,
+  }).format(date);
+}
+
+// "2:30pm PT". Lower-cases AM/PM, removes the space before it, and strips
+// the daylight/standard distinction from US-zone abbreviations (PDT -> PT,
+// EST -> ET, CDT -> CT, etc). Non-US zones keep whatever Intl renders.
+function formatTime(date: Date, tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: tz,
+    timeZoneName: "short",
+  }).formatToParts(date);
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+  const hour = map.hour ?? "";
+  const minute = map.minute ?? "00";
+  const dayPeriod = (map.dayPeriod ?? "").toLowerCase();
+  let zone = map.timeZoneName ?? "";
+  // PDT -> PT, EST -> ET, etc. Single-letter prefix + DT/ST suffix.
+  zone = zone.replace(/^([PMECAH])[DS]T$/, "$1T");
+  return `${hour}:${minute}${dayPeriod} ${zone}`.trim();
+}
+
+function bookingConfirmationHtml(args: {
+  parentFirstName: string;
+  kidFirstName: string | null;
+  fullDate: string;
+  timeStr: string;
+  kidDiscord: string | null;
+}): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Two parent-facing references to the kid in the "What happens next"
+  // sentence: the kid's first name for the possessive, and the Discord
+  // username in parens so the parent can verify Tim's invite lands on
+  // the right handle.
+  const kidPossessive = args.kidFirstName ? `${esc(args.kidFirstName)}'s` : "your child's";
+  const discordParen = args.kidDiscord ? ` (${esc(args.kidDiscord)})` : "";
+  // Lead with the kid's name when we have it; otherwise fall back to a
+  // generic phrasing rather than "you" since the call is for the kid,
+  // not the parent.
+  const subject = args.kidFirstName
+    ? `${esc(args.kidFirstName)} is`
+    : "Your kid is";
+
+  return `<!doctype html><html><body style="margin:0;padding:24px;background:#0B1538;color:#fff;font-family:Inter,system-ui,sans-serif;line-height:1.55;">
+<div style="max-width:560px;margin:0 auto;background:#0F1B47;border-radius:12px;padding:32px;">
+<h1 style="font-family:'Anton',Impact,sans-serif;font-size:28px;letter-spacing:1px;margin:0 0 16px;color:#C7FF3D;">You're booked</h1>
+<div style="font-size:15px;color:rgba(255,255,255,0.92);">
+<p>Hi ${esc(args.parentFirstName)},</p>
+<p>${subject} all set for a 30 minute free intro call with Tim.</p>
+<p>
+  <strong>When:</strong> ${esc(args.fullDate)} at ${esc(args.timeStr)}<br/>
+  <strong>Where:</strong> Discord (XPL Keyed coaching server)
+</p>
+<p><strong>What happens next:</strong> in the next day or so, be sure to accept the invite Tim will send to ${kidPossessive} Discord username${discordParen}. That's where the call will happen.</p>
+<p><strong>A few reminders:</strong></p>
+<ul style="padding-left:20px;margin:8px 0;">
+  <li>Parents are welcome to listen in on the first call and ask questions at the end.</li>
+  <li>Tim never calls or texts your phone.</li>
+  <li>No payment info needed today.</li>
+</ul>
+<p>Questions? Just reply to this email and Tim or I will get back to you within 24 hours. Otherwise, see you ${esc(args.fullDate.split(",")[0])}.</p>
+<p style="margin-top:24px;">Peter<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">(Tim's dad, who runs the back end of XPL Keyed)</span></p>
+<p style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.6);border-top:1px solid rgba(255,255,255,0.12);padding-top:16px;">Need to come back later? Sign in any time at <a href="${APP_URL}/login" style="color:#C7FF3D;">${APP_URL.replace(/^https?:\/\//, "")}/login</a>.</p>
+</div>
+<p style="margin-top:32px;font-size:12px;color:rgba(255,255,255,0.5);">XPL Keyed. Independent Fortnite coaching.</p>
+</div>
+</body></html>`;
+}
+
 
 // ---------------------------------------------------------------------------
 // Coach (Tim) cancels that come through Calendly directly. The admin UI's
@@ -474,10 +632,31 @@ type InviteePayload = {
   // Scheduled-event URI. Older webhook versions used `event`, newer wrap it
   // as `scheduled_event.uri`. Check both.
   event?: string;
-  scheduled_event?: { uri: string };
+  scheduled_event?: {
+    uri: string;
+    start_time?: string;
+    end_time?: string;
+  };
   rescheduled?: boolean;
+  // Reschedule chain: new booking sets this; reschedule of a trial call
+  // means the user already got our branded email at the initial booking.
+  rescheduled_from?: { uri: string } | null;
+  old_invitee?: { uri: string } | null;
   cancellation?: {
     canceler_type?: "host" | "invitee";
     reason?: string;
   };
+  // invitee.created fields (not present on cancel)
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  timezone?: string;
+  cancel_url?: string;
+  reschedule_url?: string;
+  questions_and_answers?: Array<{
+    position?: number;
+    question?: string;
+    answer?: string;
+  }>;
 };

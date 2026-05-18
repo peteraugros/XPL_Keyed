@@ -1,0 +1,193 @@
+/* Login page styles. Mobile first, design tokens from globals.css.
+   Dash free per Hard rule #8. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 20px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.shell::before,
+.shell::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.22;
+  pointer-events: none;
+}
+.shell::before {
+  width: 320px;
+  height: 320px;
+  background: var(--rare);
+  top: -100px;
+  right: -60px;
+}
+.shell::after {
+  width: 280px;
+  height: 280px;
+  background: var(--lime);
+  bottom: -80px;
+  left: -60px;
+  opacity: 0.12;
+}
+
+.frame {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-size: 36px;
+  letter-spacing: 1px;
+  line-height: 1;
+  color: var(--text);
+  margin: 0;
+}
+
+.body {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.subtle {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.alert {
+  background: rgba(200, 7, 21, 0.12);
+  border: 1px solid rgba(200, 7, 21, 0.45);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.roleRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.roleBtn {
+  flex: 1 1 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 6px;
+  min-height: 48px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.roleBtn:hover {
+  color: var(--text);
+}
+.roleBtnActive {
+  background: var(--lime);
+  color: var(--bg);
+  border-color: var(--lime);
+}
+.roleBtnActive:hover {
+  color: var(--bg);
+}
+
+.label {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.input {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-height: 48px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.input:focus {
+  border-color: var(--lime);
+  background: var(--bg);
+}
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.primaryBtn {
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 18px;
+  min-height: 48px;
+  margin-top: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.primaryBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-height: 44px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.secondaryBtn:hover {
+  border-color: var(--lime);
+  color: var(--lime);
+}

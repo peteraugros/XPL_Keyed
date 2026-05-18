@@ -17,7 +17,8 @@ export default function HomePage() {
             <a href="#how" className="link">How it works</a>
             <a href="#pricing" className="link">Pricing</a>
             <a href="#faq" className="link">FAQ</a>
-            <a href="#trial" className="btn btn-primary btn-sm">Free trial</a>
+            <a href="/login" className="link">Sign in</a>
+            <a href="/intake" className="btn btn-primary btn-sm">Free trial</a>
           </div>
           <button
             className="hamburger"
@@ -41,7 +42,7 @@ export default function HomePage() {
         <a href="#how" data-close>How it works</a>
         <a href="#pricing" data-close>Pricing</a>
         <a href="#faq" data-close>FAQ</a>
-        <a href="#trial" data-close>Free trial</a>
+        <a href="/intake" data-close>Free trial</a>
       </div>
 
       <header className="hero" id="top">
@@ -67,7 +68,7 @@ export default function HomePage() {
               <span className="js-years-since-c2s2">6</span> years of competitive experience since Chapter 2 Season 2.
             </p>
             <div className="hero-ctas">
-              <a href="#trial" className="btn btn-primary">Claim free 30 min call</a>
+              <a href="/intake" className="btn btn-primary">Claim free 30 min call</a>
               <a href="#how" className="btn btn-ghost">See how it works</a>
             </div>
             <div className="credentials">
@@ -216,7 +217,7 @@ export default function HomePage() {
                 <li>Skill assessment</li>
                 <li>Goal setting conversation</li>
               </ul>
-              <a href="https://calendly.com/REPLACE-WITH-YOUR-LINK" className="btn btn-outline-lime">Book free call</a>
+              <a href="/intake" className="btn btn-outline-lime">Book free call</a>
             </div>
 
             <div className="price-card reveal">
@@ -228,7 +229,7 @@ export default function HomePage() {
                 <li>30 min live coaching call</li>
                 <li>VOD review option</li>
               </ul>
-              <a href="mailto:REPLACE@EMAIL.COM?subject=Single%20lesson%20booking" className="btn btn-ghost">Book a lesson</a>
+              <a href="/intake" className="btn btn-ghost">Start with the free call</a>
             </div>
 
             <div className="price-card featured reveal">
@@ -241,7 +242,7 @@ export default function HomePage() {
                 <li>Curriculum that builds week over week</li>
                 <li>24 hour cancel = full credit refund</li>
               </ul>
-              <a href="mailto:REPLACE@EMAIL.COM?subject=Monthly%20subscription" className="btn btn-primary">Subscribe</a>
+              <a href="/intake" className="btn btn-primary">Start with the free call</a>
             </div>
           </div>
         </div>
@@ -329,7 +330,7 @@ export default function HomePage() {
         <div className="container">
           <h2 className="reveal">Ready to drop in?</h2>
           <p className="reveal">First call is free. 30 minutes with XPL Keyed.</p>
-          <a href="https://calendly.com/REPLACE-WITH-YOUR-LINK" className="btn btn-primary reveal">Claim your free trial call</a>
+          <a href="/intake" className="btn btn-primary reveal">Claim your free trial call</a>
         </div>
       </section>
 

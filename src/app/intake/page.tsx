@@ -8,10 +8,48 @@
 // Step 4a + 4b: scaffold + Level 1 + inline under-13 COPPA gate.
 // Levels 2-4 are placeholders for the next steps.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
 import styles from "./page.module.css";
+
+interface CalendlyWindow {
+  Calendly?: {
+    initInlineWidget: (opts: { url: string; parentElement: Element }) => void;
+  };
+}
+
+const SOUND_STORAGE_KEY = "xpl-intake-sound";
+
+// Web Audio synthesis. Avoids shipping an audio asset and lets us tune the
+// chime cheaply. Two short notes at C5 and G5 with a quick decay sound like a
+// "level up." Final-success chime adds one more note up to C6 for the punch.
+function playChime(notes: number[], audioCtxRef: { current: AudioContext | null }) {
+  let ctx = audioCtxRef.current;
+  if (!ctx) {
+    const AC = (window as Window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
+      ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    audioCtxRef.current = ctx;
+  }
+  if (ctx.state === "suspended") void ctx.resume();
+  const start = ctx.currentTime;
+  notes.forEach((freq, idx) => {
+    const osc = ctx!.createOscillator();
+    const gain = ctx!.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, start + idx * 0.09);
+    gain.gain.setValueAtTime(0.0001, start + idx * 0.09);
+    gain.gain.exponentialRampToValueAtTime(0.18, start + idx * 0.09 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + idx * 0.09 + 0.28);
+    osc.connect(gain).connect(ctx!.destination);
+    osc.start(start + idx * 0.09);
+    osc.stop(start + idx * 0.09 + 0.32);
+  });
+}
+const LEVEL_UP_NOTES = [523.25, 783.99]; // C5, G5
+const SUCCESS_NOTES  = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
 
 const CALENDLY_EVENT_URL = "https://calendly.com/xpl-keyed/intro-call";
 // NOTE: Calendly custom-question IDs are assumed to be a1..a5 in the order
@@ -141,6 +179,17 @@ export default function IntakePage() {
   const [coppa, setCoppa] = useState<CoppaState>({ kind: "unneeded" });
   const [hydrated, setHydrated] = useState(false);
 
+  // Sound is off by default per the spec; toggle is persisted to localStorage.
+  // Web Audio context is lazily created on first play to avoid Chrome's
+  // autoplay restrictions; ref-stored so multiple plays reuse one context.
+  const [soundOn, setSoundOn] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // +25 XP floats: each push appends a new keyed entry; the entry self-cleans
+  // after the CSS animation ends. Multiple floats can stack briefly.
+  const [xpFloats, setXpFloats] = useState<{ id: number }[]>([]);
+  const xpFloatIdRef = useRef(0);
+
   // Page-level lifecycle after the user reaches Level 4:
   //   form         -> normal multi-level form
   //   submitting   -> Calendly returned success, /api/intake/submit in flight
@@ -153,8 +202,39 @@ export default function IntakePage() {
   useEffect(() => {
     const restored = loadState();
     if (restored) setState(restored);
+    try {
+      const stored = window.localStorage.getItem(SOUND_STORAGE_KEY);
+      if (stored === "on") setSoundOn(true);
+    } catch { /* quota / private mode */ }
     setHydrated(true);
   }, []);
+
+  const toggleSound = useCallback(() => {
+    setSoundOn((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem(SOUND_STORAGE_KEY, next ? "on" : "off"); } catch { /* */ }
+      return next;
+    });
+  }, []);
+
+  // Helper that ends up firing one float (with sound if enabled). Wrapped so
+  // the level-change and success effects share identical semantics.
+  const popXpFloat = useCallback((withSuccessChime = false) => {
+    const id = ++xpFloatIdRef.current;
+    setXpFloats((prev) => [...prev, { id }]);
+    window.setTimeout(() => setXpFloats((prev) => prev.filter((f) => f.id !== id)), 1500);
+    if (soundOn) playChime(withSuccessChime ? SUCCESS_NOTES : LEVEL_UP_NOTES, audioCtxRef);
+  }, [soundOn]);
+
+  // Fire a +25 XP float each time the user advances levels (not on Back).
+  // The ref tracks the previously-seen level so re-renders without an actual
+  // level change don't double-fire.
+  const prevLevelRef = useRef(level);
+  useEffect(() => {
+    if (!hydrated) { prevLevelRef.current = level; return; }
+    if (level > prevLevelRef.current) popXpFloat(false);
+    prevLevelRef.current = level;
+  }, [level, hydrated, popXpFloat]);
 
   // ---- Handle ?verified=<id> and ?coppa_error=... ------------------------
   useEffect(() => {
@@ -230,6 +310,39 @@ export default function IntakePage() {
     (level === 1 && canAdvanceFromL1) ||
     (level === 2 && l2FieldsValid) ||
     (level === 3 && l3FieldsValid);
+
+  // ---- Confetti + success chime when the trial is booked ----------------
+  // Lazy-import canvas-confetti so the marketing landing doesn't pay for it.
+  // Only fires once per `success` transition (not on every render).
+  const successFiredRef = useRef(false);
+  useEffect(() => {
+    if (stage !== "success") {
+      successFiredRef.current = false;
+      return;
+    }
+    if (successFiredRef.current) return;
+    successFiredRef.current = true;
+    if (soundOn) playChime(SUCCESS_NOTES, audioCtxRef);
+    const prefersReducedMotion = typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) return;
+    void import("canvas-confetti").then(({ default: confetti }) => {
+      const burst = (origin: { x: number; y: number }) => {
+        confetti({
+          particleCount: 90,
+          spread: 70,
+          startVelocity: 45,
+          ticks: 240,
+          origin,
+          colors: ["#C7FF3D", "#4C51F7", "#F5A623", "#319236"],
+          scalar: 1.05,
+        });
+      };
+      burst({ x: 0.2, y: 0.55 });
+      burst({ x: 0.8, y: 0.55 });
+      window.setTimeout(() => burst({ x: 0.5, y: 0.35 }), 220);
+    });
+  }, [stage, soundOn]);
 
   // ---- Final intake submit (fires after Calendly success) ----------------
   const submitIntake = useCallback(async () => {
@@ -330,8 +443,24 @@ export default function IntakePage() {
 
   return (
     <main className={styles.shell}>
-      <div className={styles.frame}>
-        <div className={styles.brand}>XPL KEYED</div>
+      <div className={`${styles.frame} ${level === TOTAL_LEVELS ? styles.frameWide : ""}`}>
+        <div className={styles.topRow}>
+          {/* Invisible spacer mirrors the toggle width so the brand reads
+              optically centered. Cheaper than measuring or absolute layout. */}
+          <button className={`${styles.soundToggle} ${styles.topRowSpacer}`} tabIndex={-1} aria-hidden="true">
+            SOUND OFF
+          </button>
+          <div className={styles.brand}>XPL KEYED</div>
+          <button
+            type="button"
+            className={styles.soundToggle}
+            data-on={soundOn ? "true" : "false"}
+            onClick={toggleSound}
+            aria-pressed={soundOn}
+          >
+            {soundOn ? "SOUND ON" : "SOUND OFF"}
+          </button>
+        </div>
 
         <div className={styles.progress}>
           <span className={styles.progressLabel} style={{ color: displayedLevelColor }}>
@@ -341,8 +470,13 @@ export default function IntakePage() {
             {stage === "success" ? "DONE" : `${level} OF ${TOTAL_LEVELS}`}
           </span>
         </div>
-        <div className={styles.xpTrack} aria-hidden="true">
-          <div className={styles.xpFill} style={{ width: `${displayedXp}%`, background: displayedLevelColor }} />
+        <div className={styles.xpTrackWrap}>
+          <div className={styles.xpTrack} aria-hidden="true">
+            <div className={styles.xpFill} style={{ width: `${displayedXp}%`, background: displayedLevelColor }} />
+          </div>
+          {xpFloats.map((f) => (
+            <span key={f.id} className={styles.xpFloat} aria-hidden="true">+25 XP</span>
+          ))}
         </div>
 
         <div className={styles.card}>
@@ -401,7 +535,6 @@ export default function IntakePage() {
           {stage === "submitting" && <SubmittingCard />}
 
           {stage === "success" && <SuccessCard
-            kidFirstName={state.kid_first_name}
             parentEmail={state.parent_email}
           />}
 
@@ -440,7 +573,7 @@ function Level1({ state, setField, ageNum, needsCoppa, coppa, canSendVerificatio
   return (
     <>
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>What's your first name?</span>
+        <span className={styles.fieldLabel}>Student first name</span>
         <input
           className={styles.fieldInput}
           type="text"
@@ -740,11 +873,13 @@ function Level3({ state, setField, lockedByCoppa }: Level3Props) {
 
 function buildCalendlyUrl(state: FormState): string {
   const url = new URL(CALENDLY_EVENT_URL);
+  // Defaults only. Calendly's background_color / text_color / primary_color
+  // overrides have known interactions with their internal date-grid styling
+  // (calendar cells can render at invisible contrast against a forced dark
+  // background). Leave Calendly's own light theme intact for now; the rest
+  // of the page provides enough visual continuity. Reconsider once Calendly
+  // ships a documented dark mode.
   url.searchParams.set("hide_gdpr_banner", "1");
-  url.searchParams.set("hide_event_type_details", "1");
-  url.searchParams.set("background_color", "0F1B47");
-  url.searchParams.set("text_color", "FFFFFF");
-  url.searchParams.set("primary_color", "C7FF3D");
   // Top-level Calendly fields (parent is the booker).
   if (state.parent_first_name) url.searchParams.set("name", state.parent_first_name);
   if (state.parent_email)      url.searchParams.set("email", state.parent_email);
@@ -759,18 +894,42 @@ function buildCalendlyUrl(state: FormState): string {
 interface Level4Props { state: FormState }
 
 function Level4({ state }: Level4Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const url = buildCalendlyUrl(state);
+
+  // Auto-init via `data-url` is timing-dependent: Calendly's widget.js scans
+  // the DOM at script-load time. If the script lands before React mounts the
+  // container (afterInteractive ordering), the scan misses us and the embed
+  // stays in its pre-iframe skeleton state ("30 minute free intro call"
+  // header but no calendar). Manual init is order-independent.
+  useEffect(() => {
+    if (!scriptLoaded) {
+      // The user might have hit L4 before, navigated away, and come back —
+      // the script tag is cached, so this effect fires before next/script
+      // has called our onLoad. Check the global up front.
+      const win = window as Window & CalendlyWindow;
+      if (!win.Calendly) return;
+    }
+    const win = window as Window & CalendlyWindow;
+    const el = containerRef.current;
+    if (!win.Calendly || !el) return;
+    // Guard against double-init in React strict mode by checking for an
+    // existing iframe before booting a new one.
+    if (el.querySelector("iframe")) return;
+    win.Calendly.initInlineWidget({ url, parentElement: el });
+  }, [scriptLoaded, url]);
+
   return (
     <>
       <p className={styles.calendlyHint}>
         Pick a time below that works for {state.kid_first_name || "your kid"}. The free intro call is 30 minutes on Discord. We send the server invite to {state.kid_discord_username || "the Discord username you provided"} after you book.
       </p>
-      <div
-        className={`calendly-inline-widget ${styles.calendlyEmbed}`}
-        data-url={buildCalendlyUrl(state)}
-      />
+      <div ref={containerRef} className={styles.calendlyEmbed} />
       <Script
         src="https://assets.calendly.com/assets/external/widget.js"
         strategy="afterInteractive"
+        onLoad={() => setScriptLoaded(true)}
       />
     </>
   );
@@ -788,22 +947,25 @@ function SubmittingCard() {
   );
 }
 
-interface SuccessCardProps { kidFirstName: string; parentEmail: string }
+interface SuccessCardProps { parentEmail: string }
 
-function SuccessCard({ kidFirstName, parentEmail }: SuccessCardProps) {
+function SuccessCard({ parentEmail }: SuccessCardProps) {
   return (
     <div className={styles.successCard}>
       <div className={styles.unlockedKicker}>ACHIEVEMENT UNLOCKED</div>
       <h2 className={styles.unlockedHeadline}>Free Trial Booked</h2>
       <p className={styles.successBody}>
-        Nice work, {kidFirstName || "champ"}. We emailed your parent at <b>{parentEmail}</b> with a sign in link. They tap it, your dashboard opens, and your quest log goes live.
-      </p>
-      <p className={styles.successBody}>
-        While you wait for the call, Tim wants to watch a clip. Look out for the Drop a VOD quest in your dashboard.
+        Nice work! We emailed you at <b>{parentEmail}</b> with a sign in link.
+        Tap it and your dashboard opens.
       </p>
       <span className={styles.successDetail}>
         You'll also get a Calendly email with the call time. Check spam if it's not in the inbox.
       </span>
+      <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
+        <a href="/" className={`${styles.btn} ${styles.btnPrimary}`}>
+          Done
+        </a>
+      </div>
     </div>
   );
 }

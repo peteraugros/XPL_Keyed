@@ -1,0 +1,545 @@
+/* Kid's quest log. Gamified. Tokens from globals.css.
+   Mobile first. Dash free per Hard rule #8. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px 20px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.shell::before,
+.shell::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.shell::before {
+  width: 360px;
+  height: 360px;
+  background: var(--rare);
+  top: -120px;
+  right: -100px;
+  opacity: 0.22;
+}
+.shell::after {
+  width: 320px;
+  height: 320px;
+  background: var(--legendary);
+  bottom: -120px;
+  left: -80px;
+  opacity: 0.18;
+}
+
+.frame {
+  position: relative;
+  z-index: 1;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: var(--lime);
+}
+.signOutBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 36px;
+  cursor: pointer;
+}
+.signOutBtn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+/* Hero */
+.hero { padding: 4px 4px 8px; }
+.heroEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 8vw, 60px);
+  line-height: 1;
+  letter-spacing: 1px;
+  margin: 0 0 10px;
+}
+.heroBody {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: 0 0 8px;
+}
+.heroIgn {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+.heroIgnValue {
+  color: var(--lime);
+}
+
+/* XP strip */
+.xpStrip {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.xpRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.xpLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+}
+.xpCount {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+.xpBar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.xpFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--lime), var(--legendary));
+  transition: width 0.6s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xpFill { transition: none; }
+}
+.xpHint {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+
+/* Card (used for Discord call CTA section) */
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cardEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+.cardBody {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+}
+.callCta {
+  align-self: flex-start;
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  padding: 14px 20px;
+  min-height: 48px;
+  background: var(--bg-3);
+  color: var(--text-faint);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  cursor: not-allowed;
+}
+
+/* Quest log */
+.questBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.questHeader {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin: 4px 4px 0;
+}
+
+.quest {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.quest::before {
+  /* rarity accent strip on the left */
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: currentColor;
+}
+.uncommon { color: var(--uncommon); }
+.rare { color: var(--rare); }
+.epic { color: var(--epic); }
+.legendary { color: var(--legendary); }
+
+.questHead {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+.questBadge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: currentColor;
+  /* White text reads cleanly across all four rarity backgrounds.
+     Previously used var(--bg) which collided with the rare-blue
+     badge (both bluish, low contrast). */
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+.questDone .questBadge {
+  background: var(--uncommon);
+  color: #fff;
+}
+.questDone .questBadge::after {
+  content: "✓";
+  font-size: 14px;
+  position: relative;
+  top: 0;
+}
+.questTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  margin: 0;
+  color: var(--text);
+}
+.questXp {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.questDone .questXp {
+  color: var(--uncommon);
+}
+.questCopy {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.questLocked {
+  opacity: 0.5;
+  filter: grayscale(0.4);
+}
+.questLocked .questBadge {
+  background: var(--bg-3);
+  color: var(--text-faint);
+}
+
+/* Inline forms inside quest cards */
+.inlineForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.input {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-height: 48px;
+  outline: none;
+}
+.input:focus {
+  border-color: var(--lime);
+  background: var(--bg);
+}
+.textarea {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 96px;
+  outline: none;
+}
+.textarea:focus {
+  border-color: var(--lime);
+  background: var(--bg);
+}
+.primaryBtn {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-height: 48px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.primaryBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.secondaryBtn {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 16px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+}
+.secondaryBtn:hover {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+.alert {
+  background: rgba(200, 7, 21, 0.12);
+  border: 1px solid rgba(200, 7, 21, 0.45);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+.subtle {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.savedRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.savedLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.savedLink {
+  font-size: 13px;
+  color: var(--lime);
+  word-break: break-all;
+  border-bottom: 1px solid rgba(199, 255, 61, 0.4);
+}
+.savedBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+}
+.savedQ {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.prepForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.legend {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0;
+}
+.optionGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@media (min-width: 480px) {
+  .optionGrid { grid-template-columns: 1fr 1fr; }
+}
+.option {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-height: 48px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.option:hover {
+  border-color: var(--text-dim);
+}
+.optionSelected {
+  border-color: var(--lime);
+  background: rgba(199, 255, 61, 0.08);
+}
+.rewatchLink {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--lime);
+  border-bottom: 1px solid rgba(199, 255, 61, 0.4);
+}
+
+.discordRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.discordRow > * { flex: 0 0 auto; }
+
+/* Locked sections at the bottom */
+.lockedBlock {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 520px) {
+  .lockedBlock { grid-template-columns: 1fr 1fr; }
+}
+.lockedCard {
+  background: var(--bg-2);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  opacity: 0.7;
+}
+.lockedEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.lockedTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px;
+}
+.lockedCopy {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.footer {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-top: 12px;
+  padding: 0 8px;
+}

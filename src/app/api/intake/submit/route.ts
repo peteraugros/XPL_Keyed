@@ -19,13 +19,11 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
-import { brandedEmailHtml } from "@/lib/email/template";
+import { sendParentMagicLink } from "@/lib/supabase/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const SYNTHETIC_KID_DOMAIN = "xplkeyed.internal";
 
 const BodySchema = z.object({
@@ -125,38 +123,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: code, detail: msg }, { status });
   }
 
-  // ---- 4. Generate parent magic link + send branded welcome --------------
-  const linkResult = await supabase.auth.admin.generateLink({
-    type: "magiclink",
-    email: body.parent_email,
-    options: { redirectTo: `${APP_URL}/auth/callback?next=/portal` },
-  });
-
-  let magicLinkUrl: string | null = null;
-  if (linkResult.error) {
-    console.error("[intake/submit] generateLink failed", linkResult.error);
-  } else {
-    magicLinkUrl = linkResult.data.properties?.action_link ?? null;
-  }
-
-  if (magicLinkUrl) {
-    try {
-      await resend.emails.send({
-        from: FROM_EMAIL,
-        to: body.parent_email,
-        subject: "Your XPL Keyed dashboard is ready",
-        html: brandedEmailHtml({
-          headline: "Welcome to XPL Keyed",
-          bodyHtml: `<p>Hi ${escapeHtml(body.parent_first_name)},</p>
+  // ---- 4. Welcome email via the magic-link helper ------------------------
+  // Failure is logged and swallowed — the family graph is written; the parent
+  // can always request a fresh link from /login.
+  const welcomeResult = await sendParentMagicLink(supabase, body.parent_email, {
+    next: "/portal",
+    subject: "Your XPL Keyed dashboard is ready",
+    headline: "Welcome to XPL Keyed",
+    bodyHtml: `<p>Hi ${escapeHtml(body.parent_first_name)},</p>
 <p>${escapeHtml(body.kid_first_name)}'s free trial is set up. Tap the button to open your parent dashboard. You can review the trial prep, see what Tim watches before the call, and book the call if you have not already.</p>
 <p style="font-size:13px;color:rgba(255,255,255,0.6);">This link signs you in. Keep it private. Questions? Reply to this email.</p>`,
-          ctaLabel: "Open your dashboard",
-          ctaHref: magicLinkUrl,
-        }),
-      });
-    } catch (err) {
-      console.error("[intake/submit] welcome email failed", err);
-    }
+    ctaLabel: "Open your dashboard",
+  });
+  if (!welcomeResult.ok) {
+    console.error("[intake/submit] welcome email failed", welcomeResult.code);
   }
 
   const payload = rpcResult.data as {

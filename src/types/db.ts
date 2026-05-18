@@ -154,6 +154,7 @@ export type Database = {
           created_at: string
           discord_user_id: string | null
           display_name: string
+          email: string
           id: string
           is_active: boolean
           stage_name: string | null
@@ -164,6 +165,7 @@ export type Database = {
           created_at?: string
           discord_user_id?: string | null
           display_name: string
+          email: string
           id?: string
           is_active?: boolean
           stage_name?: string | null
@@ -174,6 +176,7 @@ export type Database = {
           created_at?: string
           discord_user_id?: string | null
           display_name?: string
+          email?: string
           id?: string
           is_active?: boolean
           stage_name?: string | null
@@ -586,6 +589,7 @@ export type Database = {
           auth_user_id: string | null
           created_at: string
           current_rank: string | null
+          discord_channel_url: string | null
           discord_username: string | null
           family_id: string
           first_name: string
@@ -600,6 +604,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           current_rank?: string | null
+          discord_channel_url?: string | null
           discord_username?: string | null
           family_id: string
           first_name: string
@@ -614,6 +619,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           current_rank?: string | null
+          discord_channel_url?: string | null
           discord_username?: string | null
           family_id?: string
           first_name?: string
