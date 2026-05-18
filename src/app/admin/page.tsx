@@ -330,8 +330,6 @@ export default async function AdminPage() {
     .order("age_in_state", { ascending: false })
     .limit(20); // top 20 — Home uses #1, expansion section uses #2..N
   const tasks = (tasksLookup.data ?? []) as DerivedTask[];
-  const topTask = tasks[0] ?? null;
-  const remainingTasks = tasks.length > 1 ? tasks.length - 1 : 0;
 
   return (
     <div className={styles.shell}>
@@ -344,8 +342,7 @@ export default async function AdminPage() {
           waitlistCount,
           waitlistOldestDays: waitlistDays,
         }}
-        topTask={topTask}
-        remainingTasks={remainingTasks}
+        tasks={tasks}
         trialCards={trialCards}
         activeRows={activeRows}
       />

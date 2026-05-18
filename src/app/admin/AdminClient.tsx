@@ -92,8 +92,7 @@ type DerivedTask = {
 export default function AdminClient({
   coachName,
   stats,
-  topTask,
-  remainingTasks,
+  tasks,
   trialCards,
   activeRows,
 }: {
@@ -105,8 +104,7 @@ export default function AdminClient({
     waitlistCount: number;
     waitlistOldestDays: number | null;
   };
-  topTask: DerivedTask | null;
-  remainingTasks: number;
+  tasks: DerivedTask[];
   trialCards: TrialCard[];
   activeRows: ActiveRow[];
 }) {
@@ -135,7 +133,7 @@ export default function AdminClient({
         </div>
       </header>
 
-      <FocusedHome topTask={topTask} remainingTasks={remainingTasks} />
+      <FocusedHome tasks={tasks} />
 
       <section className={styles.statsStrip}>
         <Stat
@@ -228,20 +226,24 @@ export default function AdminClient({
 }
 
 // ---------------------------------------------------------------------------
-// Focused-mode Home — single top task surface
+// Focused-mode Home — single top task surface + expansion
 // ---------------------------------------------------------------------------
 // Per Coach Dashboard Spec/CEO/admin-spec-focused.md section 4 ("One Thing").
-// Shows the highest-priority task awaiting Tim with task-type-aware copy
-// and a single "Open" CTA that anchors to the relevant client card below.
-// Below: "X more waiting" demoted count. Empty state: warm acknowledgment.
-function FocusedHome({
-  topTask,
-  remainingTasks,
-}: {
-  topTask: DerivedTask | null;
-  remainingTasks: number;
-}) {
-  if (!topTask) {
+// Top task is hero-styled with task-type-aware copy + inline action (inline
+// reply for messages, scroll-anchor for trials/cancels). Below, "X more
+// waiting" is click-to-expand: reveals tasks 2..N as compact rows with
+// per-task CTAs. Empty state when no tasks are waiting on Tim.
+function FocusedHome({ tasks }: { tasks: DerivedTask[] }) {
+  const router = useRouter();
+  const [expanded, setExpanded] = useState(false);
+
+  // Inline reply state for the top task when it's a message_thread.
+  const [replyBody, setReplyBody] = useState("");
+  const [replySubmitting, setReplySubmitting] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [replySent, setReplySent] = useState(false);
+
+  if (tasks.length === 0) {
     return (
       <section className={styles.focusedHomeEmpty}>
         <div className={styles.focusedHomeEyebrow}>Home</div>
@@ -253,8 +255,38 @@ function FocusedHome({
     );
   }
 
+  const topTask = tasks[0];
+  const remaining = tasks.slice(1);
   const phrasing = phraseForTask(topTask);
   const ageStr = formatAge(topTask.age_in_state);
+  const isMessageThread = topTask.task_type === "message_thread";
+
+  async function submitReply(e: React.FormEvent) {
+    e.preventDefault();
+    setReplyError(null);
+    const trimmed = replyBody.trim();
+    if (!trimmed) return;
+    setReplySubmitting(true);
+    try {
+      const res = await fetch("/api/admin/message", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ player_id: topTask.client_id, body: trimmed }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setReplyError(body.error ?? "Could not send. Try again.");
+        setReplySubmitting(false);
+        return;
+      }
+      setReplyBody("");
+      setReplySent(true);
+      router.refresh();
+    } catch {
+      setReplyError("Could not reach the server.");
+    }
+    setReplySubmitting(false);
+  }
 
   return (
     <section className={styles.focusedHome}>
@@ -268,12 +300,72 @@ function FocusedHome({
         <span className={styles.focusedHomeDot}>·</span>
         <span className={styles.focusedHomeAge}>{ageStr}</span>
       </div>
-      <a href={`#client-${topTask.client_id}`} className={styles.focusedHomeCta}>
-        {phrasing.cta}
-      </a>
-      {remainingTasks > 0 ? (
-        <div className={styles.focusedHomeMore}>
-          {remainingTasks} more waiting
+
+      {isMessageThread && !replySent ? (
+        <form className={styles.inlineReply} onSubmit={submitReply}>
+          <textarea
+            value={replyBody}
+            onChange={(e) => setReplyBody(e.target.value)}
+            placeholder={`Reply to ${topTask.client_name}...`}
+            rows={2}
+            maxLength={2000}
+            className={styles.inlineReplyInput}
+          />
+          <div className={styles.inlineReplyRow}>
+            <button
+              type="submit"
+              className={styles.focusedHomeCta}
+              disabled={replySubmitting || !replyBody.trim()}
+            >
+              {replySubmitting ? "Sending..." : "Send reply"}
+            </button>
+            <a
+              href={`#client-${topTask.client_id}`}
+              className={styles.inlineReplySecondary}
+            >
+              Open thread
+            </a>
+            {replyError ? <span className={styles.inlineReplyError}>{replyError}</span> : null}
+          </div>
+        </form>
+      ) : isMessageThread && replySent ? (
+        <div className={styles.inlineReplySent}>
+          Replied to {topTask.client_name}. Refreshing the queue...
+        </div>
+      ) : (
+        <a href={`#client-${topTask.client_id}`} className={styles.focusedHomeCta}>
+          {phrasing.cta}
+        </a>
+      )}
+
+      {remaining.length > 0 ? (
+        <div className={styles.focusedHomeExpander}>
+          <button
+            type="button"
+            className={styles.focusedHomeMoreToggle}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? "Hide" : `${remaining.length} more waiting`}
+          </button>
+          {expanded ? (
+            <ul className={styles.focusedHomeMoreList}>
+              {remaining.map((t) => {
+                const p = phraseForTask(t);
+                return (
+                  <li key={`${t.task_type}-${t.source_object_id}`} className={styles.focusedHomeMoreItem}>
+                    <div className={styles.focusedHomeMoreCopy}>
+                      <span className={styles.focusedHomeMoreName}>{t.client_name}</span>
+                      <span className={styles.focusedHomeMoreSubtitle}>{p.title}</span>
+                      <span className={styles.focusedHomeMoreAge}>{formatAge(t.age_in_state)}</span>
+                    </div>
+                    <a href={`#client-${t.client_id}`} className={styles.focusedHomeMoreCta}>
+                      {p.cta}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
       ) : null}
     </section>

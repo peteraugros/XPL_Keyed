@@ -128,6 +128,141 @@
   font-size: 12px;
   color: var(--text-faint);
 }
+
+/* Inline reply form on Home (message_thread task) */
+.inlineReply {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.inlineReplyInput {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+}
+.inlineReplyInput:focus {
+  border-color: var(--lime);
+  background: var(--bg);
+}
+.inlineReplyRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.inlineReplySecondary {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+.inlineReplySecondary:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+.inlineReplyError {
+  font-size: 12px;
+  color: var(--epic);
+}
+.inlineReplySent {
+  font-size: 14px;
+  color: var(--uncommon);
+  padding: 8px 0;
+  font-style: italic;
+}
+
+/* More-waiting expansion */
+.focusedHomeExpander {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.focusedHomeMoreToggle {
+  align-self: flex-start;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-height: 30px;
+  cursor: pointer;
+}
+.focusedHomeMoreToggle:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+.focusedHomeMoreList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.focusedHomeMoreItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.focusedHomeMoreCopy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.focusedHomeMoreName {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+.focusedHomeMoreSubtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.focusedHomeMoreAge {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.focusedHomeMoreCta {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-height: 32px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
 .focusedHomeEmptyTitle {
   font-family: var(--font-display);
   font-size: 22px;
