@@ -127,6 +127,7 @@ export default function AdminClient({
   pipelineCards,
   waitlistEntries,
   returnedStucks,
+  doneToday,
 }: {
   coachName: string;
   coachMode: "focused" | "command";
@@ -143,6 +144,7 @@ export default function AdminClient({
   pipelineCards: PipelineCard[];
   waitlistEntries: WaitlistEntry[];
   returnedStucks: ReturnedStuck[];
+  doneToday: number;
 }) {
   const router = useRouter();
 
@@ -175,7 +177,7 @@ export default function AdminClient({
       {coachMode === "command" ? (
         <CommandPipeline pipelineCards={pipelineCards} waitlistEntries={waitlistEntries} stats={stats} />
       ) : (
-        <FocusedHome tasks={tasks} />
+        <FocusedHome tasks={tasks} doneToday={doneToday} />
       )}
 
       <section className={styles.statsStrip}>
@@ -541,7 +543,13 @@ function CommandPipeline({
 // reply for messages, scroll-anchor for trials/cancels). Below, "X more
 // waiting" is click-to-expand: reveals tasks 2..N as compact rows with
 // per-task CTAs. Empty state when no tasks are waiting on Tim.
-function FocusedHome({ tasks }: { tasks: DerivedTask[] }) {
+function FocusedHome({
+  tasks,
+  doneToday,
+}: {
+  tasks: DerivedTask[];
+  doneToday: number;
+}) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
 
@@ -559,6 +567,11 @@ function FocusedHome({ tasks }: { tasks: DerivedTask[] }) {
         <div className={styles.focusedHomeEmptyBody}>
           Quiet inbox. Tim&apos;s on top of it. Stay loose.
         </div>
+        {doneToday > 0 ? (
+          <div className={styles.focusedHomeStreak}>
+            ✦ {doneToday} done today
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -678,6 +691,12 @@ function FocusedHome({ tasks }: { tasks: DerivedTask[] }) {
               })}
             </ul>
           ) : null}
+        </div>
+      ) : null}
+
+      {doneToday > 0 ? (
+        <div className={styles.focusedHomeStreak}>
+          ✦ {doneToday} done today
         </div>
       ) : null}
     </section>

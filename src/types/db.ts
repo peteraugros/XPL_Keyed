@@ -873,6 +873,38 @@ export type Database = {
           },
         ]
       }
+      task_completions: {
+        Row: {
+          coach_id: string | null
+          completed_at: string
+          id: string
+          source_id: string
+          source_table: string
+        }
+        Insert: {
+          coach_id?: string | null
+          completed_at?: string
+          id?: string
+          source_id: string
+          source_table: string
+        }
+        Update: {
+          coach_id?: string | null
+          completed_at?: string
+          id?: string
+          source_id?: string
+          source_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_completions_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vod_uploads: {
         Row: {
           created_at: string

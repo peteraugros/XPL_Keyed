@@ -351,6 +351,19 @@ export default async function AdminPage() {
     .limit(10);
   const returnedStucks = (returnedLookup.data ?? []) as ReturnedStuck[];
 
+  // "✦ X done today" count for Focused Home. Anchors on local-server
+  // midnight; UI uses the same timezone the server runs in. Good-enough
+  // approximation at MVP scale.
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const doneTodayLookup = await supabase
+    .from("task_completions")
+    .select("id", { count: "exact", head: true })
+    .eq("coach_id", coach.id)
+    .gte("completed_at", todayStart.toISOString());
+  const doneToday =
+    (doneTodayLookup as unknown as { count: number | null }).count ?? 0;
+
   // Command-mode Pipeline needs waitlist entries too (own column on the
   // kanban). Focused mode doesn't surface them on Home; the spec's
   // intake-funnel narrative keeps them muted.
@@ -405,6 +418,7 @@ export default async function AdminPage() {
         pipelineCards={pipelineCards}
         waitlistEntries={waitlistEntries}
         returnedStucks={returnedStucks}
+        doneToday={doneToday}
       />
     </div>
   );
