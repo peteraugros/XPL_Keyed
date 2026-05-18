@@ -299,6 +299,8 @@ function FocusedHome({ tasks }: { tasks: DerivedTask[] }) {
         <span className={styles.focusedHomeKid}>{topTask.client_name}</span>
         <span className={styles.focusedHomeDot}>·</span>
         <span className={styles.focusedHomeAge}>{ageStr}</span>
+        <span className={styles.focusedHomeDot}>·</span>
+        <StuckButton task={topTask} variant="link" />
       </div>
 
       {isMessageThread && !replySent ? (
@@ -356,7 +358,9 @@ function FocusedHome({ tasks }: { tasks: DerivedTask[] }) {
                     <div className={styles.focusedHomeMoreCopy}>
                       <span className={styles.focusedHomeMoreName}>{t.client_name}</span>
                       <span className={styles.focusedHomeMoreSubtitle}>{p.title}</span>
-                      <span className={styles.focusedHomeMoreAge}>{formatAge(t.age_in_state)}</span>
+                      <span className={styles.focusedHomeMoreAge}>
+                        {formatAge(t.age_in_state)} · <StuckButton task={t} variant="link" />
+                      </span>
                     </div>
                     <a href={`#client-${t.client_id}`} className={styles.focusedHomeMoreCta}>
                       {p.cta}
@@ -369,6 +373,114 @@ function FocusedHome({ tasks }: { tasks: DerivedTask[] }) {
         </div>
       ) : null}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stuck button — Tim's escalation affordance
+// ---------------------------------------------------------------------------
+// Per Coach Dashboard Spec/backend-spec.md section 3 + 7. Click writes a
+// stuck_events row, flips the source object's waiting_on to DAD, fires a
+// Discord DM. Two-step UX: first click reveals a tiny reason prompt
+// (optional), second click submits. Cancel resets.
+function StuckButton({
+  task,
+  variant = "link",
+}: {
+  task: DerivedTask;
+  variant?: "link" | "button";
+}) {
+  const router = useRouter();
+  const [stage, setStage] = useState<"idle" | "prompting" | "submitting" | "sent">("idle");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  // Map task_type -> stuck_events.object_type
+  function mapType(t: string): string {
+    if (t === "message_thread") return "message_thread";
+    if (t === "trial_decision") return "trial_decision";
+    if (t === "cancellation_event") return "cancellation_event";
+    return "other";
+  }
+
+  async function submit() {
+    setError(null);
+    setStage("submitting");
+    try {
+      const res = await fetch("/api/admin/stuck", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          object_type: mapType(task.task_type),
+          object_id: task.source_object_id,
+          client_name: task.client_name,
+          reason: reason.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? "Failed.");
+        setStage("prompting");
+        return;
+      }
+      setStage("sent");
+      router.refresh();
+    } catch {
+      setError("Could not reach the server.");
+      setStage("prompting");
+    }
+  }
+
+  if (stage === "sent") {
+    return <span className={styles.stuckSent}>Sent to Dad</span>;
+  }
+
+  if (stage === "idle") {
+    return (
+      <button
+        type="button"
+        className={variant === "link" ? styles.stuckLink : styles.stuckBtn}
+        onClick={() => setStage("prompting")}
+      >
+        Stuck
+      </button>
+    );
+  }
+
+  // Prompting / submitting
+  return (
+    <span className={styles.stuckPrompt}>
+      <input
+        type="text"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Why? (optional)"
+        maxLength={500}
+        className={styles.stuckInput}
+        autoFocus
+      />
+      <button
+        type="button"
+        className={styles.stuckSubmit}
+        onClick={submit}
+        disabled={stage === "submitting"}
+      >
+        {stage === "submitting" ? "Sending..." : "Send to Dad"}
+      </button>
+      <button
+        type="button"
+        className={styles.stuckCancel}
+        onClick={() => {
+          setStage("idle");
+          setReason("");
+          setError(null);
+        }}
+        disabled={stage === "submitting"}
+      >
+        Cancel
+      </button>
+      {error ? <span className={styles.stuckError}>{error}</span> : null}
+    </span>
   );
 }
 
