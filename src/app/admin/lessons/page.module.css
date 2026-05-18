@@ -1,0 +1,171 @@
+/* /admin/lessons — Tim's lesson library list. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px 20px 80px;
+}
+.frame {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: var(--lime);
+}
+.backLink {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+.backLink:hover { color: var(--text); border-color: var(--text-dim); }
+
+.heroBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 6vw, 48px);
+  letter-spacing: 1px;
+  margin: 0;
+}
+.heroBody {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 720px;
+}
+.primaryBtn {
+  align-self: flex-start;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-height: 44px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.stubWarning {
+  background: rgba(245, 166, 35, 0.10);
+  border: 1px solid rgba(245, 166, 35, 0.45);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+.stubEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--legendary);
+  text-transform: uppercase;
+}
+.stubWarning p { margin: 0; line-height: 1.5; }
+
+.listBlock { display: flex; flex-direction: column; gap: 10px; }
+.empty {
+  background: var(--bg-2);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 14px;
+}
+.lessonList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lessonRow {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lessonRowStub {
+  border-color: rgba(245, 166, 35, 0.45);
+}
+.lessonHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lessonTitle {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 0.5px;
+}
+.lessonSub {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+.lessonBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lessonBadge {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+}
+.lessonBadgeStub {
+  color: var(--legendary);
+  border-color: var(--legendary);
+}
+.lessonBadgePublished {
+  color: var(--uncommon);
+  border-color: var(--uncommon);
+}
+.lessonMeta {
+  font-size: 12px;
+  color: var(--text-faint);
+}

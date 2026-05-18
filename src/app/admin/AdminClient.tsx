@@ -111,6 +111,9 @@ export default function AdminClient({
       <header className={styles.topBar}>
         <div className={styles.brand}>XPL KEYED ADMIN</div>
         <div className={styles.topMeta}>
+          <a href="/admin/lessons" className={styles.signOutBtn}>
+            Lesson library
+          </a>
           <span className={styles.coachName}>{coachName}</span>
           <button type="button" onClick={onSignOut} className={styles.signOutBtn}>
             Sign out
