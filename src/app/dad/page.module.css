@@ -1,0 +1,250 @@
+/* /dad — Peter's Stuck-queue admin. Functional, calm, deliberately small. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px 20px 80px;
+}
+.frame {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.brand {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--lime);
+}
+.topMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.coachName {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.signOutBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 36px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.signOutBtn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.heroBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: 1px;
+  margin: 0;
+}
+.heroBody {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.queueList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.queueItem {
+  background: var(--bg-2);
+  border: 1px solid var(--legendary);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.queueItemDone {
+  border-color: var(--uncommon);
+  opacity: 0.85;
+}
+.queueDoneTitle {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: var(--uncommon);
+  text-transform: capitalize;
+}
+.queueSubtle {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.queueHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.queueObjectType {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--legendary);
+  text-transform: uppercase;
+}
+.queueClientName {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+.queueAge {
+  font-size: 13px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.queueSummary {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.queueReason {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.queueReasonLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+.queueReasonEmpty {
+  color: var(--text-faint);
+}
+
+.queueActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.primaryBtn {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.primaryBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+.secondaryBtn {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--text-dim);
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.secondaryBtn:hover { border-color: var(--lime); color: var(--lime); }
+.tertiaryBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.tertiaryBtn:hover { color: var(--text); border-color: var(--text-dim); }
+.tertiaryBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.queueNoteForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.queueNoteInput {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 80px;
+  outline: none;
+}
+.queueNoteInput:focus { border-color: var(--lime); }
+.queueNoteRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.queueError {
+  font-size: 12px;
+  color: var(--epic);
+}
+
+.footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 12px;
+}

@@ -1086,6 +1086,30 @@ This section is the running source of truth for what's on Peter's plate. Update 
     6. **Mode toggle keyboard shortcut** — `cmd+\` per spec section 2. Not wired.
     7. **Command-mode Clients / Inbox / Money / Operations tabs.** Today Command mode only has the Pipeline at the top + the same below-the-fold cards as Focused. Spec calls for Inbox tab (batch reply), Money tab (bar chart of MRR), Operations tab (Stripe/Discord/Calendly health). Each is its own substantial chunk.
 
+- **Dad admin (Phase 1: Stuck queue) shipped (2026-05-18 night).** Per `Coach Dashboard Spec/dad-admin-spec.md`. The Stuck button on Tim's side has been routing escalations to a queue with no consumer; this commit closes that loop. `npx tsc --noEmit` clean.
+  - **Migration `20260518000600_coach_is_dad.sql`** — `coaches.is_dad BOOLEAN NOT NULL DEFAULT FALSE` + filtered index. Distinguishes Tim (`is_dad=false`) from Peter (`is_dad=true`). Same table because the schema treats coaches as the platform-operator surface, and Peter is operator-of-record alongside Tim.
+  - **Local-test bootstrap:** Peter's coach row (`email='peteraugros@gmail.com'`) flipped to `is_dad=true` via SQL. In MVP local testing, Peter is both `is_active` coach AND `is_dad`, so he can hit `/admin` (Tim's view) or `/dad` (his view) from the same login. Production with separate humans gets separate coach rows.
+  - **`/dad` page** (`src/app/dad/page.tsx`, `DadClient.tsx`, `page.module.css`): Server Component shell + Client interactive surface.
+    - Auth gate: must be authed AND `coaches.is_dad=true`. Non-Dad routes get bounced (parents → `/portal`, players → `/play`, regular coaches → `/admin`, orphans → `/login?error=no_role`).
+    - Fetches open `stuck_events` (`resolved_at IS NULL`) ordered newest first, limit 50.
+    - Resolves context per `object_type`: messages → snippet of body + sender role + client name; subscriptions → lifecycle state + sub status; curricula → status; cancellation_events → classification + hours until call. Batched lookups per type — one query each, not N+1.
+    - Each Stuck row renders as a card with: object label + client name + age + Tim's reason (or "no note") + the bundled source-object summary + three resolution buttons.
+  - **Three resolution paths per Stuck row:**
+    1. **Handle directly** — Dad acted out of band. `stuck_events.resolution_type='handled_directly'`, source object's `waiting_on='SYSTEM'`. Drops out of Tim's queue cleanly.
+    2. **Send back with note** — reveals a textarea, Dad writes guidance, submits. `resolution_type='returned_to_tim'`, `resolution_note=<text>`, source object's `waiting_on='TIM'`. Task re-surfaces in Tim's Home queue.
+    3. **No action needed** — Tim hit Stuck on something that doesn't actually need Dad. `resolution_type='no_action_needed'`, source object's `waiting_on='TIM'`. Quietly returns; no note, no shame.
+    - "Done" state replaces the card with a small confirmation + summary.
+  - **`POST /api/dad/stuck-resolve`** — Dad-gated. Validates input. Updates the stuck row's resolution columns. Flips the source object's `waiting_on` per type (`messages` / `subscriptions` / `curricula` / `cancellation_events`). RLS lets coaches do all of this via `*_coach_all` policies.
+  - **Schema note flagged in-code:** `stuck_events.resolved_by` currently FKs `parents(id)` per the original migration. Dad is a coach, not a parent — so we leave it NULL on Dad-resolve. The stuck row's existence + resolution_type + resolution_note capture Dad's action. Future schema cleanup: re-target the FK at `coaches(id)` or a generic users table.
+  - **Tim ↔ Dad channel:** spec mentions it for delivering the "Send back with note" copy to Tim. Channel doesn't exist yet; for now the note lives on `stuck_events.resolution_note`. Tim's admin should surface it as a banner on the relevant task — flagged as a follow-up. Phase 2 wires a dedicated message channel between Tim and Dad.
+  - **Phase 2+ deferred (per spec, none blocking):**
+    1. **Operational alerts** — Stripe webhook fail count, Discord bot heartbeat, Calendly webhook delivery status, Resend bounce rate. Each needs a polling source or recent-events query; none of those exist yet.
+    2. **Tim today / Tim this week summaries.** Needs a `task_completions` audit log (same dependency as the `✦ X done today` streak counter).
+    3. **Business glance** with Stripe balance + next payout. Stripe API call per render.
+    4. **View as Tim** read-only mirror of Tim's `/admin` from Dad's session.
+    5. **Tim ↔ Dad channel** for guidance notes.
+    6. **Banner on Tim's `/admin`** when a Stuck was resolved with a note — currently Tim has no surfacing.
+
 #### 🔧 Setup (blocking the next coding work)
 
 1. ~~**PNG icons** for the PWA.~~ **DONE 2026-05-17 night via SVG.** `public/icons/icon.svg` (full-bleed, rounded corners, blue `#0B1538` + white "K") and `public/icons/icon-maskable.svg` (no corners, K shrunk to fit the central 80% safe zone for Android launcher masking). `manifest.json` updated to two entries (`purpose:"any"` + `purpose:"maskable"`), `sizes:"any"`, `type:"image/svg+xml"`. Android Chrome + Edge handle SVG manifest icons; iOS "Add to Home Screen" ignores manifest icons entirely and reads `<link rel="apple-touch-icon">` (which must be a PNG). If iOS adoption matters pre-launch, rasterize `icon.svg` to a 180×180 PNG and add `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">` in `src/app/layout.tsx`. The in-tab favicon (data-URI SVG in layout.tsx) is separate and stays as lime-K on dark blue.
