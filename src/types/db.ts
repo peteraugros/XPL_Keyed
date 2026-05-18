@@ -738,6 +738,7 @@ export type Database = {
           resolution_type: string | null
           resolved_at: string | null
           resolved_by: string | null
+          tim_seen_at: string | null
           tim_user_id: string
         }
         Insert: {
@@ -750,6 +751,7 @@ export type Database = {
           resolution_type?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          tim_seen_at?: string | null
           tim_user_id: string
         }
         Update: {
@@ -762,6 +764,7 @@ export type Database = {
           resolution_type?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          tim_seen_at?: string | null
           tim_user_id?: string
         }
         Relationships: [

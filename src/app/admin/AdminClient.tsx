@@ -110,6 +110,13 @@ type WaitlistEntry = {
   status: string;
 };
 
+type ReturnedStuck = {
+  id: string;
+  object_type: string;
+  resolution_note: string;
+  resolved_at: string;
+};
+
 export default function AdminClient({
   coachName,
   coachMode,
@@ -119,6 +126,7 @@ export default function AdminClient({
   activeRows,
   pipelineCards,
   waitlistEntries,
+  returnedStucks,
 }: {
   coachName: string;
   coachMode: "focused" | "command";
@@ -134,6 +142,7 @@ export default function AdminClient({
   activeRows: ActiveRow[];
   pipelineCards: PipelineCard[];
   waitlistEntries: WaitlistEntry[];
+  returnedStucks: ReturnedStuck[];
 }) {
   const router = useRouter();
 
@@ -160,6 +169,8 @@ export default function AdminClient({
           </button>
         </div>
       </header>
+
+      <StuckReturnBanner returnedStucks={returnedStucks} />
 
       {coachMode === "command" ? (
         <CommandPipeline pipelineCards={pipelineCards} waitlistEntries={waitlistEntries} stats={stats} />
@@ -254,6 +265,78 @@ export default function AdminClient({
         Tim's admin. Stage C and lesson library land next.
       </footer>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stuck-return banner — Dad sent a note back
+// ---------------------------------------------------------------------------
+// When Dad picks "Send back with note" on a Stuck, the note lives on
+// stuck_events.resolution_note. This banner surfaces unseen notes on
+// Tim's /admin and lets him dismiss them per-note. Per dad-admin-spec.md
+// section 3: "No silent reassignments. Tim should always know when a
+// task came back from Dad and why."
+function StuckReturnBanner({ returnedStucks }: { returnedStucks: ReturnedStuck[] }) {
+  const router = useRouter();
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  if (returnedStucks.length === 0) return null;
+  const visible = returnedStucks.filter((s) => !dismissed.has(s.id));
+  if (visible.length === 0) return null;
+
+  async function ack(ids: string[]) {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+    try {
+      await fetch("/api/admin/stuck-ack", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ stuck_ids: ids }),
+      });
+      router.refresh();
+    } catch {
+      // Optimistic dismissal already applied; server-side ack failure is
+      // observability only. The banner will resurface on next page load.
+    }
+  }
+
+  return (
+    <section className={styles.returnBanner}>
+      <div className={styles.returnBannerHeader}>
+        <span className={styles.returnBannerEyebrow}>From Dad</span>
+        {visible.length > 1 ? (
+          <button
+            type="button"
+            className={styles.returnBannerAckAll}
+            onClick={() => ack(visible.map((s) => s.id))}
+          >
+            Got it on all {visible.length}
+          </button>
+        ) : null}
+      </div>
+      <ul className={styles.returnBannerList}>
+        {visible.map((s) => (
+          <li key={s.id} className={styles.returnBannerItem}>
+            <div className={styles.returnBannerNote}>{s.resolution_note}</div>
+            <div className={styles.returnBannerRow}>
+              <span className={styles.returnBannerType}>
+                {s.object_type.replace(/_/g, " ")}
+              </span>
+              <button
+                type="button"
+                className={styles.returnBannerAck}
+                onClick={() => ack([s.id])}
+              >
+                Got it
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

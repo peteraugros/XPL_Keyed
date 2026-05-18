@@ -332,6 +332,25 @@ export default async function AdminPage() {
     .limit(20); // top 20 — Home uses #1, expansion section uses #2..N
   const tasks = (tasksLookup.data ?? []) as DerivedTask[];
 
+  // Stuck-return banner: resolved-with-note Stuck events Tim hasn't ack'd.
+  // Surfaces Dad's "Send back with note" guidance on Tim's next /admin visit
+  // per dad-admin-spec.md section 3 (no silent reassignments).
+  type ReturnedStuck = {
+    id: string;
+    object_type: string;
+    resolution_note: string;
+    resolved_at: string;
+  };
+  const returnedLookup = await supabase
+    .from("stuck_events")
+    .select("id, object_type, resolution_note, resolved_at")
+    .not("resolved_at", "is", null)
+    .not("resolution_note", "is", null)
+    .is("tim_seen_at", null)
+    .order("resolved_at", { ascending: false })
+    .limit(10);
+  const returnedStucks = (returnedLookup.data ?? []) as ReturnedStuck[];
+
   // Command-mode Pipeline needs waitlist entries too (own column on the
   // kanban). Focused mode doesn't surface them on Home; the spec's
   // intake-funnel narrative keeps them muted.
@@ -385,6 +404,7 @@ export default async function AdminPage() {
         activeRows={activeRows}
         pipelineCards={pipelineCards}
         waitlistEntries={waitlistEntries}
+        returnedStucks={returnedStucks}
       />
     </div>
   );
