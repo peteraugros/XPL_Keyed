@@ -1036,6 +1036,27 @@ This section is the running source of truth for what's on Peter's plate. Update 
     5. **Backfill imperfections.** All current trial subscriptions backfilled to `waiting_on='TIM'`, which over-classifies (the kid hasn't done the trial call yet for most). That's resolved when the Calendly substage wiring lands (TRIAL_SCHEDULED won't be TIM-waiting; TRIAL_DONE will).
     6. **`derived_tasks_view` performance.** Re-evaluated as a materialized view once volume grows. Current view recomputes on every query; fine at 1-10 client scale.
 
+- **Admin rebuild: Focused-mode Home (Phase 1 UI) shipped (2026-05-18 evening).** First user-facing surface of the admin rebuild per `Coach Dashboard Spec/CEO/admin-spec-focused.md` section 4 ("One Thing"). `npx tsc --noEmit` clean.
+  - **Server-side fetch in `/admin/page.tsx`:** queries `derived_tasks_view` ordered by `priority_score DESC, age_in_state DESC`, limit 20. Top row → Focused Home; remaining count → "X more waiting" demoted indicator. Passed to `AdminClient` as `topTask` + `remainingTasks`.
+  - **`FocusedHome` component** (in `AdminClient.tsx`) renders the single highest-priority task with task-type-aware copy:
+    - `message_thread`: *"[Kid] is waiting on you."* + first 200 chars of the latest message as a snippet quote. CTA: **Reply**.
+    - `trial_decision`: *"Decide on [kid]'s trial."* + *"The call wrapped. Take on, decline, or sit with it."* CTA: **Decide**.
+    - `cancellation_event`: *"[kid]'s cancel needs your review."* + *"Credit or forfeit. The 24 hour rule decides."* CTA: **Review**.
+    - Generic fallback for unknown task types.
+    - Empty state (no tasks waiting on Tim): *"Nothing waiting on you. Quiet inbox. Tim's on top of it. Stay loose."*
+  - **Visual treatment** per Focused-mode design principle: warm lime-gradient card, no red urgency, soft visual weight. Kid name + age-in-state pill below the title (`14 min` / `3h waiting` / `2d waiting` — calm urgency, never aggressive per spec section 3). Single CTA button on the card.
+  - **`age_in_state` formatter** in-file: <60 min → "X min"; <24 hr → "Xh waiting"; ≥24 hr → "Xd waiting". Mirrors the spec's calm-urgency phrasing.
+  - **Anchor IDs added** to every `TrialCardView` `<article>` and Active Client `<li>` (`id="client-<player_id>"`). The Home CTA is an `<a href="#client-<id>">` so clicking it scroll-anchors directly to the relevant client card below — Tim can act inline (Reply via the Messages thread, Decide via the Stage C panel, etc.) without leaving the page.
+  - **Architectural note:** Focused-mode Home sits ABOVE the existing stats strip + New Trials cards + Active Clients list on the same `/admin` page. The existing dashboard is the *de facto* Clients section per spec mapping (Focused-Home → top, Focused-Clients → below). Future refactor will move the Clients block to its own `/admin/clients` route once we add the mode toggle + nav, but for now it lives together on `/admin` so Tim doesn't have to navigate twice.
+  - **Open follow-ups (next phases of the rebuild):**
+    1. **"More waiting" expansion.** Today shows just the count. Spec wants an expandable section listing tasks 2..N. Adds a click-to-expand state on `FocusedHome` that renders a compact list below the top task.
+    2. **Inline action buttons.** "Reply" currently anchors to the messages section — Tim still has to click in the thread input. Future: render a reply box inline in the Home card. Same for "Decide" (inline Stage C buttons).
+    3. **Streak/done-today counter.** Spec calls for *"✦ 4 done today"* line at the bottom of Home. Needs a `task_completions` audit log we don't have yet — every time `waiting_on` flips away from `TIM` could write a row. Future commit.
+    4. **Next call pinned card.** Spec calls for *"Next call: Jake, Saturday 2pm"* on Home. Blocked on the Calendly event-time wiring (currently flagged on /portal too — need `subscriptions.trial_call_at` / curriculum_slot `live_call_at` reads).
+    5. **Mode toggle.** Per `admin-modes.md`, the top-right header should have `[Focused] [Command]` toggle. Phase 2 work — currently `/admin` is implicitly Focused-only.
+    6. **Stuck button.** Each task gets a discrete "Stuck" affordance that writes to `stuck_events` and routes the task to Dad. Phase 3.
+    7. **Trial substage refinement.** Backfill currently marks ALL trial subs as `waiting_on='TIM'`, so the trial-decision tasks include pre-call trials too (over-classified). When Calendly event-time wiring lands, transition `TRIAL_SCHEDULED → TRIAL_DONE` on call end, and only `TRIAL_DONE` should be `waiting_on='TIM'`.
+
 #### 🔧 Setup (blocking the next coding work)
 
 1. ~~**PNG icons** for the PWA.~~ **DONE 2026-05-17 night via SVG.** `public/icons/icon.svg` (full-bleed, rounded corners, blue `#0B1538` + white "K") and `public/icons/icon-maskable.svg` (no corners, K shrunk to fit the central 80% safe zone for Android launcher masking). `manifest.json` updated to two entries (`purpose:"any"` + `purpose:"maskable"`), `sizes:"any"`, `type:"image/svg+xml"`. Android Chrome + Edge handle SVG manifest icons; iOS "Add to Home Screen" ignores manifest icons entirely and reads `<link rel="apple-touch-icon">` (which must be a PNG). If iOS adoption matters pre-launch, rasterize `icon.svg` to a 180×180 PNG and add `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">` in `src/app/layout.tsx`. The in-tab favicon (data-URI SVG in layout.tsx) is separate and stays as lime-K on dark blue.

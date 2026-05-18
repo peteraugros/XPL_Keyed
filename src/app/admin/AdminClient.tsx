@@ -79,9 +79,21 @@ type ActiveRow = {
   messages: MessageRow[];
 };
 
+type DerivedTask = {
+  task_type: string;
+  client_id: string;
+  client_name: string;
+  age_in_state: string;
+  source_object_id: string;
+  priority_score: number;
+  task_payload: Record<string, unknown> | null;
+};
+
 export default function AdminClient({
   coachName,
   stats,
+  topTask,
+  remainingTasks,
   trialCards,
   activeRows,
 }: {
@@ -93,6 +105,8 @@ export default function AdminClient({
     waitlistCount: number;
     waitlistOldestDays: number | null;
   };
+  topTask: DerivedTask | null;
+  remainingTasks: number;
   trialCards: TrialCard[];
   activeRows: ActiveRow[];
 }) {
@@ -120,6 +134,8 @@ export default function AdminClient({
           </button>
         </div>
       </header>
+
+      <FocusedHome topTask={topTask} remainingTasks={remainingTasks} />
 
       <section className={styles.statsStrip}>
         <Stat
@@ -171,7 +187,7 @@ export default function AdminClient({
         ) : (
           <ul className={styles.activeList}>
             {activeRows.map((row) => (
-              <li key={row.subscription_id} className={styles.activeRow}>
+              <li key={row.subscription_id} id={`client-${row.player_id}`} className={styles.activeRow}>
                 <div className={styles.activeHeader}>
                   <div className={styles.activeName}>
                     <span className={styles.activeKid}>{row.player_first_name}</span>
@@ -209,6 +225,104 @@ export default function AdminClient({
       </footer>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Focused-mode Home — single top task surface
+// ---------------------------------------------------------------------------
+// Per Coach Dashboard Spec/CEO/admin-spec-focused.md section 4 ("One Thing").
+// Shows the highest-priority task awaiting Tim with task-type-aware copy
+// and a single "Open" CTA that anchors to the relevant client card below.
+// Below: "X more waiting" demoted count. Empty state: warm acknowledgment.
+function FocusedHome({
+  topTask,
+  remainingTasks,
+}: {
+  topTask: DerivedTask | null;
+  remainingTasks: number;
+}) {
+  if (!topTask) {
+    return (
+      <section className={styles.focusedHomeEmpty}>
+        <div className={styles.focusedHomeEyebrow}>Home</div>
+        <div className={styles.focusedHomeEmptyTitle}>Nothing waiting on you.</div>
+        <div className={styles.focusedHomeEmptyBody}>
+          Quiet inbox. Tim&apos;s on top of it. Stay loose.
+        </div>
+      </section>
+    );
+  }
+
+  const phrasing = phraseForTask(topTask);
+  const ageStr = formatAge(topTask.age_in_state);
+
+  return (
+    <section className={styles.focusedHome}>
+      <div className={styles.focusedHomeEyebrow}>Next thing</div>
+      <h2 className={styles.focusedHomeTitle}>{phrasing.title}</h2>
+      {phrasing.body ? (
+        <p className={styles.focusedHomeBody}>{phrasing.body}</p>
+      ) : null}
+      <div className={styles.focusedHomeMeta}>
+        <span className={styles.focusedHomeKid}>{topTask.client_name}</span>
+        <span className={styles.focusedHomeDot}>·</span>
+        <span className={styles.focusedHomeAge}>{ageStr}</span>
+      </div>
+      <a href={`#client-${topTask.client_id}`} className={styles.focusedHomeCta}>
+        {phrasing.cta}
+      </a>
+      {remainingTasks > 0 ? (
+        <div className={styles.focusedHomeMore}>
+          {remainingTasks} more waiting
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function phraseForTask(t: DerivedTask): { title: string; body: string | null; cta: string } {
+  const name = t.client_name;
+  switch (t.task_type) {
+    case "message_thread": {
+      const payload = (t.task_payload ?? {}) as { last_message_body?: string };
+      const snippet = (payload.last_message_body ?? "").trim();
+      return {
+        title: `${name} is waiting on you.`,
+        body: snippet ? `"${snippet.slice(0, 200)}${snippet.length > 200 ? "..." : ""}"` : null,
+        cta: "Reply",
+      };
+    }
+    case "trial_decision":
+      return {
+        title: `Decide on ${name}'s trial.`,
+        body: "The call wrapped. Take on, decline, or sit with it.",
+        cta: "Decide",
+      };
+    case "cancellation_event":
+      return {
+        title: `${name}'s cancel needs your review.`,
+        body: "Credit or forfeit. The 24 hour rule decides.",
+        cta: "Review",
+      };
+    default:
+      return {
+        title: `${name} needs you.`,
+        body: null,
+        cta: "Open",
+      };
+  }
+}
+
+function formatAge(iso: string): string {
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+  const ms = Math.max(0, now - then);
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h waiting`;
+  const days = Math.floor(hours / 24);
+  return `${days}d waiting`;
 }
 
 function Stat({
@@ -291,7 +405,7 @@ function TrialCardView({
   }
 
   return (
-    <article className={styles.trialCard}>
+    <article id={`client-${player.id}`} className={styles.trialCard}>
       <header className={styles.trialHeader}>
         <div>
           <div className={styles.trialName}>

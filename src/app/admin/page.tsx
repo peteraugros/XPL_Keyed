@@ -312,6 +312,27 @@ export default async function AdminPage() {
     };
   });
 
+  // Focused-mode Home: top task from derived_tasks_view + remaining count.
+  // Per Coach Dashboard Spec/CEO/admin-spec-focused.md section 4 ("One Thing").
+  type DerivedTask = {
+    task_type: string;
+    client_id: string;
+    client_name: string;
+    age_in_state: string;
+    source_object_id: string;
+    priority_score: number;
+    task_payload: Record<string, unknown> | null;
+  };
+  const tasksLookup = await supabase
+    .from("derived_tasks_view")
+    .select("task_type, client_id, client_name, age_in_state, source_object_id, priority_score, task_payload")
+    .order("priority_score", { ascending: false })
+    .order("age_in_state", { ascending: false })
+    .limit(20); // top 20 — Home uses #1, expansion section uses #2..N
+  const tasks = (tasksLookup.data ?? []) as DerivedTask[];
+  const topTask = tasks[0] ?? null;
+  const remainingTasks = tasks.length > 1 ? tasks.length - 1 : 0;
+
   return (
     <div className={styles.shell}>
       <AdminClient
@@ -323,6 +344,8 @@ export default async function AdminPage() {
           waitlistCount,
           waitlistOldestDays: waitlistDays,
         }}
+        topTask={topTask}
+        remainingTasks={remainingTasks}
         trialCards={trialCards}
         activeRows={activeRows}
       />
