@@ -51,6 +51,9 @@ export async function POST(req: Request) {
 
   try {
     switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session, supabase);
+        break;
       case "invoice.payment_failed":
         await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice, supabase);
         break;
@@ -79,6 +82,76 @@ export async function POST(req: Request) {
 // ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
+
+// checkout.session.completed — fires after the parent finishes the
+// /curriculum/[token] payment flow. Source of truth for "Stage C
+// conversion paid." Flips:
+//   * curricula.status='active', approved_at=NOW()
+//   * subscriptions.tier='monthly', status='active',
+//     cycle_started_at=NOW(), cycle_lessons_delivered=0, cycle_cancels_used=0
+//
+// Identifies the rows via session.metadata that the checkout endpoint
+// stashed: curriculum_id + subscription_id. Both are looked up by id
+// against the service-role client (RLS-bypassing), so RLS layout doesn't
+// matter here.
+//
+// Idempotency: if the curriculum is already active (webhook fires twice,
+// or the redirect-then-webhook race lands the user first), the update
+// is a no-op since the WHERE filter is by id + the patch matches the
+// existing state.
+async function handleCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session,
+  supabase: Supa,
+) {
+  if (session.payment_status !== "paid") return;
+  const meta = session.metadata ?? {};
+  const kind = meta.kind;
+  const curriculumId = meta.curriculum_id;
+  const subscriptionId = meta.subscription_id;
+  if (kind !== "first_cycle" || !curriculumId || !subscriptionId) {
+    console.warn("[stripe-webhook] checkout.session.completed missing metadata", {
+      kind,
+      hasCurriculum: !!curriculumId,
+      hasSubscription: !!subscriptionId,
+    });
+    return;
+  }
+
+  // Flip the curriculum row.
+  const curriculumUpdate = await supabase
+    .from("curricula")
+    .update({
+      status: "active",
+      approved_at: new Date().toISOString(),
+    } as never)
+    .eq("id", curriculumId);
+  if (curriculumUpdate.error) {
+    console.error("[stripe-webhook] curriculum update failed", curriculumUpdate.error);
+    throw new Error("curriculum_update_failed");
+  }
+
+  // Flip the subscription row. cycle counters reset; status flips to active.
+  // stripe_subscription_id stays null in this MVP flow because we're using a
+  // one-time payment with off-session card save, not a Stripe Subscription
+  // object. Future cycles fire via PaymentIntents from our cron, not Stripe's
+  // recurring billing. (Spec: "manually-advanced cycle" — see CLAUDE.md.)
+  const subscriptionUpdate = await supabase
+    .from("subscriptions")
+    .update({
+      tier: "monthly",
+      status: "active",
+      cycle_started_at: new Date().toISOString(),
+      cycle_lessons_delivered: 0,
+      cycle_cancels_used: 0,
+      past_due_started_at: null,
+      notified_at_day7_dunning: null,
+    } as never)
+    .eq("id", subscriptionId);
+  if (subscriptionUpdate.error) {
+    console.error("[stripe-webhook] subscription update failed", subscriptionUpdate.error);
+    throw new Error("subscription_update_failed");
+  }
+}
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, supabase: Supa) {
   const stripeSubId = subscriptionIdFromInvoice(invoice);

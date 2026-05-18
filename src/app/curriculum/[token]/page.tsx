@@ -16,6 +16,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import styles from "./page.module.css";
+import ApproveButton from "./ApproveButton";
 
 export const dynamic = "force-dynamic";
 
@@ -176,21 +177,7 @@ export default async function CurriculumApprovalPage({
               </p>
             </div>
 
-            <form action="#" method="post" onSubmit={undefined}>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                title="Stripe Elements checkout lands in the next build phase"
-              >
-                Approve plan and subscribe
-              </button>
-              <div className={styles.placeholderNote}>
-                Coming next phase: clicking opens the Stripe checkout to
-                lock in your $56 cycle. For now, this preview lets you read
-                the plan. Reply to Tim&apos;s email when you are ready and
-                he will activate it manually.
-              </div>
-            </form>
+            <ApproveButton token={token} />
           </div>
         )}
       </div>

@@ -329,6 +329,24 @@
   border-bottom: 1px solid rgba(199, 255, 61, 0.45);
 }
 
+/* Active subscription banner */
+.activeBanner {
+  background: linear-gradient(135deg, rgba(49, 146, 54, 0.18), rgba(199, 255, 61, 0.10));
+  border: 1px solid rgba(49, 146, 54, 0.55);
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.activeBannerEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--uncommon);
+  text-transform: uppercase;
+}
+
 /* Curriculum approval banner */
 .curriculumBanner {
   background: linear-gradient(135deg, rgba(199, 255, 61, 0.14), rgba(76, 81, 247, 0.10));

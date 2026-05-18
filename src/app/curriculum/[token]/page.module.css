@@ -183,3 +183,13 @@
   line-height: 1.5;
   font-style: italic;
 }
+
+.errorNote {
+  margin-top: 12px;
+  background: rgba(200, 7, 21, 0.12);
+  border: 1px solid rgba(200, 7, 21, 0.45);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text);
+}

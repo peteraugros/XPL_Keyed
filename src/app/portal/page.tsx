@@ -213,7 +213,18 @@ export default async function PortalPage() {
           </p>
         </section>
 
-        {pendingCurriculum ? (
+        {subscription?.status === "active" ? (
+          <section className={styles.activeBanner}>
+            <div className={styles.activeBannerEyebrow}>Subscription active</div>
+            <h2 className={styles.curriculumBannerTitle}>
+              {player.first_name} is in
+            </h2>
+            <p className={styles.cardBody}>
+              Tim starts your first lesson cycle this Sunday. Lessons drop weekly.
+              Manage payment and cancel anytime from your dashboard.
+            </p>
+          </section>
+        ) : pendingCurriculum ? (
           <section className={styles.curriculumBanner}>
             <div className={styles.curriculumBannerEyebrow}>Curriculum ready for review</div>
             <h2 className={styles.curriculumBannerTitle}>

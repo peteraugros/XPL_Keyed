@@ -697,6 +697,11 @@ function StageCPanel({
               Cancel
             </button>
           </div>
+          {!canSubmit() ? (
+            <div className={styles.hint}>
+              Fill in both fields for every non VOD week and write the personalization note to enable Send.
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
