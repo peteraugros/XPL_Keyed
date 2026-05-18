@@ -800,6 +800,8 @@ export type Database = {
           status: string
           stripe_subscription_id: string | null
           tier: string
+          trial_call_at: string | null
+          trial_call_event_uri: string | null
           updated_at: string
           waiting_on: Database["public"]["Enums"]["waiting_on_t"]
         }
@@ -824,6 +826,8 @@ export type Database = {
           status?: string
           stripe_subscription_id?: string | null
           tier: string
+          trial_call_at?: string | null
+          trial_call_event_uri?: string | null
           updated_at?: string
           waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }
@@ -848,6 +852,8 @@ export type Database = {
           status?: string
           stripe_subscription_id?: string | null
           tier?: string
+          trial_call_at?: string | null
+          trial_call_event_uri?: string | null
           updated_at?: string
           waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
         }

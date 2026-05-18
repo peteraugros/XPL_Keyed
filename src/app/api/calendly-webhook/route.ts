@@ -67,7 +67,7 @@ export async function POST(req: Request) {
         await handleInviteeCanceled(body.payload, supabase);
         break;
       case "invitee.created":
-        await handleInviteeCreated(body.payload);
+        await handleInviteeCreated(body.payload, supabase);
         break;
       default:
         break;
@@ -246,15 +246,59 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
 // gets confirmation of the new time. Reschedule-specific copy can be a
 // follow-up.
 
-async function handleInviteeCreated(payload: InviteePayload) {
+async function handleInviteeCreated(payload: InviteePayload, supabase: Supa) {
   const startIso = payload.scheduled_event?.start_time;
   const parentEmail = payload.email;
+  const eventUri = payload.scheduled_event?.uri ?? payload.event ?? null;
   if (!startIso || !parentEmail) {
     console.warn("[calendly-webhook] invitee.created missing start_time or email", {
       hasStart: !!startIso,
       hasEmail: !!parentEmail,
     });
     return;
+  }
+
+  // ---- Substate wiring: store trial_call_at + flip lifecycle ------------
+  // Find the subscription by parent email -> family -> player -> sub.
+  // If no match yet (intake hasn't finished writing rows by the time
+  // Calendly fires the webhook), log + skip the substate update; the
+  // confirmation email still goes out below.
+  try {
+    const parentRow = await supabase
+      .from("parents")
+      .select("family_id")
+      .ilike("email", parentEmail)
+      .maybeSingle();
+    const parent = parentRow.data as { family_id: string } | null;
+    if (parent) {
+      const playerRow = await supabase
+        .from("players")
+        .select("id")
+        .eq("family_id", parent.family_id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      const player = playerRow.data as { id: string } | null;
+      if (player) {
+        const subUpdate = await supabase
+          .from("subscriptions")
+          .update({
+            trial_call_event_uri: eventUri,
+            trial_call_at: startIso,
+            lifecycle_state: "TRIAL_SCHEDULED",
+            // waiting_on stays SYSTEM until the call ends; the view does
+            // the lazy time-based transition for surfacing as TIM-task.
+            waiting_on: "SYSTEM",
+          } as never)
+          .eq("player_id", player.id);
+        if (subUpdate.error) {
+          console.error("[calendly-webhook] subscription substate update failed", subUpdate.error);
+          // Non-fatal — confirmation email still sends.
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[calendly-webhook] subscription substate update threw", err);
   }
 
   const parentFirstName =

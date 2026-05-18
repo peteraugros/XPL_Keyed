@@ -1057,6 +1057,35 @@ This section is the running source of truth for what's on Peter's plate. Update 
     6. **Stuck button.** Each task gets a discrete "Stuck" affordance that writes to `stuck_events` and routes the task to Dad. Phase 3.
     7. **Trial substage refinement.** Backfill currently marks ALL trial subs as `waiting_on='TIM'`, so the trial-decision tasks include pre-call trials too (over-classified). When Calendly event-time wiring lands, transition `TRIAL_SCHEDULED → TRIAL_DONE` on call end, and only `TRIAL_DONE` should be `waiting_on='TIM'`.
 
+- **Admin rebuild: four-chunk extension (2026-05-18 evening).** Phase 1 of the rebuild now has every load-bearing surface in place. Four commits shipped one after the other; each independently reviewable. `npx tsc --noEmit` clean across all four.
+  - **(A) Focused Home expansion + inline reply** (commit `9e9eac9`)
+    - "X more waiting" toggles to reveal tasks 2..N as compact rows with per-task `Reply / Decide / Review` CTAs (scroll-anchors to client cards).
+    - Top message_thread task gets an inline reply textarea on the Home card itself — reuses `/api/admin/message`. Tim fires a reply without scrolling to the thread; success state acknowledges + `router.refresh()`.
+    - `AdminClient` signature swapped from `(topTask, remainingTasks)` to full `(tasks)` so expansion has the data.
+  - **(B) Stuck button + flow** (commit `9a3b252`)
+    - New `POST /api/admin/stuck` endpoint. Coach-only. Inserts `stuck_events` row, flips source object's `waiting_on='DAD'` per `object_type` (messages / subscriptions / curricula / cancellation_events), fires a Discord DM via the configured operator id (falls back to `DISCORD_TIM_USER_ID` until `DISCORD_DAD_USER_ID` env is added).
+    - `StuckButton` component on FocusedHome top task (inline link) + expanded list items. Two-step UX: first click reveals a reason prompt (optional), second click submits. "Sent to Dad" success state. After submit, task drops out of `derived_tasks_view` immediately (since `waiting_on=DAD`).
+    - Dad's admin UI to resolve Stucks is deferred — the data model is ready (stuck_events rows accumulate with `resolved_at IS NULL`).
+  - **(C) Mode toggle + Command-mode Pipeline** (commit `fe13df3`)
+    - Migration `20260518000400_admin_mode_pref.sql`: `coaches.admin_mode TEXT NOT NULL DEFAULT 'focused'` with CHECK constraint. Per-user persisted preference.
+    - `POST /api/admin/mode` toggles `coaches.admin_mode`. `ModeToggle` pill component in the header — `[Focused] [Command]`. Click → POST + `router.refresh()` re-renders the page in the new mode.
+    - `CommandPipeline` component: horizontal kanban with 7 columns mapped from `lifecycle_state` (Trial prep / Trial scheduled / Trial done / Active / Past due / Pending cancel) + a Waitlist column reading from `waitlist_entries`. Compact client cards per column. Cards `waiting_on='TIM'` get a lime accent. CANCELED rows hidden (terminal).
+    - Pipeline header shows `Paying X/12 · Trials this week N · Waitlist M (oldest Xd)`. Data-transparent, no narrative wrap per Command-mode design principles.
+    - Both modes share `/admin` route + below-the-fold cards. Existing trial/active cards stay visible in both modes so inline actions (messages, Stage C, Discord URL) remain accessible.
+  - **(D) Trial substage refinement** (commit pending)
+    - Migration `20260518000500_trial_call_substate.sql`: adds `subscriptions.trial_call_event_uri TEXT` + `trial_call_at TIMESTAMPTZ` columns. Indexed where NOT NULL.
+    - Modifies `derived_tasks_view` so `trial_decision` tasks only surface when (a) `lifecycle_state='TRIAL_DONE'` OR (b) `trial_call_at < NOW() - 30min` (call already ended with a buffer) OR (c) `trial_call_at IS NULL` (backward compat for pre-wiring trials). Closes the "over-classified pre-call trials" gap noted in the prior Done entry.
+    - Calendly `invitee.created` handler now extends beyond sending the branded email: it resolves the subscription by parent email + family + player, then UPDATEs `trial_call_event_uri`, `trial_call_at`, `lifecycle_state='TRIAL_SCHEDULED'`. `waiting_on` stays SYSTEM; the view does the lazy time-based transition for surfacing as TIM-task.
+    - The view's "lazy advance" means we don't need a cron to flip `TRIAL_SCHEDULED → TRIAL_DONE`. Future cron can still update the column for correctness, but the view is the source of truth for Home queue semantics.
+  - **Open follow-ups still pending:**
+    1. **Dad admin** — consume `stuck_events` rows; render handle / return-to-Tim / no-action-needed buttons; write `resolution_*` columns + transition `waiting_on` back to TIM (if returned).
+    2. **`DISCORD_DAD_USER_ID` env var** — current Stuck DM routes to whatever's in `DISCORD_TIM_USER_ID` (Tim's own DM, which is wrong long-term). Once Peter's Discord identity is wired, add the env var + flip the route.
+    3. **Keyboard shortcuts** — `j/k` nav, `cmd+K` palette, `g p / g i / g c` tab switching for Command mode per spec. None of these exist yet.
+    4. **Inline Stage C actions on Focused Home.** Today the trial_decision task CTA is "Decide" → anchor link. Spec wants inline Take on / Decline / Still deciding buttons on the Home card itself.
+    5. **"✦ X done today" streak counter** on Focused Home. Needs a `task_completions` audit log.
+    6. **Mode toggle keyboard shortcut** — `cmd+\` per spec section 2. Not wired.
+    7. **Command-mode Clients / Inbox / Money / Operations tabs.** Today Command mode only has the Pipeline at the top + the same below-the-fold cards as Focused. Spec calls for Inbox tab (batch reply), Money tab (bar chart of MRR), Operations tab (Stripe/Discord/Calendly health). Each is its own substantial chunk.
+
 #### 🔧 Setup (blocking the next coding work)
 
 1. ~~**PNG icons** for the PWA.~~ **DONE 2026-05-17 night via SVG.** `public/icons/icon.svg` (full-bleed, rounded corners, blue `#0B1538` + white "K") and `public/icons/icon-maskable.svg` (no corners, K shrunk to fit the central 80% safe zone for Android launcher masking). `manifest.json` updated to two entries (`purpose:"any"` + `purpose:"maskable"`), `sizes:"any"`, `type:"image/svg+xml"`. Android Chrome + Edge handle SVG manifest icons; iOS "Add to Home Screen" ignores manifest icons entirely and reads `<link rel="apple-touch-icon">` (which must be a PNG). If iOS adoption matters pre-launch, rasterize `icon.svg` to a 180×180 PNG and add `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">` in `src/app/layout.tsx`. The in-tab favicon (data-URI SVG in layout.tsx) is separate and stays as lime-K on dark blue.
