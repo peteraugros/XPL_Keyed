@@ -54,6 +54,7 @@ type CoachLookup = {
   display_name: string;
   auth_user_id: string | null;
   is_active: boolean;
+  admin_mode: "focused" | "command";
 };
 type IdLookup = { id: string };
 
@@ -122,7 +123,7 @@ export default async function AdminPage() {
   // Coach gate. Try auth_user_id match first.
   let coachLookup = await supabase
     .from("coaches")
-    .select("id, email, display_name, auth_user_id, is_active")
+    .select("id, email, display_name, auth_user_id, is_active, admin_mode")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -136,7 +137,7 @@ export default async function AdminPage() {
     const adminClient = createServiceRoleClient();
     const unlinkedLookup = await adminClient
       .from("coaches")
-      .select("id, email, display_name, auth_user_id, is_active")
+      .select("id, email, display_name, auth_user_id, is_active, admin_mode")
       .ilike("email", user.email)
       .is("auth_user_id", null)
       .maybeSingle();
@@ -182,7 +183,7 @@ export default async function AdminPage() {
   ] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("id, player_id, status, tier, cycle_lessons_delivered, cycle_cancels_used, created_at")
+      .select("id, player_id, status, tier, cycle_lessons_delivered, cycle_cancels_used, created_at, lifecycle_state, waiting_on")
       .order("created_at", { ascending: false }),
     supabase
       .from("waitlist_entries")
@@ -331,10 +332,47 @@ export default async function AdminPage() {
     .limit(20); // top 20 — Home uses #1, expansion section uses #2..N
   const tasks = (tasksLookup.data ?? []) as DerivedTask[];
 
+  // Command-mode Pipeline needs waitlist entries too (own column on the
+  // kanban). Focused mode doesn't surface them on Home; the spec's
+  // intake-funnel narrative keeps them muted.
+  const waitlistEntriesLookup = await supabase
+    .from("waitlist_entries")
+    .select("id, parent_email, kid_first_name, kid_age, created_at, status")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  const waitlistEntries = (waitlistEntriesLookup.data ?? []) as Array<{
+    id: string;
+    parent_email: string;
+    kid_first_name: string;
+    kid_age: number | null;
+    created_at: string;
+    status: string;
+  }>;
+
+  // Command-mode Pipeline cards — flatten ALL subscriptions (not just
+  // trials + actives) so we have one row per kid keyed by lifecycle_state.
+  const pipelineCards = subscriptions.map((sub) => {
+    const player = playersById.get(sub.player_id);
+    const parent = player ? parentByFamily.get(player.family_id) : undefined;
+    const completed = questsByPlayer.get(sub.player_id) ?? new Set<string>();
+    return {
+      subscription_id: sub.id,
+      player_id: sub.player_id,
+      player_first_name: player?.first_name ?? "(unknown)",
+      parent_first_name: parent?.first_name ?? "(unknown)",
+      lifecycle_state: (sub as unknown as { lifecycle_state?: string }).lifecycle_state ?? "TRIAL_PREP",
+      waiting_on: (sub as unknown as { waiting_on?: string }).waiting_on ?? "SYSTEM",
+      cycle_lessons_delivered: sub.cycle_lessons_delivered,
+      cycle_cancels_used: sub.cycle_cancels_used,
+      prep_completed: completed.size,
+    };
+  });
+
   return (
     <div className={styles.shell}>
       <AdminClient
         coachName={coach.display_name}
+        coachMode={coach.admin_mode}
         stats={{
           payingCount: actives.length,
           capacity: 12,
@@ -345,6 +383,8 @@ export default async function AdminPage() {
         tasks={tasks}
         trialCards={trialCards}
         activeRows={activeRows}
+        pipelineCards={pipelineCards}
+        waitlistEntries={waitlistEntries}
       />
     </div>
   );

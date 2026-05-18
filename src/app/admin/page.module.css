@@ -55,6 +55,146 @@
 }
 .signOutBtn:hover { color: var(--text); border-color: var(--text-dim); }
 
+/* Mode toggle in the top bar */
+.modeToggle {
+  display: inline-flex;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.modeBtn {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-faint);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-height: 28px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.modeBtn:hover:not(:disabled) { color: var(--text); }
+.modeBtn:disabled { cursor: not-allowed; }
+.modeBtnActive {
+  background: var(--lime);
+  color: var(--bg);
+}
+.modeBtnActive:hover { color: var(--bg); }
+
+/* Command-mode Pipeline */
+.commandPipeline {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+.commandPipelineHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.commandPipelineTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.commandPipelineStats {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-faint);
+  flex-wrap: wrap;
+}
+.commandPipelineColumns {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+}
+.pipelineColumn {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-snap-align: start;
+}
+.pipelineColumnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--bg-3);
+  border-radius: 6px;
+}
+.pipelineColumnLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.pipelineColumnCount {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+.pipelineColumnList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pipelineColumnEmpty {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+  padding: 8px 0;
+}
+.pipelineCard {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s;
+}
+.pipelineCard:hover { border-color: var(--text-dim); background: var(--bg-2); }
+.pipelineCardWaitingTim {
+  border-color: var(--lime);
+  background: rgba(199, 255, 61, 0.06);
+}
+.pipelineCardName {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+.pipelineCardMeta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.pipelineCardWaitingDot {
+  color: var(--lime);
+  font-weight: 600;
+}
+
 /* Focused-mode Home — single top task */
 .focusedHome,
 .focusedHomeEmpty {

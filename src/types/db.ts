@@ -153,6 +153,7 @@ export type Database = {
       }
       coaches: {
         Row: {
+          admin_mode: string
           auth_user_id: string | null
           created_at: string
           discord_user_id: string | null
@@ -164,6 +165,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_mode?: string
           auth_user_id?: string | null
           created_at?: string
           discord_user_id?: string | null
@@ -175,6 +177,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_mode?: string
           auth_user_id?: string | null
           created_at?: string
           discord_user_id?: string | null

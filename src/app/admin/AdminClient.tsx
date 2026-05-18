@@ -89,14 +89,39 @@ type DerivedTask = {
   task_payload: Record<string, unknown> | null;
 };
 
+type PipelineCard = {
+  subscription_id: string;
+  player_id: string;
+  player_first_name: string;
+  parent_first_name: string;
+  lifecycle_state: string;
+  waiting_on: string;
+  cycle_lessons_delivered: number;
+  cycle_cancels_used: number;
+  prep_completed: number;
+};
+
+type WaitlistEntry = {
+  id: string;
+  parent_email: string;
+  kid_first_name: string;
+  kid_age: number | null;
+  created_at: string;
+  status: string;
+};
+
 export default function AdminClient({
   coachName,
+  coachMode,
   stats,
   tasks,
   trialCards,
   activeRows,
+  pipelineCards,
+  waitlistEntries,
 }: {
   coachName: string;
+  coachMode: "focused" | "command";
   stats: {
     payingCount: number;
     capacity: number;
@@ -107,6 +132,8 @@ export default function AdminClient({
   tasks: DerivedTask[];
   trialCards: TrialCard[];
   activeRows: ActiveRow[];
+  pipelineCards: PipelineCard[];
+  waitlistEntries: WaitlistEntry[];
 }) {
   const router = useRouter();
 
@@ -123,6 +150,7 @@ export default function AdminClient({
       <header className={styles.topBar}>
         <div className={styles.brand}>XPL KEYED ADMIN</div>
         <div className={styles.topMeta}>
+          <ModeToggle current={coachMode} router={router} />
           <a href="/admin/lessons" className={styles.signOutBtn}>
             Lesson library
           </a>
@@ -133,7 +161,11 @@ export default function AdminClient({
         </div>
       </header>
 
-      <FocusedHome tasks={tasks} />
+      {coachMode === "command" ? (
+        <CommandPipeline pipelineCards={pipelineCards} waitlistEntries={waitlistEntries} stats={stats} />
+      ) : (
+        <FocusedHome tasks={tasks} />
+      )}
 
       <section className={styles.statsStrip}>
         <Stat
@@ -222,6 +254,199 @@ export default function AdminClient({
         Tim's admin. Stage C and lesson library land next.
       </footer>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mode toggle — [Focused] [Command] in the header
+// ---------------------------------------------------------------------------
+// Per Coach Dashboard Spec/CEO/admin-modes.md. Per-user persisted via
+// POST /api/admin/mode. Click switches the route's rendering and
+// re-fetches via router.refresh.
+function ModeToggle({
+  current,
+  router,
+}: {
+  current: "focused" | "command";
+  router: ReturnType<typeof useRouter>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function switchTo(mode: "focused" | "command") {
+    if (mode === current || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/mode", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      if (!res.ok) {
+        setBusy(false);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={styles.modeToggle} role="radiogroup" aria-label="Admin mode">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={current === "focused"}
+        className={`${styles.modeBtn} ${current === "focused" ? styles.modeBtnActive : ""}`}
+        onClick={() => switchTo("focused")}
+        disabled={busy}
+      >
+        Focused
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={current === "command"}
+        className={`${styles.modeBtn} ${current === "command" ? styles.modeBtnActive : ""}`}
+        onClick={() => switchTo("command")}
+        disabled={busy}
+      >
+        Command
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Command-mode Pipeline — kanban-style horizontal columns
+// ---------------------------------------------------------------------------
+// Per Coach Dashboard Spec/CEO/admin-spec-command.md. The Command-mode
+// Home is the full pipeline at a glance: one column per lifecycle stage,
+// stacked client cards per column. Dense, scannable, no narrative wrap.
+//
+// For phase 1 we render six columns mapped from lifecycle_state:
+// Trial Prep / Trial Done / Active / Past Due / Pending Cancel /
+// Waitlist (last column reads from waitlist_entries, not subscriptions).
+// CANCELED rows are not shown (terminal).
+const PIPELINE_COLUMNS: { state: string; label: string }[] = [
+  { state: "TRIAL_PREP", label: "Trial prep" },
+  { state: "TRIAL_SCHEDULED", label: "Trial scheduled" },
+  { state: "TRIAL_DONE", label: "Trial done" },
+  { state: "ACTIVE", label: "Active" },
+  { state: "PAST_DUE", label: "Past due" },
+  { state: "PENDING_CANCEL", label: "Pending cancel" },
+];
+
+function CommandPipeline({
+  pipelineCards,
+  waitlistEntries,
+  stats,
+}: {
+  pipelineCards: PipelineCard[];
+  waitlistEntries: WaitlistEntry[];
+  stats: {
+    payingCount: number;
+    capacity: number;
+    trialsThisWeek: number;
+    waitlistCount: number;
+    waitlistOldestDays: number | null;
+  };
+}) {
+  // Group cards by lifecycle_state.
+  const byState = new Map<string, PipelineCard[]>();
+  for (const c of pipelineCards) {
+    if (c.lifecycle_state === "CANCELED") continue;
+    const arr = byState.get(c.lifecycle_state) ?? [];
+    arr.push(c);
+    byState.set(c.lifecycle_state, arr);
+  }
+
+  return (
+    <section className={styles.commandPipeline}>
+      <div className={styles.commandPipelineHeader}>
+        <div className={styles.commandPipelineTitle}>Pipeline</div>
+        <div className={styles.commandPipelineStats}>
+          <span>{stats.payingCount}/{stats.capacity} paying</span>
+          <span className={styles.focusedHomeDot}>·</span>
+          <span>{stats.trialsThisWeek} trials this week</span>
+          <span className={styles.focusedHomeDot}>·</span>
+          <span>
+            {stats.waitlistCount} on waitlist
+            {stats.waitlistOldestDays !== null ? ` (${stats.waitlistOldestDays}d oldest)` : ""}
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.commandPipelineColumns}>
+        {PIPELINE_COLUMNS.map((col) => {
+          const cards = byState.get(col.state) ?? [];
+          return (
+            <div key={col.state} className={styles.pipelineColumn}>
+              <div className={styles.pipelineColumnHeader}>
+                <span className={styles.pipelineColumnLabel}>{col.label}</span>
+                <span className={styles.pipelineColumnCount}>{cards.length}</span>
+              </div>
+              <div className={styles.pipelineColumnList}>
+                {cards.length === 0 ? (
+                  <div className={styles.pipelineColumnEmpty}>—</div>
+                ) : (
+                  cards.map((c) => (
+                    <a
+                      key={c.subscription_id}
+                      href={`#client-${c.player_id}`}
+                      className={`${styles.pipelineCard} ${c.waiting_on === "TIM" ? styles.pipelineCardWaitingTim : ""}`}
+                    >
+                      <div className={styles.pipelineCardName}>{c.player_first_name}</div>
+                      <div className={styles.pipelineCardMeta}>
+                        {c.lifecycle_state === "TRIAL_PREP" || c.lifecycle_state === "TRIAL_SCHEDULED" ? (
+                          <span>prep {c.prep_completed}/4</span>
+                        ) : c.lifecycle_state === "ACTIVE" ? (
+                          <span>cyc {c.cycle_lessons_delivered}/4 · cancels {c.cycle_cancels_used}/2</span>
+                        ) : c.lifecycle_state === "PAST_DUE" ? (
+                          <span>past due</span>
+                        ) : c.lifecycle_state === "PENDING_CANCEL" ? (
+                          <span>cancel pending</span>
+                        ) : (
+                          <span>{c.lifecycle_state.toLowerCase()}</span>
+                        )}
+                        {c.waiting_on === "TIM" ? <span className={styles.pipelineCardWaitingDot}>· you</span> : null}
+                      </div>
+                    </a>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Waitlist column — separate data source */}
+        <div className={styles.pipelineColumn}>
+          <div className={styles.pipelineColumnHeader}>
+            <span className={styles.pipelineColumnLabel}>Waitlist</span>
+            <span className={styles.pipelineColumnCount}>{waitlistEntries.length}</span>
+          </div>
+          <div className={styles.pipelineColumnList}>
+            {waitlistEntries.length === 0 ? (
+              <div className={styles.pipelineColumnEmpty}>—</div>
+            ) : (
+              waitlistEntries.map((w) => {
+                const ageDays = Math.floor(
+                  (Date.now() - new Date(w.created_at).getTime()) / (1000 * 3600 * 24),
+                );
+                return (
+                  <div key={w.id} className={styles.pipelineCard}>
+                    <div className={styles.pipelineCardName}>{w.kid_first_name}</div>
+                    <div className={styles.pipelineCardMeta}>
+                      {ageDays}d on list{w.kid_age !== null ? ` · age ${w.kid_age}` : ""}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
