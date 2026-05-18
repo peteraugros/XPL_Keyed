@@ -58,6 +58,12 @@ const RARITY: Record<QuestKey, string> = {
   join_discord: styles.legendary,
 };
 
+type CurriculumWeek = {
+  week_number: number;
+  is_vod_review: boolean;
+  fortnite_label: string | null;
+};
+
 export default function PlayClient({
   playerFirstName,
   fortniteUsername,
@@ -65,12 +71,18 @@ export default function PlayClient({
   initialVodUrl,
   initialPrep,
   initialMessages,
+  subscriptionStatus,
+  cycleLessonsDelivered,
+  curriculumWeeks,
 }: {
   playerFirstName: string;
   fortniteUsername: string | null;
   initialCompletedQuests: string[];
   initialVodUrl: string | null;
   initialMessages: MessageRow[];
+  subscriptionStatus: string;
+  cycleLessonsDelivered: number;
+  curriculumWeeks: CurriculumWeek[];
   initialPrep: PrepState;
 }) {
   const router = useRouter();
@@ -98,6 +110,7 @@ export default function PlayClient({
   const [discordError, setDiscordError] = useState<string | null>(null);
 
   const isDone = (key: QuestKey) => completed.has(key);
+  const isActive = subscriptionStatus === "active";
   const totalQuests = 4;
   const xpPercent = useMemo(
     () => (completed.size / totalQuests) * 100,
@@ -222,11 +235,14 @@ export default function PlayClient({
       </header>
 
       <section className={styles.hero}>
-        <div className={styles.heroEyebrow}>Player profile</div>
+        <div className={styles.heroEyebrow}>
+          {isActive ? "Player profile. Active." : "Player profile."}
+        </div>
         <h1 className={styles.heroTitle}>What up, {playerFirstName}.</h1>
         <p className={styles.heroBody}>
-          Your free call is locked in. Finish your prep so we can hit the ground
-          running.
+          {isActive
+            ? `Lesson ${cycleLessonsDelivered + 1} of 4 incoming Sunday. Watch the messages for anything Tim drops in the meantime.`
+            : "Your free call is locked in. Finish your prep so we can hit the ground running."}
         </p>
         {fortniteUsername ? (
           <div className={styles.heroIgn}>
@@ -238,6 +254,41 @@ export default function PlayClient({
         </p>
       </section>
 
+      {isActive ? (
+        <>
+          <section className={styles.card}>
+            <div className={styles.cardEyebrow}>This cycle</div>
+            <h2 className={styles.cardTitle}>
+              Lesson {cycleLessonsDelivered} of 4 dropped
+            </h2>
+            <p className={styles.cardBody}>
+              One lesson lands every Sunday. Tim sends it with a voiceover.
+              You watch when you have time before the live call that week.
+            </p>
+          </section>
+
+          {curriculumWeeks.length === 4 ? (
+            <section className={styles.card}>
+              <div className={styles.cardEyebrow}>Your 4 week plan</div>
+              <h2 className={styles.cardTitle}>What Tim is teaching</h2>
+              <ul className={styles.activeWeekList}>
+                {curriculumWeeks.map((w) => (
+                  <li key={w.week_number} className={styles.activeWeekRow}>
+                    <span className={styles.activeWeekNum}>Wk {w.week_number}</span>
+                    <span className={styles.activeWeekLabel}>
+                      {w.is_vod_review ? "VOD review" : (w.fortnite_label ?? "Coming")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className={styles.subtle}>
+                Tim is putting the slides and voiceover together. They drop
+                here Sunday by Sunday.
+              </p>
+            </section>
+          ) : null}
+        </>
+      ) : (
       <section className={styles.xpStrip}>
         <div className={styles.xpRow}>
           <span className={styles.xpLabel}>XP</span>
@@ -250,8 +301,10 @@ export default function PlayClient({
           Earn XP for each quest. More coming after your first paid cycle.
         </div>
       </section>
+      )}
 
-      {/* ============ QUEST LOG ============ */}
+      {/* ============ QUEST LOG (trial-state only) ============ */}
+      {!isActive && (
       <section className={styles.questBlock}>
         <h2 className={styles.questHeader}>Quest log</h2>
 
@@ -492,6 +545,7 @@ export default function PlayClient({
           )}
         </article>
       </section>
+      )}
 
       {/* Message Tim — open from intake. Parent-visible. */}
       <section className={styles.card}>
@@ -505,7 +559,8 @@ export default function PlayClient({
         />
       </section>
 
-      {/* Locked sections */}
+      {/* Locked sections (hidden once subscription is active) */}
+      {!isActive && (
       <section className={styles.lockedBlock}>
         <article className={styles.lockedCard}>
           <div className={styles.lockedEyebrow}>Locked</div>
@@ -515,6 +570,7 @@ export default function PlayClient({
           </p>
         </article>
       </section>
+      )}
 
       <footer className={styles.footer}>
         Your parents can see every message and quest you submit. No DMs

@@ -62,6 +62,47 @@ export function NudgeButton({
   );
 }
 
+// Parent-facing "open Stripe customer portal" CTA. POSTs to the
+// billing-portal endpoint which creates a Stripe BillingPortal session
+// tied to the family's Stripe Customer and returns the URL. The browser
+// then redirects.
+export function ManagePaymentButton() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onClick() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/portal/billing-portal", { method: "POST" });
+      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !body.url) {
+        setError(body.error ?? "Could not open billing portal.");
+        setBusy(false);
+        return;
+      }
+      window.location.href = body.url;
+    } catch {
+      setError("Could not reach the server.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={styles.playerLinkRow}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={busy}
+        className={styles.playerLinkBtn}
+      >
+        {busy ? "Opening..." : "Manage payment and cancel"}
+      </button>
+      {error ? <div className={styles.playerLinkError}>{error}</div> : null}
+    </div>
+  );
+}
+
 // Parent-facing "send the kid their sign-in link" CTA. The endpoint always
 // sends to the authed parent's own email (no email is accepted from the
 // client) so the trust gate stays tight.

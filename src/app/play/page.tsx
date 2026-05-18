@@ -85,7 +85,7 @@ export default async function PlayPage() {
     redirect("/login?error=no_role");
   }
 
-  const [questLookup, vodLookup, prepLookup, messageLookup] = await Promise.all([
+  const [questLookup, vodLookup, prepLookup, messageLookup, subscriptionLookup, activeCurriculumLookup] = await Promise.all([
     supabase.from("quest_completions").select("quest_key").eq("player_id", player.id),
     supabase
       .from("vod_uploads")
@@ -105,6 +105,19 @@ export default async function PlayPage() {
       .eq("player_id", player.id)
       .order("created_at", { ascending: true })
       .limit(100),
+    supabase
+      .from("subscriptions")
+      .select("status, cycle_lessons_delivered, cycle_started_at")
+      .eq("player_id", player.id)
+      .maybeSingle(),
+    supabase
+      .from("curricula")
+      .select("id")
+      .eq("player_id", player.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const questRows = (questLookup.data ?? []) as QuestLookup[];
@@ -117,6 +130,44 @@ export default async function PlayPage() {
     body: string;
     created_at: string;
   }>;
+  const subscription = subscriptionLookup.data as
+    | { status: string; cycle_lessons_delivered: number; cycle_started_at: string | null }
+    | null;
+  const activeCurriculum = activeCurriculumLookup.data as { id: string } | null;
+
+  // Fetch curriculum weeks for the kid (kid-facing labels).
+  type CurriculumWeek = {
+    week_number: number;
+    is_vod_review: boolean;
+    fortnite_label: string | null;
+  };
+  let curriculumWeeks: CurriculumWeek[] = [];
+  if (activeCurriculum) {
+    const slotLookup = await supabase
+      .from("curriculum_slots")
+      .select("week_number, is_vod_review, lesson_id")
+      .eq("curriculum_id", activeCurriculum.id)
+      .order("week_number", { ascending: true });
+    const slots = (slotLookup.data ?? []) as Array<{
+      week_number: number;
+      is_vod_review: boolean;
+      lesson_id: string | null;
+    }>;
+    const lessonIds = slots.map((s) => s.lesson_id).filter((id): id is string => Boolean(id));
+    const lessonLookup =
+      lessonIds.length > 0
+        ? await supabase.from("lessons").select("id, fortnite_label").in("id", lessonIds)
+        : { data: [] };
+    const labelById = new Map<string, string>();
+    for (const l of (lessonLookup.data ?? []) as Array<{ id: string; fortnite_label: string }>) {
+      labelById.set(l.id, l.fortnite_label);
+    }
+    curriculumWeeks = slots.map((s) => ({
+      week_number: s.week_number,
+      is_vod_review: s.is_vod_review,
+      fortnite_label: s.lesson_id ? labelById.get(s.lesson_id) ?? null : null,
+    }));
+  }
 
   return (
     <div className={styles.shell}>
@@ -126,6 +177,9 @@ export default async function PlayPage() {
         initialCompletedQuests={Array.from(completed)}
         initialVodUrl={vod?.url ?? null}
         initialMessages={messages}
+        subscriptionStatus={subscription?.status ?? "trial"}
+        cycleLessonsDelivered={subscription?.cycle_lessons_delivered ?? 0}
+        curriculumWeeks={curriculumWeeks}
         initialPrep={
           prep
             ? {

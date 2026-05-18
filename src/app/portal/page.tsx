@@ -33,8 +33,16 @@
 
 import { redirect as _redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { SignOutButton, NudgeButton, SendPlayerLinkButton } from "./PortalClient";
+import { SignOutButton, NudgeButton, SendPlayerLinkButton, ManagePaymentButton } from "./PortalClient";
 import MessageThread from "@/components/MessageThread";
+
+function formatShortDate(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(iso));
+}
 import styles from "./page.module.css";
 
 // next/navigation's redirect is typedRoutes-aware. Several targets here
@@ -154,10 +162,10 @@ export default async function PortalPage() {
     redirect("/login?error=portal_player");
   }
 
-  const [subscriptionLookup, questLookup, messageLookup, pendingCurriculumLookup] = await Promise.all([
+  const [subscriptionLookup, questLookup, messageLookup, pendingCurriculumLookup, activeCurriculumLookup] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("tier, status")
+      .select("tier, status, cycle_started_at, cycle_lessons_delivered, cycle_cancels_used")
       .eq("player_id", player.id)
       .maybeSingle(),
     supabase
@@ -178,9 +186,25 @@ export default async function PortalPage() {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("curricula")
+      .select("id, personalization_note")
+      .eq("player_id", player.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
-  const subscription = subscriptionLookup.data as SubscriptionLookup | null;
+  const subscription = subscriptionLookup.data as
+    | {
+        tier: string;
+        status: string;
+        cycle_started_at: string | null;
+        cycle_lessons_delivered: number;
+        cycle_cancels_used: number;
+      }
+    | null;
   const questRows = (questLookup.data ?? []) as QuestLookup[];
   const completedQuestKeys = new Set<string>(questRows.map((row) => row.quest_key));
   const completedCount = QUESTS.filter((q) => completedQuestKeys.has(q.key)).length;
@@ -193,6 +217,66 @@ export default async function PortalPage() {
   const pendingCurriculum = pendingCurriculumLookup.data as
     | { approval_token: string; personalization_note: string | null }
     | null;
+  const activeCurriculum = activeCurriculumLookup.data as
+    | { id: string; personalization_note: string | null }
+    | null;
+
+  // Active-state curriculum weeks (slots + lesson translation).
+  type SlotWithLesson = {
+    week_number: number;
+    is_vod_review: boolean;
+    fortnite_label: string | null;
+    parent_label: string | null;
+    parent_skill_description: string | null;
+  };
+  let curriculumWeeks: SlotWithLesson[] = [];
+  if (activeCurriculum) {
+    const slotLookup = await supabase
+      .from("curriculum_slots")
+      .select("week_number, is_vod_review, lesson_id")
+      .eq("curriculum_id", activeCurriculum.id)
+      .order("week_number", { ascending: true });
+    const slots = (slotLookup.data ?? []) as Array<{
+      week_number: number;
+      is_vod_review: boolean;
+      lesson_id: string | null;
+    }>;
+    const lessonIds = slots.map((s) => s.lesson_id).filter((id): id is string => Boolean(id));
+    const lessonLookup =
+      lessonIds.length > 0
+        ? await supabase
+            .from("lessons")
+            .select("id, fortnite_label, parent_label, parent_skill_description")
+            .in("id", lessonIds)
+        : { data: [] };
+    const lessonsById = new Map<
+      string,
+      { fortnite_label: string; parent_label: string; parent_skill_description: string }
+    >();
+    for (const l of (lessonLookup.data ?? []) as Array<{
+      id: string;
+      fortnite_label: string;
+      parent_label: string;
+      parent_skill_description: string;
+    }>) {
+      lessonsById.set(l.id, {
+        fortnite_label: l.fortnite_label,
+        parent_label: l.parent_label,
+        parent_skill_description: l.parent_skill_description,
+      });
+    }
+    curriculumWeeks = slots.map((s) => {
+      const lesson = s.lesson_id ? lessonsById.get(s.lesson_id) ?? null : null;
+      return {
+        week_number: s.week_number,
+        is_vod_review: s.is_vod_review,
+        fortnite_label: lesson?.fortnite_label ?? null,
+        parent_label: lesson?.parent_label ?? null,
+        parent_skill_description: lesson?.parent_skill_description ?? null,
+      };
+    });
+  }
+  const isActive = subscription?.status === "active";
 
   return (
     <div className={styles.shell}>
@@ -203,13 +287,16 @@ export default async function PortalPage() {
         </header>
 
         <section className={styles.hero}>
-          <div className={styles.heroEyebrow}>Parent dashboard. Trial.</div>
+          <div className={styles.heroEyebrow}>
+            {isActive ? "Parent dashboard. Active." : "Parent dashboard. Trial."}
+          </div>
           <h1 className={styles.heroTitle}>
             Welcome, {parent.first_name}.
           </h1>
           <p className={styles.heroBody}>
-            {player.first_name}&apos;s free trial is in motion. Here is everything you
-            need before the call.
+            {isActive
+              ? `${player.first_name}'s lessons are running. Cycle counter, billing, and messages with Tim are below.`
+              : `${player.first_name}'s free trial is in motion. Here is everything you need before the call.`}
           </p>
         </section>
 
@@ -243,6 +330,54 @@ export default async function PortalPage() {
           </section>
         ) : null}
 
+        {isActive ? (
+          <>
+            <section className={styles.card}>
+              <div className={styles.cardEyebrow}>This cycle</div>
+              <h2 className={styles.cardTitle}>
+                Lesson {subscription?.cycle_lessons_delivered ?? 0} of 4
+              </h2>
+              <p className={styles.cardBody}>
+                One lesson drops every Sunday. {subscription && subscription.cycle_cancels_used > 0
+                  ? `Cancellations used this cycle: ${subscription.cycle_cancels_used} of 2.`
+                  : "You haven't used any of your 2 cancellations this cycle."}
+              </p>
+              {subscription?.cycle_started_at ? (
+                <p className={styles.subtle}>
+                  Cycle started {formatShortDate(subscription.cycle_started_at)}.
+                </p>
+              ) : null}
+            </section>
+
+            {curriculumWeeks.length === 4 ? (
+              <section className={styles.card}>
+                <div className={styles.cardEyebrow}>{player.first_name}&apos;s 4 week plan</div>
+                <h2 className={styles.cardTitle}>What Tim is working on</h2>
+                {activeCurriculum?.personalization_note ? (
+                  <p className={styles.cardBody}>
+                    <strong>Tim&apos;s note: </strong>{activeCurriculum.personalization_note}
+                  </p>
+                ) : null}
+                <ul className={styles.curriculumList}>
+                  {curriculumWeeks.map((w) => (
+                    <li key={w.week_number} className={styles.curriculumWeek}>
+                      <span className={styles.curriculumWeekNum}>Week {w.week_number}</span>
+                      <span className={styles.curriculumWeekCopy}>
+                        {w.is_vod_review
+                          ? `Review and break down ${player.first_name}'s game clip together.`
+                          : (w.parent_skill_description ?? w.parent_label ?? "Lesson coming")}
+                        <em className={styles.curriculumWeekTerm}>
+                          {" "}(Fortnite term: {w.is_vod_review ? "VOD review" : (w.fortnite_label ?? "lesson")}.)
+                        </em>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </>
+        ) : (
+        <>
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>Free call scheduled</div>
           <h2 className={styles.cardTitle}>You are booked</h2>
@@ -307,6 +442,8 @@ export default async function PortalPage() {
             })}
           </ul>
         </section>
+        </>
+        )}
 
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>Messages</div>
@@ -324,46 +461,70 @@ export default async function PortalPage() {
           />
         </section>
 
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>What to expect</div>
-          <h2 className={styles.cardTitle}>The 30 minute call</h2>
-          <ul className={styles.bullets}>
-            <li>30 minutes on Discord voice. No phone calls, ever.</li>
-            <li>Tim watches the VOD beforehand so the time is spent coaching, not scrolling.</li>
-            <li>No charge unless you decide to subscribe after.</li>
-            <li>If you subscribe, it is $56 for 4 lessons (one per week). Cancel the subscription any time.</li>
-            <li>Cancel a paid lesson more than 24 hours out and the cycle pauses one week, full credit.</li>
-            <li>Up to 2 cancellations per 4 lesson cycle. A 3rd cancel ends the subscription.</li>
-            <li>All Discord coaching happens in a private channel for your family. You are invited as an observer.</li>
-          </ul>
-        </section>
+        {isActive ? (
+          <section className={styles.card}>
+            <div className={styles.cardEyebrow}>Billing and recordings</div>
+            <h2 className={styles.cardTitle}>Manage your subscription</h2>
+            <p className={styles.cardBody}>
+              Update your card, see past invoices, or cancel the subscription
+              in the Stripe customer portal. Cancel anytime. Your account and
+              messages stay open if you do.
+            </p>
+            <ManagePaymentButton />
+            <div className={styles.controlsGrid}>
+              <div className={styles.controlCard}>
+                <div className={styles.controlTitle}>Call recordings</div>
+                <div className={styles.controlEmpty}>
+                  Tim records every paid call. They show up here after he
+                  uploads them.
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+            <section className={styles.card}>
+              <div className={styles.cardEyebrow}>What to expect</div>
+              <h2 className={styles.cardTitle}>The 30 minute call</h2>
+              <ul className={styles.bullets}>
+                <li>30 minutes on Discord voice. No phone calls, ever.</li>
+                <li>Tim watches the VOD beforehand so the time is spent coaching, not scrolling.</li>
+                <li>No charge unless you decide to subscribe after.</li>
+                <li>If you subscribe, it is $56 for 4 lessons (one per week). Cancel the subscription any time.</li>
+                <li>Cancel a paid lesson more than 24 hours out and the cycle pauses one week, full credit.</li>
+                <li>Up to 2 cancellations per 4 lesson cycle. A 3rd cancel ends the subscription.</li>
+                <li>All Discord coaching happens in a private channel for your family. You are invited as an observer.</li>
+              </ul>
+            </section>
 
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Your controls</div>
-          <h2 className={styles.cardTitle}>Available after conversion</h2>
-          <p className={styles.cardBody}>
-            These panels light up the moment a paid cycle starts. Showing them
-            now so you know where to find them.
-          </p>
-          <div className={styles.controlsGrid}>
-            <div className={styles.controlCard}>
-              <div className={styles.controlTitle}>Billing</div>
-              <div className={styles.controlEmpty}>No charges yet.</div>
-            </div>
-            <div className={styles.controlCard}>
-              <div className={styles.controlTitle}>Call recordings</div>
-              <div className={styles.controlEmpty}>Tim records every paid call. Trial calls are not recorded.</div>
-            </div>
-          </div>
-          {subscription?.status === "trial" ? (
-            <div className={styles.trailing}>
-              <button type="button" className={styles.tertiaryBtn} disabled title="Coming soon">
-                Cancel trial
-              </button>
-              <span className={styles.subtle}>Cancel through Calendly for now. Direct cancel lands next phase.</span>
-            </div>
-          ) : null}
-        </section>
+            <section className={styles.card}>
+              <div className={styles.cardEyebrow}>Your controls</div>
+              <h2 className={styles.cardTitle}>Available after conversion</h2>
+              <p className={styles.cardBody}>
+                These panels light up the moment a paid cycle starts. Showing them
+                now so you know where to find them.
+              </p>
+              <div className={styles.controlsGrid}>
+                <div className={styles.controlCard}>
+                  <div className={styles.controlTitle}>Billing</div>
+                  <div className={styles.controlEmpty}>No charges yet.</div>
+                </div>
+                <div className={styles.controlCard}>
+                  <div className={styles.controlTitle}>Call recordings</div>
+                  <div className={styles.controlEmpty}>Tim records every paid call. Trial calls are not recorded.</div>
+                </div>
+              </div>
+              {subscription?.status === "trial" ? (
+                <div className={styles.trailing}>
+                  <button type="button" className={styles.tertiaryBtn} disabled title="Coming soon">
+                    Cancel trial
+                  </button>
+                  <span className={styles.subtle}>Cancel through Calendly for now. Direct cancel lands next phase.</span>
+                </div>
+              ) : null}
+            </section>
+          </>
+        )}
 
         <section className={styles.contact}>
           <div className={styles.contactInner}>

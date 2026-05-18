@@ -964,6 +964,27 @@ This section is the running source of truth for what's on Peter's plate. Update 
     5. **Embedded Elements** instead of hosted-redirect. Spec calls for embedded inline. Hosted Checkout is fine for first cut; the swap is a one-endpoint refactor.
     6. **Customer Portal link.** Stripe has a hosted Customer Portal where parents manage payment methods + see invoices. We have `STRIPE_PORTAL_URL` in env. Add a "Manage payment" link in the /portal active banner pointing at the configured portal session URL.
 
+- **Active-state portal branching (2026-05-18 mid morning).** `/portal` and `/play` now render entirely different content when `subscription.status='active'`. `npx tsc --noEmit` clean.
+  - **`/portal` active branch:**
+    - Hero copy flips: eyebrow becomes "Parent dashboard. Active." and body shifts to "[Kid]'s lessons are running. Cycle counter, billing, and messages with Tim are below."
+    - **Cycle counter card** — "Lesson X of 4" + cancellations-used line ("0 of 2 used" or count) + cycle start date.
+    - **4 week plan card** — lists the active curriculum's 4 slots with the parent-facing translation (parent_skill_description first, Fortnite term in italicized parens per Hard rule #4). Tim's personalization_note surfaces above the list if present.
+    - **Billing + recordings card** — replaces the trial-state "Your controls" empty-state. Includes the new **Manage payment and cancel** button.
+    - Trial-only sections (Free call scheduled, Player access, Prep checklist, What to expect, Your controls) all hidden via `{isActive ? … : …}` branches.
+    - Messages section + contact strip + footer all stay (shared between states).
+  - **`/play` active branch:**
+    - Hero eyebrow flips to "Player profile. Active." and the body line becomes "Lesson [N+1] of 4 incoming Sunday. Watch the messages for anything Tim drops in the meantime."
+    - **Cycle counter card** — "Lesson X of 4 dropped" + Sunday-rhythm reminder.
+    - **4 week plan card** — kid-facing list (Fortnite labels only, no parent translation). "Tim is putting the slides and voiceover together. They drop here Sunday by Sunday." subtle hint.
+    - XP strip + quest log + locked Lesson library card all hidden in active state. Messages section + parent-visibility footer stay.
+  - **`POST /api/portal/billing-portal`** — parent-authed cookie session. Resolves family → `stripe_customer_id`. Calls `stripe.billingPortal.sessions.create({ customer, return_url: APP_URL/portal })` and returns `{ url }`. 409 if the family has no Stripe Customer (hasn't paid yet).
+  - **`ManagePaymentButton` Client Component** in `PortalClient.tsx` — POSTs to the billing-portal endpoint and redirects to the returned Stripe-hosted URL. Mirrors the SendPlayerLinkButton shape; failures surface inline.
+  - **Open follow-ups (deferred for sanity — none block production):**
+    1. **"Next lesson drops Sunday" prediction.** Cycle counter says "Lesson X of 4" but doesn't tell parents when the next drop is. Compute next Sunday after cycle_started_at + N weeks, accounting for paused weeks. Useful but not urgent.
+    2. **Lesson detail view.** Kid sees a list of week labels but no way to click into a week and view the slides + audio. Wait for the lesson-authoring UI + actual content; clicking into a stub-empty week is misleading.
+    3. **Call recordings panel.** Renders an empty-state card today. Real impl: list `curriculum_slots.live_call_completed_at` rows where Tim has uploaded a recording. Storage layer not built; coach-uploads-to-bucket is its own task.
+    4. **Cancel within /portal.** Stripe customer portal already has a cancel UI, so we get this for free via the **Manage payment and cancel** button. Replacing with an in-app modal that calls Stripe's API directly is a polish item, not load-bearing.
+
 #### 🔧 Setup (blocking the next coding work)
 
 1. ~~**PNG icons** for the PWA.~~ **DONE 2026-05-17 night via SVG.** `public/icons/icon.svg` (full-bleed, rounded corners, blue `#0B1538` + white "K") and `public/icons/icon-maskable.svg` (no corners, K shrunk to fit the central 80% safe zone for Android launcher masking). `manifest.json` updated to two entries (`purpose:"any"` + `purpose:"maskable"`), `sizes:"any"`, `type:"image/svg+xml"`. Android Chrome + Edge handle SVG manifest icons; iOS "Add to Home Screen" ignores manifest icons entirely and reads `<link rel="apple-touch-icon">` (which must be a PNG). If iOS adoption matters pre-launch, rasterize `icon.svg` to a 180×180 PNG and add `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">` in `src/app/layout.tsx`. The in-tab favicon (data-URI SVG in layout.tsx) is separate and stays as lime-K on dark blue.

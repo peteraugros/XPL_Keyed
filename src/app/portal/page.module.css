@@ -347,6 +347,42 @@
   text-transform: uppercase;
 }
 
+/* Active-state curriculum list */
+.curriculumList {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.curriculumWeek {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  align-items: start;
+}
+.curriculumWeekNum {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.curriculumWeekCopy {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.curriculumWeekTerm {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
 /* Curriculum approval banner */
 .curriculumBanner {
   background: linear-gradient(135deg, rgba(199, 255, 61, 0.14), rgba(76, 81, 247, 0.10));
