@@ -367,6 +367,126 @@
   border-top: 1px solid var(--border);
 }
 
+/* Stage C panel */
+.stageCBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.stageCRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.secondaryBtn {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--epic);
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.secondaryBtn:hover { background: rgba(200, 7, 21, 0.10); }
+.tertiaryBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.tertiaryBtn:hover { color: var(--text); border-color: var(--text-dim); }
+.tertiaryBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.stageCConfirm {
+  background: rgba(200, 7, 21, 0.08);
+  border: 1px solid rgba(200, 7, 21, 0.4);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drafter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.weekBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.weekHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.weekLabel {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.weekVodToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.weekVodNote {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.cardBody {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.stageCDone {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stageCDoneTitle {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--uncommon);
+  text-transform: uppercase;
+}
+
 .footer {
   text-align: center;
   font-size: 12px;

@@ -409,6 +409,296 @@ function TrialCardView({
           playerId={player.id}
         />
       </div>
+
+      <StageCPanel playerId={player.id} kidFirstName={player.first_name} router={router} />
     </article>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stage C panel — Tim's post-call decision tree per CLAUDE.md.
+// ---------------------------------------------------------------------------
+
+type StageCMode =
+  | { kind: "idle" }
+  | { kind: "drafting" }
+  | { kind: "submitting_takeon" }
+  | { kind: "submitted_takeon"; approval_url: string }
+  | { kind: "confirming_decline" }
+  | { kind: "submitting_decline" }
+  | { kind: "submitted_decline" }
+  | { kind: "still_deciding" }
+  | { kind: "error"; message: string };
+
+type Week = {
+  kid_facing_title: string;
+  parent_facing_skill: string;
+  is_vod_review: boolean;
+};
+
+const EMPTY_WEEK: Week = {
+  kid_facing_title: "",
+  parent_facing_skill: "",
+  is_vod_review: false,
+};
+
+function StageCPanel({
+  playerId,
+  kidFirstName,
+  router,
+}: {
+  playerId: string;
+  kidFirstName: string;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const [mode, setMode] = useState<StageCMode>({ kind: "idle" });
+  const [note, setNote] = useState("");
+  const [weeks, setWeeks] = useState<Week[]>([
+    { ...EMPTY_WEEK },
+    { ...EMPTY_WEEK },
+    { ...EMPTY_WEEK },
+    { ...EMPTY_WEEK },
+  ]);
+
+  function updateWeek(i: number, patch: Partial<Week>) {
+    setWeeks((prev) => prev.map((w, idx) => (idx === i ? { ...w, ...patch } : w)));
+  }
+
+  function canSubmit(): boolean {
+    if (note.trim().length < 1) return false;
+    for (const w of weeks) {
+      if (!w.is_vod_review && (w.kid_facing_title.trim().length < 1 || w.parent_facing_skill.trim().length < 1)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function submitTakeOn() {
+    setMode({ kind: "submitting_takeon" });
+    try {
+      const res = await fetch("/api/admin/conversion/take-on", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          player_id: playerId,
+          personalization_note: note.trim(),
+          weeks: weeks.map((w) => ({
+            kid_facing_title: w.kid_facing_title.trim(),
+            parent_facing_skill: w.parent_facing_skill.trim(),
+            is_vod_review: w.is_vod_review,
+          })),
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        approval_url?: string;
+        error?: string;
+        warning?: string;
+      };
+      if (!res.ok || !body.ok) {
+        setMode({ kind: "error", message: body.error ?? "Take on failed." });
+        return;
+      }
+      setMode({ kind: "submitted_takeon", approval_url: body.approval_url ?? "" });
+      router.refresh();
+    } catch {
+      setMode({ kind: "error", message: "Network error." });
+    }
+  }
+
+  async function submitDecline() {
+    setMode({ kind: "submitting_decline" });
+    try {
+      const res = await fetch("/api/admin/conversion/decline", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ player_id: playerId }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !body.ok) {
+        setMode({ kind: "error", message: body.error ?? "Decline failed." });
+        return;
+      }
+      setMode({ kind: "submitted_decline" });
+      router.refresh();
+    } catch {
+      setMode({ kind: "error", message: "Network error." });
+    }
+  }
+
+  if (mode.kind === "submitted_takeon") {
+    return (
+      <div className={styles.stageCDone}>
+        <div className={styles.stageCDoneTitle}>Curriculum sent to {kidFirstName}&apos;s parent.</div>
+        <div className={styles.hint}>They get an email with the plan and the approval link.</div>
+        {mode.approval_url ? (
+          <a
+            href={mode.approval_url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className={styles.linkLime}
+          >
+            Open approval link
+          </a>
+        ) : null}
+      </div>
+    );
+  }
+  if (mode.kind === "submitted_decline") {
+    return (
+      <div className={styles.stageCDone}>
+        <div className={styles.stageCDoneTitle}>Marked as not the right fit.</div>
+        <div className={styles.hint}>The parent got an email with free creator recommendations.</div>
+      </div>
+    );
+  }
+  if (mode.kind === "still_deciding") {
+    return (
+      <div className={styles.stageCDone}>
+        <div className={styles.stageCDoneTitle}>Saved for review.</div>
+        <div className={styles.hint}>Come back to this card when you decide.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.stageCBlock}>
+      <div className={styles.fieldLabel}>After the trial call</div>
+
+      {mode.kind === "idle" || mode.kind === "error" ? (
+        <>
+          <div className={styles.stageCRow}>
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={() => setMode({ kind: "drafting" })}
+            >
+              Take {kidFirstName} on
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              onClick={() => setMode({ kind: "confirming_decline" })}
+            >
+              Not the right fit
+            </button>
+            <button
+              type="button"
+              className={styles.tertiaryBtn}
+              onClick={() => setMode({ kind: "still_deciding" })}
+            >
+              Still deciding
+            </button>
+          </div>
+          {mode.kind === "error" ? (
+            <div className={styles.alert}>{mode.message}</div>
+          ) : null}
+        </>
+      ) : null}
+
+      {mode.kind === "confirming_decline" || mode.kind === "submitting_decline" ? (
+        <div className={styles.stageCConfirm}>
+          <div className={styles.cardBody}>
+            Decline {kidFirstName} for paid coaching? An email goes out with free
+            creator recommendations and the account stays open.
+          </div>
+          <div className={styles.stageCRow}>
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={submitDecline}
+              disabled={mode.kind === "submitting_decline"}
+            >
+              {mode.kind === "submitting_decline" ? "Sending..." : "Send decline"}
+            </button>
+            <button
+              type="button"
+              className={styles.tertiaryBtn}
+              onClick={() => setMode({ kind: "idle" })}
+              disabled={mode.kind === "submitting_decline"}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {mode.kind === "drafting" || mode.kind === "submitting_takeon" ? (
+        <div className={styles.drafter}>
+          <div className={styles.cardBody}>
+            Draft {kidFirstName}&apos;s 4 week plan. The parent gets the
+            translation in their email, so make the parent skill describe a
+            real-world capability, not the Fortnite move.
+          </div>
+          {weeks.map((w, i) => (
+            <div key={i} className={styles.weekBlock}>
+              <div className={styles.weekHeader}>
+                <span className={styles.weekLabel}>Week {i + 1}</span>
+                <label className={styles.weekVodToggle}>
+                  <input
+                    type="checkbox"
+                    checked={w.is_vod_review}
+                    onChange={(e) => updateWeek(i, { is_vod_review: e.target.checked })}
+                  />
+                  VOD review week
+                </label>
+              </div>
+              {w.is_vod_review ? (
+                <div className={styles.weekVodNote}>
+                  VOD week. Defaults to {kidFirstName}&apos;s most recent clip.
+                  You can swap the URL and add talking points later.
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Kid facing title (Fortnite term, e.g. Tunneling)"
+                    value={w.kid_facing_title}
+                    onChange={(e) => updateWeek(i, { kid_facing_title: e.target.value })}
+                    className={styles.input}
+                    maxLength={120}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Parent facing skill (e.g. Defensive building under pressure)"
+                    value={w.parent_facing_skill}
+                    onChange={(e) => updateWeek(i, { parent_facing_skill: e.target.value })}
+                    className={styles.input}
+                    maxLength={240}
+                  />
+                </>
+              )}
+            </div>
+          ))}
+          <textarea
+            placeholder={`Two sentence personalization note for ${kidFirstName}'s parent. Why this plan, why now.`}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className={styles.input}
+            rows={3}
+            maxLength={500}
+          />
+          <div className={styles.stageCRow}>
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={submitTakeOn}
+              disabled={!canSubmit() || mode.kind === "submitting_takeon"}
+            >
+              {mode.kind === "submitting_takeon" ? "Sending..." : "Send to parent"}
+            </button>
+            <button
+              type="button"
+              className={styles.tertiaryBtn}
+              onClick={() => setMode({ kind: "idle" })}
+              disabled={mode.kind === "submitting_takeon"}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

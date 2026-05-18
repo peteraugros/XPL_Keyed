@@ -154,7 +154,7 @@ export default async function PortalPage() {
     redirect("/login?error=portal_player");
   }
 
-  const [subscriptionLookup, questLookup, messageLookup] = await Promise.all([
+  const [subscriptionLookup, questLookup, messageLookup, pendingCurriculumLookup] = await Promise.all([
     supabase
       .from("subscriptions")
       .select("tier, status")
@@ -170,6 +170,14 @@ export default async function PortalPage() {
       .eq("player_id", player.id)
       .order("created_at", { ascending: true })
       .limit(100),
+    supabase
+      .from("curricula")
+      .select("approval_token, personalization_note")
+      .eq("player_id", player.id)
+      .eq("status", "pending_approval")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const subscription = subscriptionLookup.data as SubscriptionLookup | null;
@@ -182,6 +190,9 @@ export default async function PortalPage() {
     body: string;
     created_at: string;
   }>;
+  const pendingCurriculum = pendingCurriculumLookup.data as
+    | { approval_token: string; personalization_note: string | null }
+    | null;
 
   return (
     <div className={styles.shell}>
@@ -201,6 +212,25 @@ export default async function PortalPage() {
             need before the call.
           </p>
         </section>
+
+        {pendingCurriculum ? (
+          <section className={styles.curriculumBanner}>
+            <div className={styles.curriculumBannerEyebrow}>Curriculum ready for review</div>
+            <h2 className={styles.curriculumBannerTitle}>
+              Tim drafted {player.first_name}&apos;s 4 week plan
+            </h2>
+            <p className={styles.cardBody}>
+              Open the link below to see what Tim has in mind for {player.first_name}.
+              You can approve and subscribe from there.
+            </p>
+            <a
+              href={`/curriculum/${pendingCurriculum.approval_token}`}
+              className={styles.curriculumBannerCta}
+            >
+              Review the plan
+            </a>
+          </section>
+        ) : null}
 
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>Free call scheduled</div>

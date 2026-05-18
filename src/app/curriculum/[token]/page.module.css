@@ -1,0 +1,185 @@
+/* /curriculum/[token] — parent's curriculum review surface.
+   Tokens from globals.css. Dash free per Hard rule #8. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 20px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.shell::before {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: var(--lime);
+  filter: blur(110px);
+  opacity: 0.10;
+  top: -120px;
+  right: -120px;
+  pointer-events: none;
+}
+
+.frame {
+  position: relative;
+  z-index: 1;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-align: center;
+}
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.body {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.note {
+  background: var(--bg-3);
+  border: 1px solid rgba(199, 255, 61, 0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.noteLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.noteBody {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.weekList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.weekRow {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  align-items: start;
+}
+
+.weekNum {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+
+.weekCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.weekSkill {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.45;
+}
+.weekTerm {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.terms {
+  background: var(--bg-3);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.terms p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.termsSubtle {
+  color: var(--text-faint) !important;
+  font-size: 13px !important;
+}
+
+.primaryBtn {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 22px;
+  min-height: 50px;
+  cursor: pointer;
+  align-self: flex-start;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholderNote {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 10px;
+  line-height: 1.5;
+  font-style: italic;
+}
