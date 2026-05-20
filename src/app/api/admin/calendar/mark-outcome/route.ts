@@ -58,23 +58,23 @@ const COACH_REASON_COPY: Record<
   { parentBlurb: string; kidBlurb: string; subject: string }
 > = {
   sick: {
-    parentBlurb: "Tim was out sick and missed today's call.",
-    kidBlurb: "I was out sick today. Sorry I missed our call.",
-    subject: "Tim missed today's call",
+    parentBlurb: "I was out sick and missed today's call. So sorry I didn't get word to you sooner.",
+    kidBlurb: "I was out sick today. So sorry I missed our call. Your parent has a link to pick a new time.",
+    subject: "Picking a new time for the call I missed",
   },
   out_of_control: {
     parentBlurb:
-      "Something came up Tim couldn't control and he missed today's call.",
+      "Something came up I couldn't control and I missed today's call. So sorry I didn't get word to you sooner.",
     kidBlurb:
-      "Something came up I couldn't get out of. Sorry I missed our call.",
-    subject: "Tim missed today's call",
+      "Something came up I couldn't get out of. So sorry I missed our call. Your parent has a link to pick a new time.",
+    subject: "Picking a new time for the call I missed",
   },
   need_to_reschedule: {
     parentBlurb:
-      "Tim had to step away and missed today's call. He'll reach out about a new time shortly.",
+      "I had to step away today and missed our call. So sorry I didn't reach out sooner. Pick a new time below and I'll be there.",
     kidBlurb:
-      "I had to step away today. Sorry I missed our call, I'll message you about a new time.",
-    subject: "Tim missed today's call",
+      "I had to step away today. So sorry I missed our call. Your parent has a link to pick a new time.",
+    subject: "Picking a new time for the call I missed",
   },
 };
 
@@ -321,26 +321,30 @@ ${
       ).catch(() => null);
     }
 
-    // Mark slot
+    // Mark slot: sentinel event id + clear live_call_at (slot enters
+    // "needs reschedule" state, same shape as proactive coach cancel).
     await service
       .from("curriculum_slots")
       .update({
         live_call_event_id: slot.live_call_event_id
           ? `cancelled:${slot.live_call_event_id}`
           : `cancelled:coach-late-${slot.id}`,
-        delivered_at: nowIso,
+        live_call_at: null,
       } as never)
       .eq("id", slot.id);
 
-    // Parent email
+    // Parent email with reschedule CTA
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://xplkeyed.com";
     if (parent && process.env.RESEND_API_KEY) {
       const html = brandedEmailHtml({
         headline: copy.subject,
         bodyHtml: `<p>Hi ${parent.first_name},</p>
 <p>${copy.parentBlurb}</p>
-<p>${player.first_name}'s cycle pauses one week. No charge for this week, no impact on your skip allowance. Sorry I didn't get word to you sooner.</p>
+<p>No charge for this delay, no impact on your skip allowance. Pick the next time that works and I'll be there.</p>
 <p>Anything to share? Have ${player.first_name} message me in the chat.</p>
 <p>Talk soon,<br/>Tim</p>`,
+        ctaLabel: "Pick a new time",
+        ctaHref: `${appUrl}/portal/sessions`,
       });
       try {
         await resend.emails.send({

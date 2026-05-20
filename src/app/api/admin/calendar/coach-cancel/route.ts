@@ -36,27 +36,28 @@ const bodySchema = z
   .strict();
 
 // Parent-facing phrasing per reason. Dash-free per Hard rule #8.
+// Copy assumes the parent will pick a new time via the dashboard link.
 const REASON_COPY: Record<
   ReasonValue,
   { parentBlurb: string; kidBlurb: string; subject: string }
 > = {
   sick: {
-    parentBlurb: "Tim's out sick this week, so we're pushing this week's call.",
-    kidBlurb: "I'm out sick this week. Catch you next week.",
-    subject: "Tim's out sick this week",
+    parentBlurb: "I'm out sick this week, so we need to find a new time for this week's call.",
+    kidBlurb: "I'm out sick this week. Your parent has a link to pick a new time, talk soon.",
+    subject: "Picking a new time for this week's call",
   },
   out_of_control: {
     parentBlurb:
-      "Something came up Tim couldn't control, so we're pushing this week's call.",
-    kidBlurb: "Something came up I couldn't get out of. Catch you next week.",
-    subject: "Tim has to push this week's call",
+      "Something came up I couldn't control, so we need to find a new time for this week's call.",
+    kidBlurb: "Something came up I couldn't get out of. Your parent has a link to pick a new time.",
+    subject: "Picking a new time for this week's call",
   },
   need_to_reschedule: {
     parentBlurb:
-      "Tim needs to move this week's call. He'll reach out shortly to find a new time.",
+      "I have to move this week's call. Pick a new time below and I'll be there.",
     kidBlurb:
-      "I have to move this week's call. I'll message you about a new time soon.",
-    subject: "Tim needs to move this week's call",
+      "I have to move this week's call. Your parent has a link to pick a new time.",
+    subject: "Picking a new time for this week's call",
   },
 };
 
@@ -177,14 +178,17 @@ export async function POST(req: Request) {
     }
   }
 
-  // 3. Mark slot: sentinel + delivered (so Sunday cron skips)
+  // 3. Mark slot: sentinel event id + clear live_call_at so the slot
+  //    enters "needs reschedule" state. We do NOT stamp delivered_at —
+  //    the lesson still needs to happen, just at a new time. Sunday
+  //    cron sees live_call_at IS NULL and waits.
   const slotUpd = await service
     .from("curriculum_slots")
     .update({
       live_call_event_id: slot.live_call_event_id
         ? `cancelled:${slot.live_call_event_id}`
         : `cancelled:coach-${slot.id}`,
-      delivered_at: nowIso,
+      live_call_at: null,
     } as never)
     .eq("id", slot.id);
   if (slotUpd.error) {
@@ -192,15 +196,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "slot_update_failed" }, { status: 500 });
   }
 
-  // 4. Parent email
+  // 4. Parent email with reschedule CTA
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://xplkeyed.com";
   if (parent && process.env.RESEND_API_KEY) {
     const html = brandedEmailHtml({
       headline: copy.subject,
       bodyHtml: `<p>Hi ${parent.first_name},</p>
 <p>${copy.parentBlurb}</p>
-<p>${player.first_name}'s cycle pauses one week. No charge for this week, no impact on your skip allowance.</p>
-<p>Anything to share? Have ${player.first_name} message me in the chat. I see everything in your dashboard.</p>
+<p>No charge for this delay, no impact on your skip allowance. Pick the next time that works and I'll be there.</p>
+<p>Anything to share? Have ${player.first_name} message me in the chat.</p>
 <p>Talk soon,<br/>Tim</p>`,
+      ctaLabel: "Pick a new time",
+      ctaHref: `${appUrl}/portal/sessions`,
     });
     try {
       await resend.emails.send({

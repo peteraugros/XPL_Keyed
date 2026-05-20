@@ -575,6 +575,7 @@ function FocusedHome({
   const isLessonStub = topTask.task_type === "lesson_authoring_needed";
   const isTikTok = topTask.task_type === "tiktok_daily_reminder";
   const isOutcomePending = topTask.task_type === "call_outcome_pending";
+  const isDragOut = topTask.task_type === "cycle_drag_out";
   const isAwareness =
     isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff || isTikTok;
 
@@ -640,6 +641,8 @@ function FocusedHome({
           <span className={styles.newTrialPill}>FUNNEL</span>
         ) : isOutcomePending ? (
           <span className={styles.pastDuePill}>POST CALL</span>
+        ) : isDragOut ? (
+          <span className={styles.pastDuePill}>CYCLE DRAG</span>
         ) : (
           "Next thing"
         )}
@@ -1333,6 +1336,28 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
       return {
         title: `${name} dropped a clip.`,
         body: payload.vod_url ? "Watch it before the call so you walk in informed." : "Watch it before the call so you walk in informed.",
+        cta: "Open card",
+      };
+    }
+    case "cycle_drag_out": {
+      const payload = (t.task_payload ?? {}) as {
+        cycle_started_at?: string;
+        cycle_lessons_delivered?: number;
+        cycle_skips_used?: number;
+        coach_cancels_count?: number;
+      };
+      const started = payload.cycle_started_at
+        ? new Date(payload.cycle_started_at)
+        : null;
+      const weeks = started
+        ? Math.floor((Date.now() - started.getTime()) / (7 * 86_400_000))
+        : 0;
+      const delivered = payload.cycle_lessons_delivered ?? 0;
+      const skips = payload.cycle_skips_used ?? 0;
+      const cancels = payload.coach_cancels_count ?? 0;
+      return {
+        title: `${name}'s cycle is dragging.`,
+        body: `${weeks} weeks running, only ${delivered} of 4 lessons delivered. ${skips} parent ${skips === 1 ? "skip" : "skips"}, ${cancels} of your own ${cancels === 1 ? "cancel" : "cancels"}. Worth a check in.`,
         cta: "Open card",
       };
     }

@@ -84,6 +84,23 @@ export default async function MoneyPage() {
   const pastDueSubs = subs.filter((s) => s.status === "past_due");
   const autoRenewOffSubs = activeSubs.filter((s) => !s.auto_renew_enabled);
 
+  // Avg cycle duration (operational health snapshot). For each paying
+  // sub with a cycle_started_at, compute weeks elapsed. Average. If
+  // most cycles are running 4-6 weeks the avg sits near 5; drag-out
+  // pushes it higher. Snapshot of currently-active cycles, not history.
+  const cycleAges = payingSubs
+    .map((s) =>
+      s.cycle_started_at
+        ? (Date.now() - new Date(s.cycle_started_at).getTime()) / (7 * 86_400_000)
+        : null,
+    )
+    .filter((n): n is number => n !== null);
+  const avgCycleWeeks =
+    cycleAges.length > 0
+      ? cycleAges.reduce((sum, n) => sum + n, 0) / cycleAges.length
+      : null;
+  const draggingCycles = cycleAges.filter((n) => n > 8).length;
+
   // MRR-equivalent: each active sub renews ~every 4 weeks at $56, so the
   // 4-week run rate is straightforward. Calling it "Cycle run rate"
   // rather than MRR to avoid the 30-day connotation.
@@ -251,6 +268,15 @@ export default async function MoneyPage() {
         <Stat label="Year to date" value={fmtUsd(ytdCents)} />
         <Stat label="Past due" value={String(pastDueSubs.length)} tone={pastDueSubs.length > 0 ? "warn" : undefined} />
         <Stat label="Auto renew off" value={String(autoRenewOffSubs.length)} tone={autoRenewOffSubs.length > 0 ? "muted" : undefined} />
+        <Stat
+          label="Avg cycle weeks"
+          value={avgCycleWeeks !== null ? avgCycleWeeks.toFixed(1) : "—"}
+          tone={avgCycleWeeks !== null && avgCycleWeeks > 6 ? "warn" : undefined}
+          hint="Target is 4 weeks. Above 6 means drag-out is eating cycle frequency."
+        />
+        {draggingCycles > 0 ? (
+          <Stat label="Dragging cycles" value={String(draggingCycles)} tone="warn" hint="Cycles running 8+ weeks." />
+        ) : null}
       </section>
 
       {/* Revenue bar chart */}

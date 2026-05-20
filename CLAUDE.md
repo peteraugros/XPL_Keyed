@@ -1120,6 +1120,30 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
 
+- **Calendar Round 3 + Cycle drag-out + Money KPIs (2026-05-20).** Three operational pieces closing real gaps. `npx tsc --noEmit` clean.
+
+  **Round 3 — Tim cancels → parent reschedules.** Closes the bug that previously caused families to LOSE a week's content entirely when Tim cancelled. The lesson is meant to be rescheduled, not skipped (per CLAUDE.md "Coach cancellations" spec).
+  - Calendly's API doesn't support backend-initiated bookings, so the auto-shift-+7-days happy path I initially considered isn't possible. Going with "Pick a new time, every time" — parent drives the rebooking via the existing reschedule UI pattern with a Calendly embed defaulted to +7d.
+  - **`/api/admin/calendar/coach-cancel`** + **`/api/admin/calendar/mark-outcome`'s `coach_cancel_late` branch** updated: instead of stamping `delivered_at` (which made the Sunday cron skip the lesson entirely), they now **clear `live_call_at` and sentinel `live_call_event_id`**. The slot enters a "needs reschedule" limbo until the parent picks a new time.
+  - **Email copy rewritten.** Subject: "Picking a new time for this week's call" / "Picking a new time for the call I missed." Body explains Tim's reason + a "Pick the next time that works and I'll be there" framing. New **Pick a new time** CTA on the email links to `/portal/sessions`. Kid auto-chat updated to match ("Your parent has a link to pick a new time").
+  - **`POST /api/portal/sessions/[slot_id]/book-after-coach-cancel`** — new endpoint. Validates the slot is in coach-cancelled state (live_call_at NULL + cancelled: sentinel) + belongs to the parent's family. Sets new `live_call_at` + `live_call_event_id`. **No 24hr check, no 7-day delta math, no skip counter touch** — different semantics from the regular reschedule endpoint because Tim caused this, not the family.
+  - **`ActiveCycleManager` updated.** New `isCoachCancelled(slot)` helper detects the limbo state. Cancelled slots render with a lime-bordered row + "Tim cancelled. Pick a new time." subtitle + green **Pick a time** primary button (vs the regular ghost-link Reschedule button for normal slots).
+  - **`BookAfterCoachCancelModal`** — new client component. Same Calendly embed init pattern as `RescheduleModal` (window message listener + manual `initInlineWidget()` since the modal mounts dynamically). Pre-navigates to today+7d as a sensible default. On `event_scheduled` → resolves new time via `/api/portal/sessions/resolve-event` server-side (keeps the Calendly PAT off the browser) → POSTs to the new book-after-coach-cancel endpoint.
+  - **Tim's calendar**: coach-cancelled limbo slots quietly disappear (no `live_call_at` to render on a time grid). They reappear normally once the parent picks a new time. Parent-side cancels still show with strike-through since those calls are gone permanently — different semantics.
+
+  **Cycle drag-out awareness card.** Operational alarm for cycles running too long.
+  - **Migration `20260520000300_cycle_drag_out.sql`** — adds `cycle_drag_out` task type (P60) to `derived_tasks_view`. Sits between past_due_opened (55) and message_thread coach (60).
+  - Fires when `lifecycle_state='ACTIVE'` AND `cycle_lessons_delivered < 4` AND `cycle_started_at < NOW() - INTERVAL '8 weeks'` (2x intended duration).
+  - **Task payload includes the breakdown:** `cycle_started_at`, `cycle_lessons_delivered`, `cycle_skips_used` (parent-driven), `coach_cancels_count` (subquery counting `coach_cancels` rows linked to the active curriculum's slots).
+  - **Card body:** *"Jake's cycle is dragging. 9 weeks running, only 2 of 4 lessons delivered. 2 parent skips, 3 of your own cancels. Worth a check in."* — formed in `phraseForTask` from the payload. Amber `CYCLE DRAG` pill.
+  - **Why this matters:** Stripe charges per cycle completion, not calendar time. A 12-week cycle = 4 cycles/year/kid instead of 13 = ~$500/yr/kid revenue leakage. At 12 paying kids that's ~$6K/year. Real money. Drag-out also dilutes the curriculum (designed as a coherent 4-week block) and erodes family momentum.
+  - **Doesn't auto-resolve.** Tim has to act (reach out in messages, course-correct his own cancel rate, in extreme cases manually advance the cycle). 16-week auto-end is a future option — deferred to lock the refund/intervention policy first.
+
+  **Money page operational KPIs.**
+  - New stat tile **Avg cycle weeks** — average weeks elapsed across active paying cycles. Tile flips amber when avg > 6. Snapshot of currently-active cycles, not history. Target is 4. Hint on hover explains.
+  - New stat tile **Dragging cycles** — count of cycles running 8+ weeks. Only renders when > 0. Amber.
+  - Together with the awareness card, gives Tim immediate visibility into operational health: cards show specific families, KPIs show the trend.
+
 - **Calendar (Rounds 1 + 2): list view + coach cancel + post-call outcome marking (2026-05-20).** Operations stub replaced with a real schedule + accountability surface. `npx tsc --noEmit` clean after both rounds.
 
   **Round 1 — list view + proactive coach cancel:**

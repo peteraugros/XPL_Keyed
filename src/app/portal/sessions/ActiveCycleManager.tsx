@@ -111,34 +111,60 @@ export default function ActiveCycleManager({
         <h2 className={styles.cardTitle}>Your booked sessions</h2>
         <SkipCounter skipsUsed={skipsUsed} autoRenewEnabled={autoRenewEnabled} />
         <ul className={styles.weekList}>
-          {slots.map((s) => (
-            <li key={s.id} className={styles.weekRow}>
-              <span className={styles.weekNum}>Week {s.week_number}</span>
-              <span className={styles.weekCopy}>
-                <span className={styles.weekLabel}>
-                  {s.fortnite_label ?? (s.is_vod_review ? "VOD review" : "Lesson")}
+          {slots.map((s) => {
+            const needsReschedule = isCoachCancelled(s);
+            return (
+              <li key={s.id} className={`${styles.weekRow} ${needsReschedule ? styles.weekRowNeedsReschedule : ""}`}>
+                <span className={styles.weekNum}>Week {s.week_number}</span>
+                <span className={styles.weekCopy}>
+                  <span className={styles.weekLabel}>
+                    {s.fortnite_label ?? (s.is_vod_review ? "VOD review" : "Lesson")}
+                  </span>
+                  <span className={styles.weekTime}>
+                    {s.live_call_at
+                      ? formatSlotDateTime(s.live_call_at)
+                      : needsReschedule
+                        ? <span className={styles.needsRescheduleText}>Tim cancelled. Pick a new time.</span>
+                        : "(no time yet)"}
+                  </span>
                 </span>
-                <span className={styles.weekTime}>
-                  {s.live_call_at
-                    ? formatSlotDateTime(s.live_call_at)
-                    : "(no time yet)"}
-                </span>
-              </span>
-              {s.live_call_at && !isPast(s.live_call_at) ? (
-                <button
-                  type="button"
-                  className={styles.linkBtn}
-                  onClick={() => setOpenSlot(s)}
-                >
-                  Reschedule
-                </button>
-              ) : null}
-            </li>
-          ))}
+                {needsReschedule ? (
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    onClick={() => setOpenSlot(s)}
+                  >
+                    Pick a time
+                  </button>
+                ) : s.live_call_at && !isPast(s.live_call_at) ? (
+                  <button
+                    type="button"
+                    className={styles.linkBtn}
+                    onClick={() => setOpenSlot(s)}
+                  >
+                    Reschedule
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </section>
 
-      {openSlot && openSlot.live_call_at ? (
+      {openSlot && isCoachCancelled(openSlot) ? (
+        <BookAfterCoachCancelModal
+          slot={openSlot}
+          parentFirstName={parentFirstName}
+          parentEmail={parentEmail}
+          kidFirstName={kidFirstName}
+          kidDiscord={kidDiscord}
+          onClose={() => setOpenSlot(null)}
+          onDone={() => {
+            setOpenSlot(null);
+            router.refresh();
+          }}
+        />
+      ) : openSlot && openSlot.live_call_at ? (
         <RescheduleModal
           slot={openSlot}
           parentFirstName={parentFirstName}
@@ -154,6 +180,13 @@ export default function ActiveCycleManager({
         />
       ) : null}
     </>
+  );
+}
+
+function isCoachCancelled(s: Slot): boolean {
+  return (
+    s.live_call_at === null &&
+    (s.live_call_event_id ?? "").startsWith("cancelled:")
   );
 }
 
@@ -518,5 +551,180 @@ function OutsideDayState({
         style={{ minWidth: "280px", height: "700px" }}
       />
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// BookAfterCoachCancelModal — separate from the regular reschedule modal
+// because the semantics are different:
+//   * No 24hr check (no original time exists)
+//   * No 7-day skip math
+//   * No skip counter touched (Tim caused this)
+// Calendly embed pre-navigated to original-time + 7 days as a sensible
+// default. Parent picks anything in their cycle window.
+// ---------------------------------------------------------------------------
+
+function BookAfterCoachCancelModal({
+  slot,
+  parentFirstName,
+  parentEmail,
+  kidFirstName,
+  kidDiscord,
+  onClose,
+  onDone,
+}: {
+  slot: Slot;
+  parentFirstName: string;
+  parentEmail: string;
+  kidFirstName: string;
+  kidDiscord: string | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  // Build embed URL. We don't have an original_iso to anchor on, so
+  // just default to "today + 7 days" as the suggested month/date.
+  const embedUrl = useMemo(() => {
+    const d = new Date(Date.now() + 7 * 86_400_000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const params = new URLSearchParams({
+      background_color: "0F1B47",
+      text_color: "FFFFFF",
+      primary_color: "C7FF3D",
+      hide_gdpr_banner: "1",
+      hide_event_type_details: "1",
+      name: parentFirstName,
+      email: parentEmail,
+      a1: kidFirstName,
+      month: `${yyyy}-${mm}`,
+    });
+    if (kidDiscord) params.set("a2", kidDiscord);
+    return `${PAID_LESSON_CALENDLY_URL}?${params.toString()}`;
+  }, [parentFirstName, parentEmail, kidFirstName, kidDiscord]);
+
+  useEffect(() => {
+    function onMessage(e: MessageEvent<CalendlyMessage["data"]>) {
+      const origin = (e as MessageEvent).origin;
+      if (!origin || !origin.includes("calendly.com")) return;
+      const data = e.data;
+      if (!data || data.event !== "calendly.event_scheduled") return;
+      const eventUri = data.payload?.event?.uri;
+      if (!eventUri) return;
+      void commit(eventUri);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slot.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    function tryInit() {
+      if (cancelled) return;
+      const w = window as unknown as {
+        Calendly?: {
+          initInlineWidget: (opts: { url: string; parentElement: Element }) => void;
+        };
+      };
+      const target = document.getElementById(`calendly-coachresched-${slot.id}`);
+      if (w.Calendly && target) {
+        target.innerHTML = "";
+        w.Calendly.initInlineWidget({ url: embedUrl, parentElement: target });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 50) setTimeout(tryInit, 100);
+    }
+    tryInit();
+    return () => {
+      cancelled = true;
+    };
+  }, [embedUrl, slot.id]);
+
+  async function commit(newEventUri: string) {
+    setError(null);
+    setSubmitting(true);
+    try {
+      // Look up the new time server-side (PAT stays off the browser).
+      const resolved = await fetch(
+        `/api/portal/sessions/resolve-event?uri=${encodeURIComponent(newEventUri)}`,
+      );
+      if (!resolved.ok) {
+        setError("Could not look up the new time. Refresh and try again.");
+        setSubmitting(false);
+        return;
+      }
+      const { start_time } = (await resolved.json()) as { start_time: string };
+
+      const res = await fetch(
+        `/api/portal/sessions/${slot.id}/book-after-coach-cancel`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            new_event_uri: newEventUri,
+            new_time_iso: start_time,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? "Could not save the new time. Try again.");
+        setSubmitting(false);
+        return;
+      }
+      setDone(start_time);
+      setSubmitting(false);
+    } catch {
+      setError("Could not reach the server.");
+      setSubmitting(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className={styles.modalOverlay} onClick={onClose}>
+        <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Close">×</button>
+          <div className={styles.modalEyebrow}>Done</div>
+          <h2 className={styles.modalTitle}>
+            Week {slot.week_number} moved to {formatSlotDateTime(done)}
+          </h2>
+          <p className={styles.modalBody}>
+            Tim is locked in. No skip charged, no impact on your allowance.
+          </p>
+          <div className={styles.modalRow}>
+            <button type="button" className={styles.modalCta} onClick={onDone}>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Close">×</button>
+        <Script src="https://assets.calendly.com/assets/external/widget.js" strategy="afterInteractive" />
+        <div className={styles.modalEyebrow}>Reschedule Week {slot.week_number}</div>
+        <h2 className={styles.modalTitle}>Pick a new time</h2>
+        <p className={styles.modalBody}>
+          Tim had to cancel this week. Pick any time that works. No skip charged.
+        </p>
+        {error ? <p className={styles.modalError}>{error}</p> : null}
+        {submitting ? <p className={styles.modalBody}>Saving your new time...</p> : null}
+        <div
+          id={`calendly-coachresched-${slot.id}`}
+          style={{ minWidth: "280px", height: "700px" }}
+        />
+      </div>
+    </div>
   );
 }
