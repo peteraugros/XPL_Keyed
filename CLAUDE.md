@@ -668,6 +668,24 @@ For Stripe webhook testing locally: `stripe listen --forward-to localhost:3000/a
 
 The scaffold lands here. Don't reconstruct from memory — read the files, then continue.
 
+### Open TODO (build next, ordered by ROI)
+
+Wired-but-invisible + specced-but-unbuilt items surfaced by the 2026-05-20 audit, plus a couple of new asks. None block production for Tim's n=1 instance; each closes a real UX or operator gap.
+
+1. **Tim secret password login.** ✅ Built 2026-05-20. Triple-tap the brand on `/login` to reveal username + password form. See "Done" entry for setup SQL.
+2. **`notification_log` table wiring.** Schema exists in `20260517000000_initial_schema.sql`, zero reads/writes. Make it a write-side audit: every Resend email send + every system-fired in-app event logs a row. Surface on Dad admin as a "Recent system activity" panel. ~45 min.
+3. **Read receipts on messages.** Schema has `messages.read_by_recipient_at` + `read_by_parent_at` columns; never set. Wire `MessageThread` to mark-as-read on mount (per-viewer). Unlocks "unread from Tim" badge for kid + parent. ~30 min.
+4. **Lesson edit route at `/admin/lessons/<id>/edit`.** Today Tim can author NEW lessons (`/admin/lessons/new`) but stub lessons created by Stage C take-on / auto-renew are uneditable in place. He has to author a fresh lesson + swap it in. ~45 min for a route that loads existing lesson data into the existing LessonForm + a PATCH endpoint.
+5. **Live trial-call countdown + "Join Discord call" CTA on `/play`.** Spec calls for a 15-min-before-call live button. Today it's a static disabled button. Blocked on storing `subscriptions.trial_call_at` from intake (already wired by Calendly webhook). Just needs a small client component that re-enables the button based on the time. ~30 min.
+6. **Multi-kid login UX on `/login`.** Schema supports multi-kid families day one but `/login` assumes one kid per family. When a family adds kid #2, no UI to pick which kid the player magic-link signs in as. Need a second screen after email entry that lists the family's kids. ~60 min.
+7. **Intake form polish.** Confetti on level transitions, "+25 XP" floats, level-up sound (muted default), animated "Achievement Unlocked" reveal. Spec calls for all of it; only the XP bar exists. ~90 min.
+8. **Dad admin Phase 2.** Operational alerts (Stripe/Calendly/Resend health), "Tim today / this week" activity summaries, business glance with Stripe balance, "View as Tim" read-only mirror. Phase 1 (Stuck queue + resolution) is live. Each piece is ~30 min; full Phase 2 is ~3 hours.
+9. **60-day refund window enforcement.** Today the policy lives in ToS + email copy; no actual block on Stripe-portal refund requests > 60 days. Customer experience unchanged at MVP scale. Build when first real refund flows in.
+10. **Day-7 unscheduled auto-cancel for scattered renewals.** Existing `cron-scheduling-abandonment` Edge Function needs a branch for "post-charge unscheduled." Currently parent gets reminded but never auto-cancelled.
+11. **Calendly auto-booking of uniform predicted times.** Auto-renew sets `live_call_at` to predicted times but doesn't create a real Calendly event. Parent has to manually reschedule into a real slot. Either use Calendly's one-time scheduling-link API or add an auto-suggest UI on next sign-in.
+
+### Human setup (only Peter can do)
+
 ### Human setup (only Peter can do)
 
 This section is the running source of truth for what's on Peter's plate. Update it at the end of each session — done items move to "✅ Done", new items get added under the right group. Claude maintains it; Peter executes against it.

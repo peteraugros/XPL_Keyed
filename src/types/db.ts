@@ -164,6 +164,7 @@ export type Database = {
           is_dad: boolean
           stage_name: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           admin_mode?: string
@@ -177,6 +178,7 @@ export type Database = {
           is_dad?: boolean
           stage_name?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           admin_mode?: string
@@ -190,6 +192,7 @@ export type Database = {
           is_dad?: boolean
           stage_name?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }

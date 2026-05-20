@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import styles from "./page.module.css";
 
 export type Role = "parent" | "player" | "coach";
@@ -29,6 +29,66 @@ export default function LoginForm({
   const [email, setEmail] = useState("");
   const [stage, setStage] = useState<Stage>("form");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Hidden coach password panel. Reveal mechanism: triple-tap the brand
+  // mark within 1.5 seconds. No visual hint that it exists — Tim knows
+  // the trick.
+  const [secretRevealed, setSecretRevealed] = useState(false);
+  const [secretUsername, setSecretUsername] = useState("");
+  const [secretPassword, setSecretPassword] = useState("");
+  const [secretSubmitting, setSecretSubmitting] = useState(false);
+  const [secretError, setSecretError] = useState<string | null>(null);
+  const tapTimesRef = useRef<number[]>([]);
+
+  function onBrandTap() {
+    const now = Date.now();
+    tapTimesRef.current = [...tapTimesRef.current.filter((t) => now - t < 1500), now];
+    if (tapTimesRef.current.length >= 3) {
+      setSecretRevealed(true);
+      tapTimesRef.current = [];
+    }
+  }
+
+  async function onSecretSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSecretError(null);
+    if (!secretUsername.trim() || !secretPassword) {
+      setSecretError("Type both fields.");
+      return;
+    }
+    setSecretSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/sign-in-coach-password", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          username: secretUsername.trim(),
+          password: secretPassword,
+          next: next ?? undefined,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        next?: string;
+        error?: string;
+      };
+      if (!res.ok || !body.ok || !body.next) {
+        setSecretError(
+          body.error === "invalid_credentials"
+            ? "Wrong username or password."
+            : "Sign in failed. Try again.",
+        );
+        setSecretSubmitting(false);
+        return;
+      }
+      // Hard navigate so the freshly-set session cookies are picked up
+      // on the next page render.
+      window.location.href = body.next;
+    } catch {
+      setSecretError("Could not reach the server.");
+      setSecretSubmitting(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,9 +120,72 @@ export default function LoginForm({
   return (
     <div className={styles.shell}>
       <div className={styles.frame}>
-        <div className={styles.brand}>XPL KEYED</div>
+        <button
+          type="button"
+          className={styles.brand}
+          onClick={onBrandTap}
+          aria-label="XPL Keyed"
+          style={{ background: "none", border: "none", cursor: "default", padding: 0 }}
+        >
+          XPL KEYED
+        </button>
 
-        {stage === "sent" ? (
+        {secretRevealed ? (
+          <form className={styles.card} onSubmit={onSecretSubmit}>
+            <h1 className={styles.headline}>Coach sign in</h1>
+            <p className={styles.subtle}>Username and password.</p>
+            {secretError ? <div className={styles.alert}>{secretError}</div> : null}
+            <label className={styles.label} htmlFor="secret-username">
+              Username
+            </label>
+            <input
+              id="secret-username"
+              type="text"
+              autoComplete="username"
+              className={styles.input}
+              value={secretUsername}
+              onChange={(e) => setSecretUsername(e.target.value)}
+              placeholder="username"
+              spellCheck={false}
+              autoCapitalize="none"
+              autoFocus
+            />
+            <label className={styles.label} htmlFor="secret-password">
+              Password
+            </label>
+            <input
+              id="secret-password"
+              type="password"
+              autoComplete="current-password"
+              className={styles.input}
+              value={secretPassword}
+              onChange={(e) => setSecretPassword(e.target.value)}
+              placeholder="password"
+            />
+            <button
+              type="submit"
+              className={styles.primaryBtn}
+              disabled={secretSubmitting}
+            >
+              {secretSubmitting ? "Signing in..." : "Sign in"}
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              onClick={() => {
+                setSecretRevealed(false);
+                setSecretUsername("");
+                setSecretPassword("");
+                setSecretError(null);
+              }}
+              disabled={secretSubmitting}
+            >
+              Back
+            </button>
+          </form>
+        ) : null}
+
+        {secretRevealed ? null : stage === "sent" ? (
           <div className={styles.card}>
             <h1 className={styles.headline}>Check your inbox</h1>
             <p className={styles.body}>
