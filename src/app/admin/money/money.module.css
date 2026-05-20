@@ -1,0 +1,244 @@
+/* /admin/money — coach-tone palette, no rarity gamification. Tokens
+   from globals.css. Dash-free per Hard rule #8. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1080px;
+}
+
+.hero {
+  padding: 2px 2px 4px;
+}
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.8vw, 44px);
+  line-height: 1.05;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+/* --- Headline stats grid --- */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.stat {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.statLabel {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.statValue {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 28px);
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+.statWarn {
+  border-color: rgba(245, 166, 35, 0.45);
+  background: rgba(245, 166, 35, 0.06);
+}
+.statOk {
+  border-color: rgba(49, 146, 54, 0.45);
+  background: rgba(49, 146, 54, 0.06);
+}
+.statMuted {
+  opacity: 0.78;
+}
+
+/* --- Card --- */
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cardEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  margin: 0;
+  line-height: 1.2;
+}
+.cardSubtle {
+  font-size: 13.5px;
+  color: var(--text-faint);
+  margin: 0;
+  line-height: 1.55;
+}
+.cardWarn {
+  font-size: 13.5px;
+  color: var(--legendary);
+  margin: 0;
+  line-height: 1.55;
+}
+.bullets {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+
+/* --- Bar chart --- */
+.chart {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  align-items: end;
+  height: 240px;
+  margin-top: 8px;
+}
+.chartCol {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+}
+.chartValue {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  text-align: center;
+  min-height: 14px;
+}
+.chartBarTrack {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 4px;
+  background: var(--bg-3);
+}
+.chartBar {
+  width: 100%;
+  background: linear-gradient(180deg, var(--lime) 0%, rgba(199, 255, 61, 0.55) 100%);
+  border-radius: 4px;
+  min-height: 1px;
+  transition: height 0.3s ease-out;
+}
+.chartLabel {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 1.2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .chart {
+    height: 180px;
+    gap: 6px;
+  }
+  .chartValue { font-size: 10px; }
+  .chartLabel { font-size: 9.5px; }
+}
+
+/* --- Row lists --- */
+.list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.listRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.listMain {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.listName {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+a.listName:hover {
+  color: var(--lime);
+}
+.listMeta {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.pill {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.pillOk {
+  font-family: var(--font-display);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(49, 146, 54, 0.14);
+  border: 1px solid rgba(49, 146, 54, 0.45);
+  color: var(--uncommon);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.pillEpic {
+  background: rgba(200, 7, 21, 0.12);
+  border-color: rgba(200, 7, 21, 0.55);
+  color: var(--epic);
+}
+.pillLegendary {
+  background: rgba(245, 166, 35, 0.12);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: var(--legendary);
+}

@@ -556,8 +556,10 @@ function FocusedHome({
   const isVodDropped = topTask.task_type === "vod_dropped";
   const isPrepAnswered = topTask.task_type === "prep_answered";
   const isAutoRenewOff = topTask.task_type === "subscription_auto_renew_off";
+  const isLessonStub = topTask.task_type === "lesson_authoring_needed";
+  const isTikTok = topTask.task_type === "tiktok_daily_reminder";
   const isAwareness =
-    isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff;
+    isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff || isTikTok;
 
   async function submitReply(e: React.FormEvent) {
     e.preventDefault();
@@ -615,6 +617,10 @@ function FocusedHome({
           <span className={styles.newTrialPill}>PREP IN</span>
         ) : isAutoRenewOff ? (
           <span className={styles.pastDuePill}>AUTO RENEW OFF</span>
+        ) : isLessonStub ? (
+          <span className={styles.pastDuePill}>LESSON STUB</span>
+        ) : isTikTok ? (
+          <span className={styles.newTrialPill}>FUNNEL</span>
         ) : (
           "Next thing"
         )}
@@ -626,11 +632,19 @@ function FocusedHome({
         <p className={styles.focusedHomeBody}>{phrasing.body}</p>
       ) : null}
       <div className={styles.focusedHomeMeta}>
-        <span className={styles.focusedHomeKid}>{topTask.client_name}</span>
-        <span className={styles.focusedHomeDot}>·</span>
+        {isTikTok ? null : (
+          <>
+            <span className={styles.focusedHomeKid}>{topTask.client_name}</span>
+            <span className={styles.focusedHomeDot}>·</span>
+          </>
+        )}
         <span className={styles.focusedHomeAge}>{ageStr}</span>
-        <span className={styles.focusedHomeDot}>·</span>
-        <StuckButton task={topTask} variant="link" />
+        {isTikTok ? null : (
+          <>
+            <span className={styles.focusedHomeDot}>·</span>
+            <StuckButton task={topTask} variant="link" />
+          </>
+        )}
       </div>
 
       {isWelcome ? (
@@ -704,6 +718,20 @@ function FocusedHome({
           subscriptionId={(topTask.task_payload?.subscription_id as string) ?? ""}
           onDone={() => router.refresh()}
         />
+      ) : isLessonStub ? (
+        <div className={styles.inlineReplyRow}>
+          <a href={"/admin/lessons" as never} className={styles.focusedHomeCta}>
+            Open lesson library
+          </a>
+          <a
+            href={`/admin/clients?client=${topTask.client_id}`}
+            className={styles.inlineReplySecondary}
+          >
+            Open client card
+          </a>
+        </div>
+      ) : isTikTok ? (
+        <TikTokLogButton onDone={() => router.refresh()} />
       ) : (
         <a href={`/admin/clients?client=${topTask.client_id}`} className={styles.focusedHomeCta}>
           {phrasing.cta}
@@ -1090,6 +1118,41 @@ function StuckButton({
   );
 }
 
+function TikTokLogButton({ onDone }: { onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function log() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/tiktok/log", { method: "POST" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? "Could not log.");
+        setBusy(false);
+        return;
+      }
+      onDone();
+    } catch {
+      setError("Could not reach the server.");
+      setBusy(false);
+    }
+  }
+  return (
+    <div className={styles.inlineReplyRow}>
+      <button
+        type="button"
+        onClick={log}
+        disabled={busy}
+        className={styles.focusedHomeCta}
+      >
+        {busy ? "Logging..." : "✓ Commented today"}
+      </button>
+      {error ? <span className={styles.inlineReplyError}>{error}</span> : null}
+    </div>
+  );
+}
+
 function AutoRenewOffActions({
   subscriptionId,
   onDone,
@@ -1242,6 +1305,35 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         cta: "Open card",
       };
     }
+    case "lesson_authoring_needed": {
+      const payload = (t.task_payload ?? {}) as {
+        week_number?: number;
+        live_call_at?: string | null;
+      };
+      const week = payload.week_number ?? 0;
+      const when = payload.live_call_at
+        ? new Date(payload.live_call_at)
+        : null;
+      const days = when
+        ? Math.max(0, Math.floor((when.getTime() - Date.now()) / 86_400_000))
+        : null;
+      return {
+        title: `${name}'s Week ${week} lesson is still a stub.`,
+        body:
+          days === null
+            ? "Slides + voiceover aren't authored yet. Sunday delivery will be empty."
+            : days === 0
+              ? "Live call is today. Author the slides + voiceover before delivery."
+              : `Live call in ${days} ${days === 1 ? "day" : "days"}. Author the slides + voiceover before then.`,
+        cta: "Author lesson",
+      };
+    }
+    case "tiktok_daily_reminder":
+      return {
+        title: "Drop your TikTok comment for today.",
+        body: "Pick a Fortnite creator video, leave one expert tactical comment. Keeps the funnel spinning.",
+        cta: "Logged it",
+      };
     case "subscription_auto_renew_off": {
       const payload = (t.task_payload ?? {}) as {
         cycle_lessons_delivered?: number;

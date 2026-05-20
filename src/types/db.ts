@@ -947,6 +947,41 @@ export type Database = {
           },
         ]
       }
+      tiktok_comments: {
+        Row: {
+          coach_id: string
+          created_at: string
+          id: string
+          logged_at: string
+          logged_date: string | null
+          note: string | null
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          id?: string
+          logged_at?: string
+          logged_date?: string | null
+          note?: string | null
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          id?: string
+          logged_at?: string
+          logged_date?: string | null
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_comments_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tim_dad_messages: {
         Row: {
           body: string

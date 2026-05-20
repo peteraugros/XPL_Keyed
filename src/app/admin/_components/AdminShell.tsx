@@ -16,10 +16,10 @@ type NavItem = { href: string; label: string; soon?: boolean };
 const NAV: NavItem[] = [
   { href: "/admin", label: "Home" },
   { href: "/admin/clients", label: "Clients" },
-  { href: "/admin/inbox", label: "Inbox", soon: true },
+  { href: "/admin/waitlist", label: "Waitlist" },
   { href: "/admin/lessons", label: "Lessons" },
   { href: "/admin/dad", label: "Dad" },
-  { href: "/admin/money", label: "Money", soon: true },
+  { href: "/admin/money", label: "Money" },
   { href: "/admin/operations", label: "Operations", soon: true },
 ];
 
