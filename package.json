@@ -19,6 +19,7 @@
     "gen:types": "supabase gen types typescript --local > src/types/db.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.1",
     "@hookform/resolvers": "^3.9.0",
     "@serwist/next": "^9.0.0",
     "@stripe/react-stripe-js": "^3.0.0",

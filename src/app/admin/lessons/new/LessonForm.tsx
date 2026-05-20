@@ -99,6 +99,67 @@ export default function LessonForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // AI suggest state: which kind is being generated right now (so we
+  // can disable + label the right button), and any error from the
+  // most recent call. Output lands directly in the form fields.
+  const [aiBusy, setAiBusy] = useState<null | "parent_translation" | "talking_points">(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  async function runAiSuggest(kind: "parent_translation" | "talking_points") {
+    setAiError(null);
+    if (!fortniteLabel.trim()) {
+      setAiError("Type the Fortnite term (kid facing title) first.");
+      return;
+    }
+    setAiBusy(kind);
+    try {
+      const payload: Record<string, string> = {
+        kind,
+        fortnite_label: fortniteLabel.trim(),
+        topic,
+        difficulty,
+      };
+      if (kind === "talking_points") {
+        if (parentLabel.trim()) payload.parent_label = parentLabel.trim();
+        if (parentSkillDescription.trim())
+          payload.parent_skill_description = parentSkillDescription.trim();
+      }
+      const res = await fetch("/api/admin/lessons/ai-suggest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        suggestion?: Record<string, string>;
+        error?: string;
+      };
+      if (!res.ok || !body.ok || !body.suggestion) {
+        setAiError(body.error ?? "AI suggestion failed.");
+        setAiBusy(null);
+        return;
+      }
+      const s = body.suggestion;
+      if (kind === "parent_translation") {
+        if (typeof s.parent_label === "string") setParentLabel(s.parent_label);
+        if (typeof s.parent_skill_description === "string")
+          setParentSkillDescription(s.parent_skill_description);
+      } else {
+        setPtp((prev) => {
+          const next = { ...prev };
+          for (const c of PTP_CATEGORIES) {
+            if (typeof s[c.value] === "string") next[c.value] = s[c.value];
+          }
+          return next;
+        });
+      }
+      setAiBusy(null);
+    } catch {
+      setAiError("Could not reach the AI service.");
+      setAiBusy(null);
+    }
+  }
+
   function updateSlide(i: number, patch: Partial<Slide>) {
     setSlides((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
@@ -230,6 +291,25 @@ export default function LessonForm() {
           />
         </label>
 
+        <div className={styles.aiRow}>
+          <button
+            type="button"
+            onClick={() => runAiSuggest("parent_translation")}
+            disabled={aiBusy !== null || !fortniteLabel.trim()}
+            className={styles.aiBtn}
+          >
+            {aiBusy === "parent_translation"
+              ? "Drafting..."
+              : "✨ Suggest parent label + description"}
+          </button>
+          <span className={styles.aiHint}>
+            Fills the two fields above from the Fortnite label. Always editable.
+          </span>
+        </div>
+        {aiError && aiBusy === null ? (
+          <div className={styles.aiError}>{aiError}</div>
+        ) : null}
+
         <div className={styles.row}>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Topic</span>
@@ -349,6 +429,23 @@ export default function LessonForm() {
           Strategic moat: this is what differentiates XPL Keyed from
           generic coaching.
         </p>
+        <div className={styles.aiRow}>
+          <button
+            type="button"
+            onClick={() => runAiSuggest("talking_points")}
+            disabled={aiBusy !== null || !fortniteLabel.trim()}
+            className={styles.aiBtn}
+          >
+            {aiBusy === "talking_points"
+              ? "Drafting..."
+              : "✨ Suggest all 5 talking points"}
+          </button>
+          <span className={styles.aiHint}>
+            Drafts one line per category from the Fortnite label + topic. Edit
+            each in your voice before saving.
+          </span>
+        </div>
+        {aiError ? <div className={styles.aiError}>{aiError}</div> : null}
         {PTP_CATEGORIES.map((c) => (
           <label key={c.value} className={styles.field}>
             <span className={styles.fieldLabel}>{c.label}</span>

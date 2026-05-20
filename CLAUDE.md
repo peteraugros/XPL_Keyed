@@ -1120,6 +1120,24 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
 
+- **AI lesson-authoring assist (2026-05-20).** Two "✨ Suggest" buttons in the `/admin/lessons/new` form let Tim draft parent-facing copy from the Fortnite term + topic. Output lands in editable fields; never auto-saved. `npx tsc --noEmit` clean.
+  - **`@anthropic-ai/sdk` installed** (first AI integration in the repo). New env var `ANTHROPIC_API_KEY` documented in `.env.local.example`. Model: `claude-opus-4-7`. Single-turn, 1024 max tokens.
+  - **`POST /api/admin/lessons/ai-suggest`** — coach-gated. Discriminated body shape:
+    - `kind='parent_translation'` → returns `{parent_label, parent_skill_description}` per Hard rule #4 (real-world skill first, one-sentence cognitive-function blurb starting with "Trains" or "Builds").
+    - `kind='talking_points'` → returns one line per category (`informed_observer`, `co_conspirator`, `cultural_literacy`, `good_question`, `strategic_note`).
+  - **System prompt embeds Hard Rules verbatim** + the trust/tone framing from CLAUDE.md:
+    - Dash-free constraint called out as the #1 rule with examples; "30 min" not "30-min", "to" instead of dashes in ranges.
+    - Parent-translation pattern explicit + 3 reference pairs (Tunneling / Box fighting / Editing).
+    - Tim-as-co-conspirator framing, parent-asks-not-performs, no-slang-the-parent-has-to-pronounce, never-make-the-parent-the-butt-of-a-joke. All from the existing `decision_parent_talking_points.md` memory.
+  - **Strict JSON output, no markdown fences.** Defensive `safeJsonParse()` extracts the first `{...}` block if the model wraps it in prose. Last-mile `stripDashes()` replaces em/en dashes (`—` `–`) with periods on the output side (plain ASCII hyphens left alone because they're often inside legitimate compound words; Tim's edit pass cleans those if they slip in).
+  - **`LessonForm.tsx` integration:**
+    - Single `aiBusy` state (per-kind, so the right button labels "Drafting...") + shared `aiError`.
+    - **Suggest parent label + description** button below the metadata section, fills both `parent_label` + `parent_skill_description` from `fortnite_label` + `topic` + `difficulty`.
+    - **Suggest all 5 talking points** button at the top of the PTP fieldset, fills every category in one shot. Tim's existing `parent_label` + `parent_skill_description` ride along as additional context if filled.
+    - Both buttons disabled until `fortnite_label` is non-empty.
+    - AI output writes directly to form state — Tim sees the draft land in editable fields. Never auto-saved. The form's existing `canSubmit()` gate still requires Tim to confirm by hitting Save.
+  - **Cost posture:** roughly $0.01–$0.02 per suggest call at current pricing. Tim authoring 4 stub lessons per cycle = ~$0.10/cycle of AI cost. Negligible at the operator-pair scale; if the platform later runs N operators, costs scale linearly with N. Cap via Anthropic dashboard if it ever matters.
+
 - **Reschedule MVP testing pass: 8 fixes + Progress build + in-app cancel (2026-05-20).** Live-testing session against the reschedule + auto-renew system surfaced a series of UX gaps and policy adjustments. All shipped this turn; `npx tsc --noEmit` clean.
   - **Calendly embed init fix.** The reschedule modal's Calendly embed was rendering empty space because `widget.js` auto-scans the DOM on initial load — and our modal mounts dynamically after page hydration, so the auto-scan misses it. Fix: replaced the `.calendly-inline-widget` data attribute pattern with an explicit `Calendly.initInlineWidget()` call inside a `useEffect` that polls for the global. Container `<div>` now uses an `id={"calendly-resched-<slot_id>"}` target.
   - **Calendly URL params (date= drop).** Modal was pre-navigating with both `month=` and `date=`, which dropped the parent into Calendly's single-day time-picker rather than the month-calendar view (forced a tap on the back arrow to change days). Dropped `date=`, kept `month=` — embed now lands on the month calendar.
