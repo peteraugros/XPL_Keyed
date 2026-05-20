@@ -4,10 +4,12 @@
 // accents as the parent /portal, but no rarity colors or XP gamification.
 // Functional badges only.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import MessageThread, { type MessageRow } from "@/components/MessageThread";
+import { playChime } from "@/lib/sound/chime";
+import { getSoundEnabled } from "@/lib/sound/prefs";
 
 const Q1_LABELS: Record<string, string> = {
   lose_fights: "Loses fights they should win",
@@ -511,6 +513,20 @@ function FocusedHome({
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [replySent, setReplySent] = useState(false);
+
+  // Task-completion chime: fires when the task list shrinks after a
+  // router.refresh(). First mount doesn't fire (prev=undefined). We
+  // gate on getSoundEnabled() so the localStorage mute toggle wins.
+  // Read fresh each effect so toggling the mute doesn't need a remount.
+  const prevTaskCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = prevTaskCountRef.current;
+    prevTaskCountRef.current = tasks.length;
+    if (prev === null) return; // first render, no prior to compare
+    if (tasks.length < prev && getSoundEnabled()) {
+      playChime();
+    }
+  }, [tasks.length]);
 
   if (tasks.length === 0) {
     return (

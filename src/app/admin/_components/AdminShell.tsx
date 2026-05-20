@@ -6,10 +6,12 @@
 // lives on the Home page itself since it only affects Home content;
 // other pages are mode-agnostic.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./admin-shell.module.css";
+import { getSoundEnabled, setSoundEnabled, SOUND_PREF_EVENT } from "@/lib/sound/prefs";
+import { playChime } from "@/lib/sound/chime";
 
 type NavItem = { href: string; label: string; soon?: boolean };
 
@@ -20,7 +22,7 @@ const NAV: NavItem[] = [
   { href: "/admin/lessons", label: "Lessons" },
   { href: "/admin/dad", label: "Dad" },
   { href: "/admin/money", label: "Money" },
-  { href: "/admin/operations", label: "Operations", soon: true },
+  { href: "/admin/calendar", label: "Calendar" },
 ];
 
 export default function AdminShell({
@@ -124,9 +126,48 @@ export default function AdminShell({
             <span />
           </button>
           <div className={styles.topBarTitle}>Coach admin</div>
+          <SoundToggle />
         </header>
         <main className={styles.content}>{children}</main>
       </div>
     </div>
+  );
+}
+
+// Mute toggle for the task-completion chime. Default on (unless OS
+// reduced-motion). Persisted to localStorage. Tapping the button also
+// plays the chime when un-muting so Tim hears what he just enabled.
+function SoundToggle() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  // null on first render so we don't render the WRONG icon during
+  // hydration; localStorage isn't available until after mount.
+  useEffect(() => {
+    setEnabled(getSoundEnabled());
+    function onExternal() {
+      setEnabled(getSoundEnabled());
+    }
+    window.addEventListener(SOUND_PREF_EVENT, onExternal);
+    return () => window.removeEventListener(SOUND_PREF_EVENT, onExternal);
+  }, []);
+  function toggle() {
+    const next = !(enabled ?? true);
+    setSoundEnabled(next);
+    setEnabled(next);
+    window.dispatchEvent(new CustomEvent(SOUND_PREF_EVENT));
+    if (next) playChime();
+  }
+  if (enabled === null) {
+    return <span className={styles.soundToggle} aria-hidden="true" />;
+  }
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={styles.soundToggle}
+      aria-label={enabled ? "Mute task completion sounds" : "Unmute task completion sounds"}
+      title={enabled ? "Sound on. Click to mute." : "Sound off. Click to unmute."}
+    >
+      {enabled ? "🔊" : "🔇"}
+    </button>
   );
 }

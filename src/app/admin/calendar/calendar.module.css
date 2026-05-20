@@ -1,0 +1,381 @@
+/* /admin/calendar — list view + event modal. Tokens from globals.css.
+   Dash free per Hard rule #8. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 920px;
+}
+
+.hero {
+  padding: 2px 2px 4px;
+}
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.8vw, 44px);
+  line-height: 1.05;
+  letter-spacing: 1px;
+  margin: 0 0 8px;
+}
+.intro {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 70ch;
+  line-height: 1.55;
+}
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cardEyebrow {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.empty {
+  font-size: 14px;
+  color: var(--text-faint);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  color: var(--text);
+  font: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.row:hover {
+  border-color: var(--lime);
+  background: rgba(199, 255, 61, 0.04);
+}
+.rowTime {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.rowTimeDate {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.rowTimeClock {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--lime);
+}
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rowTitle {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.rowSubtitle {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.kindPill {
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pillPaid {
+  background: rgba(199, 255, 61, 0.10);
+  border: 1px solid rgba(199, 255, 61, 0.55);
+  color: var(--lime);
+}
+.pillVod {
+  background: rgba(76, 81, 247, 0.12);
+  border: 1px solid rgba(76, 81, 247, 0.55);
+  color: #aab3ff;
+}
+.pillTrial {
+  background: rgba(245, 166, 35, 0.10);
+  border: 1px solid rgba(245, 166, 35, 0.45);
+  color: var(--legendary);
+}
+
+@media (max-width: 479px) {
+  .row {
+    grid-template-columns: 80px 1fr auto;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .rowTimeClock { font-size: 15px; }
+}
+
+/* --- Modal --- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 21, 56, 0.78);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+.modal {
+  position: relative;
+  background: var(--bg-2);
+  border: 1px solid rgba(199, 255, 61, 0.35);
+  border-radius: 14px;
+  padding: 28px 24px 24px;
+  width: 100%;
+  max-width: 560px;
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 0 32px rgba(76, 81, 247, 0.18);
+}
+.modalClose {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.modalClose:hover {
+  color: var(--text);
+}
+.modalEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.modalTitle {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 28px);
+  line-height: 1.15;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+.modalWhen {
+  font-size: 14.5px;
+  color: var(--text-dim);
+  margin: 0;
+}
+.modalSection {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dotted var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.modalSectionLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.modalSectionText {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.modalSectionSub {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.modalLink {
+  color: var(--lime);
+  text-decoration: none;
+  font-size: 13.5px;
+}
+.modalLink:hover {
+  text-decoration: underline;
+}
+.modalWarn {
+  font-size: 13px;
+  color: var(--legendary);
+  background: rgba(245, 166, 35, 0.08);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+  border-radius: 6px;
+  padding: 8px 12px;
+  line-height: 1.45;
+}
+.modalError {
+  font-size: 13px;
+  color: var(--epic);
+  margin-top: 4px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.fieldLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.fieldInput {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+.fieldInput:focus {
+  outline: none;
+  border-color: var(--lime);
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.cancelOpenBtn {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid rgba(200, 7, 21, 0.45);
+  color: var(--epic);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 40px;
+}
+.cancelOpenBtn:hover {
+  background: rgba(200, 7, 21, 0.08);
+}
+.cancelBtn {
+  background: var(--epic);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 44px;
+}
+.cancelBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.cancelLinkBtn {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 44px;
+}
+.cancelLinkBtn:hover:not(:disabled) {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+/* --- Cancelled-event styling --- */
+.rowCancelled {
+  opacity: 0.72;
+  border-color: rgba(200, 7, 21, 0.35);
+}
+.rowCancelled:hover {
+  border-color: rgba(200, 7, 21, 0.55);
+  background: rgba(200, 7, 21, 0.04);
+}
+.strike {
+  text-decoration: line-through;
+  text-decoration-color: rgba(200, 7, 21, 0.65);
+}
+.cancelLabel {
+  color: var(--epic);
+  font-size: 12.5px;
+}
+.pillCancelled {
+  background: rgba(200, 7, 21, 0.12);
+  border: 1px solid rgba(200, 7, 21, 0.55);
+  color: var(--epic);
+}
+.cancelBanner {
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(200, 7, 21, 0.08);
+  border: 1px solid rgba(200, 7, 21, 0.45);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
