@@ -1120,6 +1120,43 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
 
+- **Lesson plan panel + library-driven auto-renew + nav reorder (2026-05-20).** Three phases shipped together. Closes the "Tim has no view into student progress + no swap controls" gap. `npx tsc --noEmit` clean.
+
+  **Phase A — Read-only lesson plan view in `/admin/clients?client=<id>`.**
+  - `ActiveRow` type extended with `curricula: CurriculumWithSlots[]`. New `LessonSummary` + `CurriculumSlotRow` + `CurriculumWithSlots` types exported from `AdminClient.tsx`.
+  - `clients/page.tsx` Server Component now fetches curricula (`pending_approval`/`active`/`completed`/`superseded`) → curriculum_slots → lessons, builds a per-player `curriculaByPlayer` map, threads it into ActiveRow.
+  - New `LessonPlanPanel` component in `ClientsClient.tsx`. Renders between the active client header and messages thread:
+    - **Current cycle block** with status eyebrow + Tim's personalization note + 4 slot rows.
+    - **Pending approval block** when the curriculum is pre-payment (read-only view of the proposed 4 weeks).
+    - **Past cycles** compact list: one row per completed/superseded curriculum with date + the 4 lesson labels in a single line.
+  - Each slot row classified into one of 7 status states (Completed / Upcoming / Past unmarked / No show / Cancelled / Delivered / Not scheduled) with status-driven row colors + matching pill.
+  - Slot row layout: Week# · title (Fortnite or "VOD review") · parent translation subtitle · live call date+time · coach note (if set) · status pill · inline controls.
+
+  **Phase B — Swap + VOD toggle controls.**
+  - **`POST /api/admin/curriculum-slots/[id]/swap-lesson`** — coach-gated. Body `{ lesson_id }`. Rejects already-delivered slots. Updates `lesson_id` + force-clears `is_vod_review` + VOD fields (lesson_xor_vod CHECK constraint requires one OR the other).
+  - **`POST /api/admin/curriculum-slots/[id]/toggle-vod`** — coach-gated. Discriminated body:
+    - `mode='vod_on'`: requires `vod_url`, optional `vod_note`. Sets `is_vod_review=true`, clears `lesson_id`, stores URL + a single-item `vod_talking_points` array if a note was provided.
+    - `mode='vod_off'`: requires `lesson_id`. Mirror of swap-lesson but explicitly flips off VOD mode.
+  - **`GET /api/admin/lessons/library?player_id=<uuid>`** — backs the swap modal's library picker. Returns every lesson with title + fortnite_label + parent_label + topic + difficulty + duration + `is_published` + `already_done` (joined subquery against curriculum_slots → curricula filtered to this player). Per the design call from earlier: Tim isn't BLOCKED from re-assigning a done lesson, just informed via the badge.
+  - **Two modals in ClientsClient.tsx:**
+    - `SwapLessonModal` — search-filterable library list. Each row shows lesson card + "Already done" badge (rare-blue) for known-done + "Draft" badge (amber) for unpublished. Click → POST to swap-lesson endpoint (or toggle-vod with `mode='vod_off'` if the slot was VOD). Reuses for VOD-off flow.
+    - `VodOnModal` — VOD URL input + optional talking-point textarea. POST to toggle-vod with `mode='vod_on'`.
+  - **Inline slot controls** appear only on non-delivered slots:
+    - If slot is lesson mode: **Swap** (lime, primary) + **VOD** (ghost) buttons.
+    - If slot is VOD mode: single **Pick lesson** button (reuses swap modal).
+
+  **Phase C — Library-driven auto-renew.**
+  - `provisionNextCycle()` no longer creates 4 stub lessons inline. Instead delegates to new `selectLessonsForRenewal(supabase, playerId, createdBy)` helper.
+  - Selection logic, in order:
+    1. **Fresh first** — query every `is_published=true` lesson ordered by `created_at ASC` (Tim authors in his preferred curriculum sequence). Exclude lessons this player has ever been assigned (via curriculum_slots → curricula). If ≥ 4 fresh, take the first 4.
+    2. **Top up from history** — if < 4 fresh, fill the gap with the player's oldest assigned lessons (least likely to be remembered). Acceptable per the design call: Tim can swap mid-cycle if review repetition isn't appropriate.
+    3. **Stub fallback** — library completely empty. Falls back to the original stub-creation pattern. Auto-renew loop never breaks; Tim sees `lesson_authoring_needed` tasks as those stubs hit slots in upcoming weeks.
+  - **New awareness task `library_running_low` (P22)** added to `derived_tasks_view` (migration `20260520000400`). Fires when `(SELECT COUNT(*) FROM lessons WHERE is_published=TRUE) < 12` (three cycles' worth of fresh content). Per-coach card. Title: *"Your lesson library is running low."* / body: *"Only N published lessons. Auto renew starts repeating or falling back to stubs at this level. Author a few more when you have a free hour."* Rare-blue `LIBRARY` pill. Inline CTA pairs **Author a lesson** + **See library**. Auto-drops when count crosses 12.
+
+  **Nav reorder (separate small ask landed in the same session):**
+  - `AdminShell` NAV: `Home / Clients / Waitlist / Calendar / Lessons / Money`.
+  - **Dad link removed** — per Peter "he can text me by phone when he needs help." The `/admin/dad` route still exists (still accessible by URL, Stuck button still writes there) but it's no longer a navigable destination.
+
 - **Calendar Round 3 + Cycle drag-out + Money KPIs (2026-05-20).** Three operational pieces closing real gaps. `npx tsc --noEmit` clean.
 
   **Round 3 — Tim cancels → parent reschedules.** Closes the bug that previously caused families to LOSE a week's content entirely when Tim cancelled. The lesson is meant to be rescheduled, not skipped (per CLAUDE.md "Coach cancellations" spec).

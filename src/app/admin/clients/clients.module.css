@@ -319,3 +319,443 @@
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Lesson plan panel + library swap modal
+   --------------------------------------------------------------------------- */
+
+.lessonPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px dotted var(--border);
+}
+.subtle {
+  font-size: 13.5px;
+  color: var(--text-faint);
+  margin: 0;
+  line-height: 1.5;
+}
+.subtleLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.curriculumBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.curriculumStatus {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.personalNote {
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(199, 255, 61, 0.06);
+  border-left: 3px solid var(--lime);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.slotList {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.slotRow {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.slotRowOk {
+  border-color: rgba(49, 146, 54, 0.45);
+  background: rgba(49, 146, 54, 0.06);
+}
+.slotRowNext {
+  border-color: rgba(199, 255, 61, 0.45);
+  background: rgba(199, 255, 61, 0.06);
+}
+.slotRowWarn {
+  border-color: rgba(245, 166, 35, 0.45);
+  background: rgba(245, 166, 35, 0.06);
+}
+.slotRowMuted {
+  opacity: 0.7;
+}
+.slotWeek {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.slotBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.slotTitle {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.slotSub {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.slotWhen {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.slotLink {
+  font-size: 12.5px;
+  color: var(--lime);
+  text-decoration: none;
+}
+.slotLink:hover {
+  text-decoration: underline;
+}
+.slotNote {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.slotRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.slotPill {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.slotPillOk {
+  background: rgba(49, 146, 54, 0.14);
+  border-color: rgba(49, 146, 54, 0.55);
+  color: var(--uncommon);
+}
+.slotPillNext {
+  background: rgba(199, 255, 61, 0.10);
+  border-color: rgba(199, 255, 61, 0.45);
+  color: var(--lime);
+}
+.slotPillWarn {
+  background: rgba(245, 166, 35, 0.12);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: var(--legendary);
+}
+.slotPillMuted {
+  opacity: 0.7;
+}
+.slotControls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.slotBtn {
+  background: transparent;
+  border: 1px solid rgba(199, 255, 61, 0.4);
+  color: var(--lime);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: var(--font-display);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.slotBtn:hover {
+  background: rgba(199, 255, 61, 0.06);
+}
+.slotBtnGhost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: var(--font-display);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.slotBtnGhost:hover {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+/* --- Past cycles --- */
+.pastCycles {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pastList {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pastItem {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+.pastDate {
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.pastLessons {
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* --- Modal (swap / VOD on) --- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 21, 56, 0.78);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+.modal {
+  position: relative;
+  background: var(--bg-2);
+  border: 1px solid rgba(199, 255, 61, 0.35);
+  border-radius: 14px;
+  padding: 28px 24px 24px;
+  width: 100%;
+  max-width: 560px;
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 0 32px rgba(76, 81, 247, 0.18);
+}
+.modalClose {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.modalEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.modalTitle {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 3vw, 24px);
+  line-height: 1.15;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+.modalBody {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.5;
+}
+.modalLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.modalInput,
+.modalTextarea {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.modalInput:focus,
+.modalTextarea:focus {
+  outline: none;
+  border-color: var(--lime);
+}
+.modalError {
+  font-size: 13px;
+  color: var(--epic);
+}
+.modalActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.modalPrimary {
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 44px;
+}
+.modalPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.modalSecondary {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 44px;
+}
+.modalSecondary:hover:not(:disabled) {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+/* --- Library list --- */
+.libraryList {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.libraryItem {
+  display: block;
+}
+.libraryBtn {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.libraryBtn:hover:not(:disabled) {
+  border-color: var(--lime);
+  background: rgba(199, 255, 61, 0.04);
+}
+.libraryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.libraryTitle {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.libraryBadge {
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  background: rgba(76, 81, 247, 0.12);
+  border: 1px solid rgba(76, 81, 247, 0.45);
+  color: #aab3ff;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.libraryBadgeWarn {
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  background: rgba(245, 166, 35, 0.12);
+  border: 1px solid rgba(245, 166, 35, 0.45);
+  color: var(--legendary);
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.librarySub {
+  font-size: 12px;
+  color: var(--text-dim);
+}

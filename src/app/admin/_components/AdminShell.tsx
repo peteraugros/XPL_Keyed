@@ -19,10 +19,9 @@ const NAV: NavItem[] = [
   { href: "/admin", label: "Home" },
   { href: "/admin/clients", label: "Clients" },
   { href: "/admin/waitlist", label: "Waitlist" },
-  { href: "/admin/lessons", label: "Lessons" },
-  { href: "/admin/dad", label: "Dad" },
-  { href: "/admin/money", label: "Money" },
   { href: "/admin/calendar", label: "Calendar" },
+  { href: "/admin/lessons", label: "Lessons" },
+  { href: "/admin/money", label: "Money" },
 ];
 
 export default function AdminShell({

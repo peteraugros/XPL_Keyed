@@ -12,7 +12,16 @@
 
 import { requireCoachSession } from "../_lib/session";
 import ClientsClient, { type ClientItem } from "./ClientsClient";
-import type { TrialCard, ActiveRow, Player, Parent, Prep } from "../AdminClient";
+import type {
+  TrialCard,
+  ActiveRow,
+  Player,
+  Parent,
+  Prep,
+  CurriculumWithSlots,
+  CurriculumSlotRow,
+  LessonSummary,
+} from "../AdminClient";
 import type { MessageRow } from "@/components/MessageThread";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +39,18 @@ type QuestRow = { player_id: string; quest_key: string };
 type VodRow = { player_id: string; url: string; created_at: string };
 type PrepRow = Prep & { player_id: string };
 type MessageWithPlayer = MessageRow & { player_id: string };
+type CurriculumWithPlayer = {
+  id: string;
+  player_id: string;
+  status: string;
+  approved_at: string | null;
+  created_at: string;
+  personalization_note: string | null;
+};
+type SlotWithCurriculum = CurriculumSlotRow & {
+  curriculum_id: string;
+  lesson_id: string | null;
+};
 
 const QUEST_TOTAL = 4;
 
@@ -59,6 +80,9 @@ export default async function AdminClientsPage() {
   let vods: VodRow[] = [];
   let preps: PrepRow[] = [];
   let messages: MessageWithPlayer[] = [];
+  let curricula: CurriculumWithPlayer[] = [];
+  let slotRows: SlotWithCurriculum[] = [];
+  let lessonRows: LessonSummary[] = [];
   if (playerIds.length > 0) {
     const playerLookup = await supabase
       .from("players")
@@ -69,7 +93,7 @@ export default async function AdminClientsPage() {
     players = (playerLookup.data ?? []) as Player[];
 
     const familyIds = Array.from(new Set(players.map((p) => p.family_id)));
-    const [parentLookup, questLookup, vodLookup, prepLookup, messageLookup] = await Promise.all([
+    const [parentLookup, questLookup, vodLookup, prepLookup, messageLookup, curriculumLookup] = await Promise.all([
       supabase
         .from("parents")
         .select("family_id, first_name, email")
@@ -93,12 +117,42 @@ export default async function AdminClientsPage() {
         .in("player_id", playerIds)
         .order("created_at", { ascending: true })
         .limit(500),
+      supabase
+        .from("curricula")
+        .select("id, player_id, status, approved_at, created_at, personalization_note")
+        .in("player_id", playerIds)
+        .in("status", ["pending_approval", "active", "completed", "superseded"])
+        .order("created_at", { ascending: false }),
     ]);
     parents = (parentLookup.data ?? []) as Parent[];
     quests = (questLookup.data ?? []) as QuestRow[];
     vods = (vodLookup.data ?? []) as VodRow[];
     preps = (prepLookup.data ?? []) as PrepRow[];
     messages = (messageLookup.data ?? []) as MessageWithPlayer[];
+
+    curricula = (curriculumLookup.data ?? []) as CurriculumWithPlayer[];
+    const curriculumIds = curricula.map((c) => c.id);
+    if (curriculumIds.length > 0) {
+      const slotsLookup = await supabase
+        .from("curriculum_slots")
+        .select(
+          "id, curriculum_id, week_number, is_vod_review, lesson_id, vod_url, live_call_at, live_call_event_id, delivered_at, live_call_completed_at, no_show_at, coach_note",
+        )
+        .in("curriculum_id", curriculumIds)
+        .order("week_number", { ascending: true });
+      slotRows = (slotsLookup.data ?? []) as (CurriculumSlotRow & { curriculum_id: string; lesson_id: string | null })[];
+
+      const lessonIds = Array.from(
+        new Set(slotRows.map((s) => s.lesson_id).filter((id): id is string => !!id)),
+      );
+      if (lessonIds.length > 0) {
+        const lessonsLookup = await supabase
+          .from("lessons")
+          .select("id, fortnite_label, parent_label, is_published")
+          .in("id", lessonIds);
+        lessonRows = (lessonsLookup.data ?? []) as LessonSummary[];
+      }
+    }
   }
 
   const playersById = new Map(players.map((p) => [p.id, p]));
@@ -118,6 +172,44 @@ export default async function AdminClientsPage() {
     const arr = messagesByPlayer.get(m.player_id) ?? [];
     arr.push(m);
     messagesByPlayer.set(m.player_id, arr);
+  }
+  // Build the per-player curricula → slots → lessons graph for the
+  // lesson-plan panel on the active client detail view.
+  const lessonById = new Map(lessonRows.map((l) => [l.id, l]));
+  const slotsByCurriculum = new Map<string, CurriculumSlotRow[]>();
+  for (const s of slotRows) {
+    const lesson = s.lesson_id ? lessonById.get(s.lesson_id) ?? null : null;
+    const arr = slotsByCurriculum.get(s.curriculum_id) ?? [];
+    arr.push({
+      id: s.id,
+      week_number: s.week_number,
+      is_vod_review: s.is_vod_review,
+      lesson_id: s.lesson_id,
+      vod_url: s.vod_url,
+      live_call_at: s.live_call_at,
+      live_call_event_id: s.live_call_event_id,
+      delivered_at: s.delivered_at,
+      live_call_completed_at: s.live_call_completed_at,
+      no_show_at: s.no_show_at,
+      coach_note: s.coach_note,
+      lesson,
+    });
+    slotsByCurriculum.set(s.curriculum_id, arr);
+  }
+  const curriculaByPlayer = new Map<string, CurriculumWithSlots[]>();
+  for (const c of curricula) {
+    const arr = curriculaByPlayer.get(c.player_id) ?? [];
+    arr.push({
+      id: c.id,
+      status: c.status,
+      approved_at: c.approved_at,
+      created_at: c.created_at,
+      personalization_note: c.personalization_note,
+      slots: (slotsByCurriculum.get(c.id) ?? []).sort(
+        (a, b) => a.week_number - b.week_number,
+      ),
+    });
+    curriculaByPlayer.set(c.player_id, arr);
   }
 
   const items: ClientItem[] = visible
@@ -163,6 +255,7 @@ export default async function AdminClientsPage() {
               cycle_lessons_delivered: sub.cycle_lessons_delivered,
               cycle_cancels_used: sub.cycle_cancels_used,
               messages: messagesByPlayer.get(sub.player_id) ?? [],
+              curricula: curriculaByPlayer.get(sub.player_id) ?? [],
             }
           : undefined;
 

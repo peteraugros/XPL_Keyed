@@ -84,6 +84,38 @@ export type ActiveRow = {
   cycle_lessons_delivered: number;
   cycle_cancels_used: number;
   messages: MessageRow[];
+  curricula: CurriculumWithSlots[];
+};
+
+export type LessonSummary = {
+  id: string;
+  fortnite_label: string;
+  parent_label: string;
+  is_published: boolean;
+};
+
+export type CurriculumSlotRow = {
+  id: string;
+  week_number: number;
+  is_vod_review: boolean;
+  lesson_id: string | null;
+  vod_url: string | null;
+  live_call_at: string | null;
+  live_call_event_id: string | null;
+  delivered_at: string | null;
+  live_call_completed_at: string | null;
+  no_show_at: string | null;
+  coach_note: string | null;
+  lesson: LessonSummary | null;
+};
+
+export type CurriculumWithSlots = {
+  id: string;
+  status: string; // pending_approval / active / completed / superseded
+  approved_at: string | null;
+  created_at: string;
+  personalization_note: string | null;
+  slots: CurriculumSlotRow[];
 };
 
 type DerivedTask = {
@@ -576,6 +608,7 @@ function FocusedHome({
   const isTikTok = topTask.task_type === "tiktok_daily_reminder";
   const isOutcomePending = topTask.task_type === "call_outcome_pending";
   const isDragOut = topTask.task_type === "cycle_drag_out";
+  const isLibraryLow = topTask.task_type === "library_running_low";
   const isAwareness =
     isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff || isTikTok;
 
@@ -643,6 +676,8 @@ function FocusedHome({
           <span className={styles.pastDuePill}>POST CALL</span>
         ) : isDragOut ? (
           <span className={styles.pastDuePill}>CYCLE DRAG</span>
+        ) : isLibraryLow ? (
+          <span className={styles.newTrialPill}>LIBRARY</span>
         ) : (
           "Next thing"
         )}
@@ -764,6 +799,18 @@ function FocusedHome({
             className={styles.inlineReplySecondary}
           >
             Open client card
+          </a>
+        </div>
+      ) : isLibraryLow ? (
+        <div className={styles.inlineReplyRow}>
+          <a href={"/admin/lessons/new" as never} className={styles.focusedHomeCta}>
+            Author a lesson
+          </a>
+          <a
+            href={"/admin/lessons" as never}
+            className={styles.inlineReplySecondary}
+          >
+            See library
           </a>
         </div>
       ) : (
@@ -1337,6 +1384,15 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         title: `${name} dropped a clip.`,
         body: payload.vod_url ? "Watch it before the call so you walk in informed." : "Watch it before the call so you walk in informed.",
         cta: "Open card",
+      };
+    }
+    case "library_running_low": {
+      const payload = (t.task_payload ?? {}) as { published_count?: number };
+      const count = payload.published_count ?? 0;
+      return {
+        title: "Your lesson library is running low.",
+        body: `Only ${count} published ${count === 1 ? "lesson" : "lessons"} in the library. Auto renew starts repeating or falling back to stubs at this level. Author a few more when you have a free hour.`,
+        cta: "Author a lesson",
       };
     }
     case "cycle_drag_out": {

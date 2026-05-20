@@ -105,6 +105,88 @@ export type ProvisionResult = {
   nextLifecycle: "ACTIVE" | "SCHEDULING_IN_PROGRESS";
 };
 
+// Pull lesson_ids that this player has been assigned in ANY prior
+// curriculum slot, ordered by the curriculum's created_at (oldest
+// first) so the "top up from history" fallback feels chronological.
+async function fetchPriorLessonIds(
+  supabase: Supa,
+  playerId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("curriculum_slots")
+    .select("lesson_id, curricula!inner(player_id, created_at)")
+    .eq("curricula.player_id", playerId)
+    .not("lesson_id", "is", null)
+    .order("created_at", { ascending: true, referencedTable: "curricula" });
+  if (error) {
+    console.error("[auto-renew] fetchPriorLessonIds failed", error);
+    return [];
+  }
+  return ((data ?? []) as Array<{ lesson_id: string | null }>)
+    .map((r) => r.lesson_id)
+    .filter((id): id is string => !!id);
+}
+
+// Selects 4 lesson ids for the new cycle's slots. Library-first, with
+// fallbacks. See provisionNextCycle for the full chain documentation.
+export async function selectLessonsForRenewal(
+  supabase: Supa,
+  playerId: string,
+  createdBy: string,
+): Promise<string[]> {
+  const priorIds = await fetchPriorLessonIds(supabase, playerId);
+  const priorSet = new Set(priorIds);
+
+  // Pull every published lesson, oldest first.
+  const libResp = await supabase
+    .from("lessons")
+    .select("id, created_at")
+    .eq("is_published", true)
+    .order("created_at", { ascending: true });
+  const libRows = (libResp.data ?? []) as Array<{ id: string }>;
+  const libIds = libRows.map((r) => r.id);
+
+  // Fresh = published + never assigned to this player.
+  const fresh = libIds.filter((id) => !priorSet.has(id));
+  if (fresh.length >= 4) return fresh.slice(0, 4);
+
+  // Top up from prior (oldest first — assume the kid is least likely
+  // to remember those). Dedupe against fresh just in case.
+  const topUp = priorIds.filter((id) => !fresh.includes(id));
+  const merged = [...fresh, ...topUp].slice(0, 4);
+  if (merged.length === 4) return merged;
+
+  // Library is empty (or near-empty). Fall back to stub creation so
+  // the auto-renew loop still completes. Tim sees lesson_authoring_needed
+  // tasks on Focused Home and authors content during the cycle.
+  const stubIds: string[] = [];
+  for (let i = 0; i < 4 - merged.length; i++) {
+    const stub = await supabase
+      .from("lessons")
+      .insert({
+        title: `(Renewal stub) Week ${merged.length + i + 1}`,
+        fortnite_label: "Lesson",
+        parent_label: "Lesson",
+        parent_skill_description: "Tim is putting this week's plan together.",
+        topic: "game_sense",
+        difficulty_level: "intermediate",
+        duration_minutes: 30,
+        slides: [],
+        parent_talking_points: [],
+        author_id: createdBy,
+        is_published: false,
+      } as never)
+      .select("id")
+      .single();
+    const stubData = stub.data as { id: string } | null;
+    if (stub.error || !stubData) {
+      throw new Error(`lesson_stub_failed: ${stub.error?.message ?? "unknown"}`);
+    }
+    stubIds.push(stubData.id);
+  }
+  return [...merged, ...stubIds];
+}
+
 export async function provisionNextCycle(
   args: ProvisionArgs,
 ): Promise<ProvisionResult> {
@@ -203,33 +285,24 @@ export async function provisionNextCycle(
   }
   const newCurriculumId = newCurriculumData.id;
 
-  // Create 4 stub lessons (Tim authors content during the cycle, same
-  // pattern as Stage C take-on).
-  const stubLessonIds: string[] = [];
-  for (let i = 0; i < 4; i++) {
-    const stub = await supabase
-      .from("lessons")
-      .insert({
-        title: `(Renewal stub) Week ${i + 1}`,
-        fortnite_label: "Lesson",
-        parent_label: "Lesson",
-        parent_skill_description: "Tim is putting this week's plan together.",
-        topic: "game_sense",
-        difficulty_level: "intermediate",
-        duration_minutes: 30,
-        slides: [],
-        parent_talking_points: [],
-        author_id: createdBy,
-        is_published: false,
-      } as never)
-      .select("id")
-      .single();
-    const stubData = stub.data as { id: string } | null;
-    if (stub.error || !stubData) {
-      throw new Error(`lesson_stub_failed: ${stub.error?.message ?? "unknown"}`);
-    }
-    stubLessonIds.push(stubData.id);
-  }
+  // Library-driven lesson selection. Pull the kid's prior assigned
+  // lessons (anything they've already had in a curriculum slot, any
+  // status). Then pull the published library, exclude those, take the
+  // first 4 ordered by lessons.created_at ASC.
+  //
+  // Fallback chain:
+  //   1. 4 fresh published lessons → use those.
+  //   2. Fewer than 4 fresh → top up from already-done lessons (oldest
+  //      first). Acceptable per spec — Tim can swap mid-cycle if
+  //      review repetition isn't appropriate.
+  //   3. No published lessons exist → fall back to stub creation (the
+  //      original behavior, preserves the auto-renew loop while Tim
+  //      builds his library).
+  const stubLessonIds: string[] = await selectLessonsForRenewal(
+    supabase,
+    sub.player_id,
+    createdBy,
+  );
 
   // Create 4 slots. Uniform: soft-book at predicted times (sentinel
   // live_call_event_id="auto:<slot_id>" — same pattern existing code
