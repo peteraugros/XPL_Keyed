@@ -1,0 +1,238 @@
+/* /portal/progress scoped styles. Tokens from globals.css. Dash free
+   per Hard rule #8. */
+
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+.stat {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat_ok {
+  border-color: rgba(49, 146, 54, 0.45);
+  background: rgba(49, 146, 54, 0.06);
+}
+.stat_warn {
+  border-color: rgba(245, 166, 35, 0.45);
+  background: rgba(245, 166, 35, 0.06);
+}
+.stat_muted {
+  opacity: 0.85;
+}
+.statLabel {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.statValue {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+/* --- Current plan 4 weeks --- */
+.personalNote {
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(199, 255, 61, 0.06);
+  border-left: 3px solid var(--lime);
+  padding: 10px 12px;
+  margin: 0 0 4px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.weekList {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.weekRow {
+  display: grid;
+  grid-template-columns: 86px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.weekNum {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.weekCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.weekTitle {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.weekSkill {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.fortniteTerm {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.weekWhen {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+.weekStatus {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  justify-self: end;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.weekStatus_ok {
+  background: rgba(49, 146, 54, 0.14);
+  border-color: rgba(49, 146, 54, 0.55);
+  color: var(--uncommon);
+}
+.weekStatus_next {
+  background: rgba(199, 255, 61, 0.10);
+  border-color: rgba(199, 255, 61, 0.45);
+  color: var(--lime);
+}
+.weekStatus_warn {
+  background: rgba(245, 166, 35, 0.12);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: var(--legendary);
+}
+.weekStatus_muted {
+  opacity: 0.7;
+}
+
+@media (max-width: 479px) {
+  .weekRow {
+    grid-template-columns: 64px 1fr auto;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+}
+
+/* --- Cycle history --- */
+.cycleList {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cycleItem {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.cycleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.cycleDates {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.cycleTopics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cycleTopic {
+  display: flex;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.cycleTopicNum {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  min-width: 28px;
+}
+.cycleTopicLabel {
+  color: var(--text);
+}
+
+/* --- Reflection blockquote --- */
+.reflection {
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(76, 81, 247, 0.06);
+  border-left: 3px solid var(--rare);
+  padding: 10px 12px;
+  border-radius: 4px;
+  line-height: 1.55;
+  font-style: italic;
+  margin: 6px 0 0;
+}
+.reflectionAttr {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-style: normal;
+}
+
+.backLink {
+  display: inline-block;
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  align-self: flex-start;
+}
+.backLink:hover {
+  border-color: var(--lime);
+  color: var(--lime);
+}

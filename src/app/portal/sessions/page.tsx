@@ -15,7 +15,6 @@
 import { requireParentSession } from "../_lib/session";
 import SchedulerWizard from "./SchedulerWizard";
 import PaymentSummary from "./PaymentSummary";
-import SessionPolicyPanel from "./SessionPolicyPanel";
 import ActiveCycleManager from "./ActiveCycleManager";
 import styles from "./sessions.module.css";
 import Link from "next/link";
@@ -196,10 +195,6 @@ export default async function SessionsPage() {
         </section>
       ) : null}
 
-      <SessionPolicyPanel
-        cycleCancelsUsed={sub?.cycle_cancels_used ?? 0}
-        skipsUsed={sub?.cycle_skips_used ?? 0}
-      />
     </div>
   );
 }

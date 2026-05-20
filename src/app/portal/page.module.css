@@ -393,6 +393,28 @@
   font-size: 13px;
   color: var(--epic);
 }
+.playerLinkInfo {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+.playerLinkBtnSecondary {
+  align-self: flex-start;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-height: 48px;
+  cursor: pointer;
+}
+.playerLinkBtnSecondary:hover:not(:disabled) {
+  border-color: var(--lime);
+}
 .playerLinkSent {
   display: flex;
   flex-direction: column;

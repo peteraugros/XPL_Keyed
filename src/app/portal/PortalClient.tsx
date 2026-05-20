@@ -96,9 +96,138 @@ export function ManagePaymentButton() {
         disabled={busy}
         className={styles.playerLinkBtn}
       >
-        {busy ? "Opening..." : "Manage payment and cancel"}
+        {busy ? "Opening..." : "Manage payment"}
       </button>
       {error ? <div className={styles.playerLinkError}>{error}</div> : null}
+    </div>
+  );
+}
+
+// Cancel + re-enable auto renew. Lives on /portal/billing. When the
+// parent cancels, current cycle still completes through lesson 4; the
+// next-cycle charge does not fire. Parent can re-enable any time the
+// subscription is still active (i.e. before the cycle wraps and the
+// cron transitions it to canceled).
+export function AutoRenewToggle({
+  initialAutoRenewEnabled,
+  kidFirstName,
+}: {
+  initialAutoRenewEnabled: boolean;
+  kidFirstName: string;
+}) {
+  const router = useRouter();
+  const [enabled, setEnabled] = useState(initialAutoRenewEnabled);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function doCancel() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/portal/subscription/cancel-auto-renew", {
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(body.error ?? "Could not cancel auto renew.");
+        setBusy(false);
+        return;
+      }
+      setEnabled(false);
+      setConfirming(false);
+      setBusy(false);
+      router.refresh();
+    } catch {
+      setError("Could not reach the server.");
+      setBusy(false);
+    }
+  }
+
+  async function doReenable() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/portal/subscription/reenable-auto-renew", {
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(body.error ?? "Could not re-enable auto renew.");
+        setBusy(false);
+        return;
+      }
+      setEnabled(true);
+      setBusy(false);
+      router.refresh();
+    } catch {
+      setError("Could not reach the server.");
+      setBusy(false);
+    }
+  }
+
+  if (!enabled) {
+    return (
+      <div className={styles.playerLinkRow}>
+        <div className={styles.playerLinkInfo}>
+          Auto renew is off. {kidFirstName}&apos;s current cycle continues
+          through lesson 4, then the subscription ends. No surprise charges.
+        </div>
+        <button
+          type="button"
+          onClick={doReenable}
+          disabled={busy}
+          className={styles.playerLinkBtn}
+        >
+          {busy ? "Re enabling..." : "Re enable auto renew"}
+        </button>
+        {error ? <div className={styles.playerLinkError}>{error}</div> : null}
+      </div>
+    );
+  }
+
+  if (confirming) {
+    return (
+      <div className={styles.playerLinkRow}>
+        <div className={styles.playerLinkInfo}>
+          {kidFirstName}&apos;s current cycle still completes through lesson 4.
+          No new charge fires. You can re-enable any time before the cycle
+          wraps. After that, restart any time by booking a new cycle.
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={doCancel}
+            disabled={busy}
+            className={styles.playerLinkBtn}
+          >
+            {busy ? "Cancelling..." : "Yes, cancel auto renew"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={busy}
+            className={styles.playerLinkBtnSecondary ?? styles.playerLinkBtn}
+            style={{ background: "transparent" }}
+          >
+            Never mind
+          </button>
+        </div>
+        {error ? <div className={styles.playerLinkError}>{error}</div> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.playerLinkRow}>
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className={styles.playerLinkBtn}
+        style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text)" }}
+      >
+        Cancel auto renew
+      </button>
     </div>
   );
 }

@@ -87,8 +87,8 @@ export default function SuccessClient({
             : `${kid}'s first PDF lesson drops this Sunday and new lessons will arrive every Sunday after that.`}
         </p>
         <p className={styles.bodyText}>
-          Message me anytime from your parent dashboard if you have
-          questions or need help.
+          Have {kid} message me from the player view if anything comes up.
+          You see every message in your dashboard.
         </p>
         <Link href={"/portal?welcome=1" as never} className={styles.primaryBtn}>
           Return to Dashboard

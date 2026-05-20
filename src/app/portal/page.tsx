@@ -204,22 +204,23 @@ export default async function PortalHome({
   // The primary action varies by phase. Rendered inside the hero row at
   // desktop (right column) so it doesn't push the summary cards below
   // the fold. Falls under the hero on mobile.
+  //
+  // Active state intentionally has NO primary action card — the Billing
+  // nav item is the canonical entry point for "manage your subscription."
+  // past_due and pending_cancel keep theirs because those are urgent
+  // recovery actions, not generic account management.
   const primaryAction =
-    phase === "active" || phase === "past_due" || phase === "pending_cancel" ? (
+    phase === "past_due" || phase === "pending_cancel" ? (
       <div className={styles.heroActionCard}>
         <div className={styles.actionsTitle}>
           {phase === "past_due"
             ? "Update your card"
-            : phase === "pending_cancel"
-              ? "Manage payment"
-              : "Manage your subscription"}
+            : "Manage payment"}
         </div>
         <div className={styles.actionsBody}>
           {phase === "past_due"
             ? "Open the secure Stripe portal to replace the failed card."
-            : phase === "pending_cancel"
-              ? "Invoices and saved card live in Stripe. The email's Undo link is what reverts the cancel."
-              : "Update card, see invoices, or cancel anytime."}
+            : "Invoices and saved card live in Stripe. The email's Undo link is what reverts the cancel."}
         </div>
         <ManagePaymentButton />
       </div>
@@ -249,14 +250,22 @@ export default async function PortalHome({
 
   return (
     <div className={styles.home}>
-      <div className={styles.heroRow}>
+      {primaryAction ? (
+        <div className={styles.heroRow}>
+          <section className={styles.hero}>
+            <div className={styles.heroEyebrow}>{hero.eyebrow}</div>
+            <h1 className={styles.heroTitle}>Welcome back, {parent.first_name}.</h1>
+            <p className={styles.heroBody}>{hero.body}</p>
+          </section>
+          {primaryAction}
+        </div>
+      ) : (
         <section className={styles.hero}>
           <div className={styles.heroEyebrow}>{hero.eyebrow}</div>
           <h1 className={styles.heroTitle}>Welcome back, {parent.first_name}.</h1>
           <p className={styles.heroBody}>{hero.body}</p>
         </section>
-        {primaryAction}
-      </div>
+      )}
 
       {/* Post-payment "active / enrolled" celebration. Renders on the
           first /portal visit after Stripe success (success-page CTA
@@ -284,14 +293,14 @@ export default async function PortalHome({
           <ul className={styles.alertList}>
             <li>Reserve upcoming coaching sessions</li>
             <li>Track progress and lesson history</li>
-            <li>Message me anytime from the dashboard</li>
+            <li>Have {player.first_name} message me from the player view. You see every message here.</li>
           </ul>
           <div className={styles.alertCtaRow}>
             <Link href={"/portal/sessions" as never} className={styles.alertCta}>
               View Sessions
             </Link>
             <Link href={"/portal/messages" as never} className={styles.alertCtaSecondary}>
-              Message Me
+              View Messages
             </Link>
           </div>
         </section>

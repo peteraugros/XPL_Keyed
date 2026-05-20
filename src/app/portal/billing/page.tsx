@@ -7,7 +7,7 @@
 // render isn't worth the latency at 1-10 client scale.
 
 import { requireParentSession } from "../_lib/session";
-import { ManagePaymentButton } from "../PortalClient";
+import { ManagePaymentButton, AutoRenewToggle } from "../PortalClient";
 import styles from "../_components/inner-page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +17,10 @@ type SubLookup = {
   tier: string;
   cycle_started_at: string | null;
   cycle_lessons_delivered: number;
-  cycle_cancels_used: number;
+  cycle_skips_used: number;
   past_due_started_at: string | null;
   pending_cancel_auto_confirm_at: string | null;
+  auto_renew_enabled: boolean;
 };
 type FamilyLookup = { stripe_customer_id: string | null };
 
@@ -57,7 +58,7 @@ export default async function BillingPage() {
     supabase
       .from("subscriptions")
       .select(
-        "status, tier, cycle_started_at, cycle_lessons_delivered, cycle_cancels_used, past_due_started_at, pending_cancel_auto_confirm_at",
+        "status, tier, cycle_started_at, cycle_lessons_delivered, cycle_skips_used, past_due_started_at, pending_cancel_auto_confirm_at, auto_renew_enabled",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -121,9 +122,13 @@ export default async function BillingPage() {
               <dd className={styles.dd}>
                 {sub?.cycle_lessons_delivered ?? 0} of 4
               </dd>
-              <dt className={styles.dt}>Cancels used</dt>
+              <dt className={styles.dt}>Skips used</dt>
               <dd className={styles.dd}>
-                {sub?.cycle_cancels_used ?? 0} of 2
+                {sub?.cycle_skips_used ?? 0} of 2
+              </dd>
+              <dt className={styles.dt}>Auto renew</dt>
+              <dd className={styles.dd}>
+                {sub?.auto_renew_enabled ? "On" : "Off"}
               </dd>
             </>
           ) : null}
@@ -150,9 +155,8 @@ export default async function BillingPage() {
             : "Manage your card and invoices"}
         </h2>
         <p className={styles.cardBody}>
-          The secure Stripe customer portal handles card updates, invoice
-          downloads, and subscription cancel. We don&apos;t see your card
-          details on our side.
+          The secure Stripe customer portal handles card updates and invoice
+          downloads. We don&apos;t see your card details on our side.
         </p>
         {hasStripeCustomer ? (
           <ManagePaymentButton />
@@ -164,14 +168,35 @@ export default async function BillingPage() {
         )}
       </section>
 
+      {sub?.status === "active" ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>Cancel subscription</div>
+          <h2 className={styles.cardTitle}>
+            {sub.auto_renew_enabled
+              ? "End this subscription after the current cycle"
+              : "Auto renew is off"}
+          </h2>
+          <p className={styles.cardBody}>
+            {sub.auto_renew_enabled
+              ? `${player.first_name}'s current cycle will still complete through lesson 4. After that, no new charge fires and the subscription ends. Your account, progress, and message history stay open if you want to come back.`
+              : `The current cycle continues normally through lesson 4. After the last lesson, the subscription ends. You can re-enable any time before the cycle wraps.`}
+          </p>
+          <AutoRenewToggle
+            initialAutoRenewEnabled={sub.auto_renew_enabled}
+            kidFirstName={player.first_name}
+          />
+        </section>
+      ) : null}
+
       <section className={styles.card}>
         <div className={styles.cardEyebrow}>How billing works</div>
         <ul className={styles.bullets}>
           <li>$56 for 4 lessons. One lesson drops every Sunday.</li>
           <li>The next $56 charge fires after the 4th lesson lands, not every 30 days.</li>
           <li>If a week is paused (illness, vacation, coach time off), the cycle pauses too. You are never charged for lessons you did not get.</li>
-          <li>Up to 2 cancellations per 4 lesson cycle. A 3rd cancel ends the subscription.</li>
+          <li>Up to 2 skips per 4 lesson cycle. A 3rd skip turns off auto renew. The current cycle still completes to lesson 4.</li>
           <li>If a card declines, the cycle freezes. Stripe retries automatically. No new lessons run until payment is sorted.</li>
+          <li>Cancel any time from this page. The current cycle still completes through lesson 4. No surprise charges.</li>
         </ul>
       </section>
     </div>

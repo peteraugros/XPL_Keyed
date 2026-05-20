@@ -128,6 +128,7 @@ export async function POST(
   }
 
   const newSkipsUsed = sub.cycle_skips_used + 1;
+  // Allowance is 2 per cycle; the 3rd skip is the trigger.
   const triggeredAutoRenewOff = newSkipsUsed >= 3 && sub.auto_renew_enabled;
   const nowIso = new Date().toISOString();
 
@@ -197,9 +198,9 @@ async function sendAutoRenewOffEmail(
   const html = brandedEmailHtml({
     headline: "Auto renew is off for the next cycle",
     bodyHtml: `<p>Hi ${parentFirstName},</p>
-<p>${kidFirstName} hit 3 skips this cycle, so auto renew is off for the next cycle. The current cycle still finishes through lesson 4 as planned. No surprise charges.</p>
+<p>${kidFirstName} hit their 3rd skip this cycle, so auto renew is off for the next cycle. The current cycle still finishes through lesson 4 as planned. No surprise charges.</p>
 <p>If you want to keep going after this cycle, sign back into your dashboard and book a new cycle. Your progress and history are saved.</p>
-<p>Anything to share? Reply to Tim in your messages.</p>
+<p>Anything to share? Have ${kidFirstName} message me in the chat. You see everything in your dashboard.</p>
 <p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,
   });
   await resend.emails.send({

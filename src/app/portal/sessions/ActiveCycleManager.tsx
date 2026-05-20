@@ -61,13 +61,14 @@ function buildCalendlyEmbedUrl(
   kidDiscord: string | null,
   originalIso: string,
 ): string {
-  // Pre-navigate the embed to the same week as the original time so
-  // the parent's first reflex is "pick a time within 7 days." Calendly
-  // ignores month/date that fall in the past, so this is safe.
+  // Pre-navigate the embed to the same month as the original time so
+  // the parent doesn't have to scroll back from "today." We do NOT
+  // pre-select a specific day — that would drop the parent into the
+  // time-picker for one day and force them to tap back to see the
+  // calendar. Month-only keeps the month-calendar visible.
   const d = new Date(originalIso);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
   const params = new URLSearchParams({
     background_color: "0F1B47",
     text_color: "FFFFFF",
@@ -78,7 +79,6 @@ function buildCalendlyEmbedUrl(
     email: parentEmail,
     a1: kidFirstName,
     month: `${yyyy}-${mm}`,
-    date: `${yyyy}-${mm}-${dd}`,
   });
   if (kidDiscord) params.set("a2", kidDiscord);
   return `${PAID_LESSON_CALENDLY_URL}?${params.toString()}`;
@@ -171,13 +171,13 @@ function SkipCounter({
   if (!autoRenewEnabled) {
     return (
       <div className={styles.skipCounterOff}>
-        Skips: 3 of 3 used. Auto renew is off for the next cycle. This cycle still finishes through lesson 4.
+        Auto renew is off for the next cycle. This cycle still finishes through lesson 4.
       </div>
     );
   }
   return (
     <div className={styles.skipCounter}>
-      Skips: {skipsUsed} of 3 used this cycle.{" "}
+      Skips: {skipsUsed} of 2 used this cycle.{" "}
       <span className={styles.skipCounterHint}>
         3 skips turns off auto renew.
       </span>
@@ -301,7 +301,7 @@ function WithinDayState({
         the live call is lost.
       </p>
       <p className={styles.modalPolicy}>
-        This counts as 1 skip ({wouldBe} of 3 used this cycle).{" "}
+        This counts as 1 skip ({wouldBe === 3 ? "your 3rd this cycle" : `${wouldBe} of 2 used this cycle`}).{" "}
         {wouldHitCap
           ? "This will turn off auto renew. Your current cycle continues through lesson 4, then ends."
           : "3 skips turns off auto renew."}
@@ -373,17 +373,10 @@ function OutsideDayState({
     [parentFirstName, parentEmail, kidFirstName, kidDiscord, originalIso],
   );
 
-  // Listen for calendly.event_scheduled. Calendly emits the event URI on
-  // the payload; we capture it + post to our reschedule endpoint, which
-  // cancels the old event and updates the slot. We also need the new
-  // time, which Calendly doesn't ship in the postMessage payload — we
-  // fetch it via the API in a follow-up step (or rely on the embed's
-  // own info).
-  //
-  // Practical workaround: Calendly's event_scheduled payload includes
-  // the event URI. Our backend can fetch /scheduled_events/<uuid> via
-  // the PAT to get the start_time. Doing that on the server keeps the
-  // PAT off the client.
+  // Listen for calendly.event_scheduled. Calendly emits the event URI
+  // on the payload; we resolve the start_time server-side via the PAT,
+  // then POST to /reschedule which cancels the old event and updates
+  // the slot.
   useEffect(() => {
     function onMessage(e: MessageEvent<CalendlyMessage["data"]>) {
       const origin = (e as MessageEvent).origin;
@@ -398,6 +391,36 @@ function OutsideDayState({
     return () => window.removeEventListener("message", onMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slot.id]);
+
+  // Initialize the Calendly inline widget. widget.js auto-scans the DOM
+  // on its initial load, but this modal mounts dynamically after the
+  // page is hydrated — so the auto-scan misses it. Poll for the global
+  // and call initInlineWidget manually.
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    function tryInit() {
+      if (cancelled) return;
+      const w = window as unknown as {
+        Calendly?: {
+          initInlineWidget: (opts: { url: string; parentElement: Element }) => void;
+        };
+      };
+      const target = document.getElementById(`calendly-resched-${slot.id}`);
+      if (w.Calendly && target) {
+        // Clear any prior init (e.g. if React re-rendered the modal).
+        target.innerHTML = "";
+        w.Calendly.initInlineWidget({ url: embedUrl, parentElement: target });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 50) setTimeout(tryInit, 100);
+    }
+    tryInit();
+    return () => {
+      cancelled = true;
+    };
+  }, [embedUrl, slot.id]);
 
   async function commit(newEventUri: string) {
     setError(null);
@@ -457,7 +480,9 @@ function OutsideDayState({
         <p className={styles.modalBody}>
           {result.free
             ? "Free reschedule. Your skip counter didn't change."
-            : `This counts as 1 skip (${result.skips_used} of 3 used this cycle).`}
+            : result.skips_used >= 3
+              ? `That was your 3rd skip this cycle.`
+              : `This counts as 1 skip (${result.skips_used} of 2 used this cycle).`}
           {!result.auto_renew_enabled
             ? " Auto renew is off for the next cycle. The current cycle continues through lesson 4."
             : ""}
@@ -481,16 +506,15 @@ function OutsideDayState({
       </p>
       <p className={styles.modalPolicy}>
         Picks within 7 days of your original time are free. Picks further out
-        push the cycle forward and count as 1 skip. You have {3 - skipsUsed}{" "}
-        skips left this cycle.
+        push the cycle forward and count as 1 skip. You have {Math.max(0, 2 - skipsUsed)}{" "}
+        free skips left this cycle. A 3rd skip turns off auto renew.
       </p>
       {error ? <p className={styles.modalError}>{error}</p> : null}
       {submitting ? (
         <p className={styles.modalBody}>Committing your new time...</p>
       ) : null}
       <div
-        className="calendly-inline-widget"
-        data-url={embedUrl}
+        id={`calendly-resched-${slot.id}`}
         style={{ minWidth: "280px", height: "700px" }}
       />
     </>

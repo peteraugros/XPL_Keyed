@@ -37,7 +37,8 @@ export default async function MessagesPage() {
         <h1 className={styles.title}>Messages</h1>
         <p className={styles.intro}>
           Every message between {player.first_name} and Tim. Read only on
-          your end. Nothing happens off platform.
+          your end. If you want Tim to know something, have {player.first_name} message him
+          from the player view. Nothing happens off platform.
         </p>
       </section>
 

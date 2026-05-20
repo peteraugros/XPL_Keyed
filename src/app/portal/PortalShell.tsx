@@ -19,10 +19,10 @@ type NavItem = { href: string; label: string; soon?: boolean };
 
 const NAV: NavItem[] = [
   { href: "/portal", label: "Overview" },
-  { href: "/portal/sessions", label: "Sessions", soon: true },
-  { href: "/portal/progress", label: "Progress", soon: true },
+  { href: "/portal/sessions", label: "Sessions" },
+  { href: "/portal/progress", label: "Progress" },
   { href: "/portal/messages", label: "Chat" },
-  { href: "/portal/billing", label: "Manage subscription" },
+  { href: "/portal/billing", label: "Billing" },
   { href: "/portal/settings", label: "Settings" },
 ];
 

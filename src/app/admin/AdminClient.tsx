@@ -435,7 +435,7 @@ function CommandPipeline({
                         {c.lifecycle_state === "TRIAL_PREP" || c.lifecycle_state === "TRIAL_SCHEDULED" ? (
                           <span>prep {c.prep_completed}/4</span>
                         ) : c.lifecycle_state === "ACTIVE" ? (
-                          <span>cyc {c.cycle_lessons_delivered}/4 · cancels {c.cycle_cancels_used}/2</span>
+                          <span>cyc {c.cycle_lessons_delivered}/4 · skips {c.cycle_cancels_used}/2</span>
                         ) : c.lifecycle_state === "PAST_DUE" ? (
                           <span>past due</span>
                         ) : c.lifecycle_state === "PENDING_CANCEL" ? (
