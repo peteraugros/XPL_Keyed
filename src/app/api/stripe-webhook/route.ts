@@ -66,6 +66,12 @@ export async function POST(req: Request) {
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, supabase);
         break;
+      case "payment_intent.succeeded":
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, supabase);
+        break;
+      case "payment_intent.payment_failed":
+        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent, supabase);
+        break;
       default:
         // Stripe sends many event types we don't care about. Acknowledge with 200
         // so it doesn't retry, but don't run any handler.
@@ -330,5 +336,75 @@ function mapStripeStatus(
       return null;
     default:
       return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PaymentIntent handlers — off-session renewal charges
+// ---------------------------------------------------------------------------
+// The cron-auto-renew-detection cron fires PaymentIntents with
+// metadata.kind='renewal' and metadata.subscription_id=<id>. On
+// success we provision the next cycle. On failure the subscription
+// drops to PAST_DUE (same as the existing dunning path).
+
+async function handlePaymentIntentSucceeded(
+  pi: Stripe.PaymentIntent,
+  supabase: ReturnType<typeof createServiceRoleClient>,
+) {
+  const kind = pi.metadata?.kind;
+  if (kind !== "renewal") {
+    // Not ours to handle; first-cycle payments are settled through
+    // checkout.session.completed.
+    return;
+  }
+  const subscriptionId = pi.metadata?.subscription_id;
+  if (!subscriptionId) {
+    console.warn("[stripe-webhook] renewal PI missing subscription_id", pi.id);
+    return;
+  }
+
+  // Provision the next cycle. Dynamic-import the helper to avoid pulling
+  // node:crypto into the top-level module graph until needed.
+  const { provisionNextCycle } = await import("@/lib/lessons/auto-renew");
+  try {
+    await provisionNextCycle({ supabase, subscriptionId });
+  } catch (err) {
+    console.error("[stripe-webhook][renewal] provision failed", subscriptionId, err);
+    throw err;
+  }
+
+  // Clear the renewal-in-flight marker so the NEXT cycle's renewal can
+  // fire when this newly-provisioned cycle eventually completes.
+  await supabase
+    .from("subscriptions")
+    .update({ renewal_pi_id: null } as never)
+    .eq("id", subscriptionId);
+}
+
+async function handlePaymentIntentFailed(
+  pi: Stripe.PaymentIntent,
+  supabase: ReturnType<typeof createServiceRoleClient>,
+) {
+  const kind = pi.metadata?.kind;
+  if (kind !== "renewal") return;
+  const subscriptionId = pi.metadata?.subscription_id;
+  if (!subscriptionId) return;
+
+  // Flip lifecycle into PAST_DUE. The existing dunning crons take it
+  // from here (Day-3, Day-6 reminders, Day-7 auto-cancel). Also clear
+  // the renewal marker so the cron retries on the next sweep when the
+  // parent updates their card.
+  const nowIso = new Date().toISOString();
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({
+      status: "past_due",
+      lifecycle_state: "PAST_DUE",
+      past_due_started_at: nowIso,
+      renewal_pi_id: null,
+    } as never)
+    .eq("id", subscriptionId);
+  if (error) {
+    console.error("[stripe-webhook][renewal] PAST_DUE update failed", error);
   }
 }

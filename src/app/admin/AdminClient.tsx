@@ -555,8 +555,9 @@ function FocusedHome({
   const isPastDue = topTask.task_type === "past_due_opened";
   const isVodDropped = topTask.task_type === "vod_dropped";
   const isPrepAnswered = topTask.task_type === "prep_answered";
+  const isAutoRenewOff = topTask.task_type === "subscription_auto_renew_off";
   const isAwareness =
-    isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered;
+    isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff;
 
   async function submitReply(e: React.FormEvent) {
     e.preventDefault();
@@ -612,6 +613,8 @@ function FocusedHome({
           <span className={styles.newTrialPill}>NEW VOD</span>
         ) : isPrepAnswered ? (
           <span className={styles.newTrialPill}>PREP IN</span>
+        ) : isAutoRenewOff ? (
+          <span className={styles.pastDuePill}>AUTO RENEW OFF</span>
         ) : (
           "Next thing"
         )}
@@ -696,6 +699,11 @@ function FocusedHome({
             ) : null;
           })()}
         </div>
+      ) : isAutoRenewOff ? (
+        <AutoRenewOffActions
+          subscriptionId={(topTask.task_payload?.subscription_id as string) ?? ""}
+          onDone={() => router.refresh()}
+        />
       ) : (
         <a href={`/admin/clients?client=${topTask.client_id}`} className={styles.focusedHomeCta}>
           {phrasing.cta}
@@ -1082,6 +1090,79 @@ function StuckButton({
   );
 }
 
+function AutoRenewOffActions({
+  subscriptionId,
+  onDone,
+}: {
+  subscriptionId: string;
+  onDone: () => void;
+}) {
+  const [submitting, setSubmitting] = useState<null | "ack" | "reenable">(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ack() {
+    setError(null);
+    setSubmitting("ack");
+    try {
+      const res = await fetch(
+        `/api/admin/subscriptions/${subscriptionId}/ack-auto-renew-off`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        setError("Could not dismiss. Try again.");
+        setSubmitting(null);
+        return;
+      }
+      onDone();
+    } catch {
+      setError("Could not reach the server.");
+      setSubmitting(null);
+    }
+  }
+
+  async function reenable() {
+    setError(null);
+    setSubmitting("reenable");
+    try {
+      const res = await fetch(
+        `/api/admin/subscriptions/${subscriptionId}/re-enable-auto-renew`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        setError("Could not re-enable. Try again.");
+        setSubmitting(null);
+        return;
+      }
+      onDone();
+    } catch {
+      setError("Could not reach the server.");
+      setSubmitting(null);
+    }
+  }
+
+  return (
+    <div className={styles.inlineReplyRow}>
+      <button
+        type="button"
+        className={styles.focusedHomeCta}
+        onClick={reenable}
+        disabled={!!submitting}
+      >
+        {submitting === "reenable" ? "Re enabling..." : "Re enable auto renew"}
+      </button>
+      <button
+        type="button"
+        className={styles.inlineReplySecondary}
+        onClick={ack}
+        disabled={!!submitting}
+      >
+        {submitting === "ack" ? "Dismissing..." : "Got it"}
+      </button>
+      {error ? <span className={styles.inlineReplyError}>{error}</span> : null}
+    </div>
+  );
+}
+
 function phraseForTask(t: DerivedTask): { title: string; body: string | null; cta: string } {
   const name = t.client_name;
   switch (t.task_type) {
@@ -1158,6 +1239,21 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
       return {
         title: `${name} dropped a clip.`,
         body: payload.vod_url ? "Watch it before the call so you walk in informed." : "Watch it before the call so you walk in informed.",
+        cta: "Open card",
+      };
+    }
+    case "subscription_auto_renew_off": {
+      const payload = (t.task_payload ?? {}) as {
+        cycle_lessons_delivered?: number;
+      };
+      const delivered = payload.cycle_lessons_delivered ?? 0;
+      const remaining = Math.max(0, 4 - delivered);
+      return {
+        title: `${name}'s auto renew is off.`,
+        body:
+          remaining > 0
+            ? `${remaining} ${remaining === 1 ? "lesson" : "lessons"} left in the cycle, then the subscription ends. Reach out if you want to keep them.`
+            : "The cycle is done. The subscription ends at the next cron run.",
         cta: "Open card",
       };
     }

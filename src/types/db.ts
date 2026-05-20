@@ -789,11 +789,15 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          auto_renew_enabled: boolean
+          auto_renew_off_acknowledged_at: string | null
           coach_seen_at: string | null
           created_at: string
           cycle_cancels_used: number
           cycle_lessons_delivered: number
+          cycle_skips_used: number
           cycle_started_at: string | null
+          cycle_timezone: string
           id: string
           last_cancel_at: string | null
           lifecycle_state: Database["public"]["Enums"]["lifecycle_state_t"]
@@ -810,6 +814,7 @@ export type Database = {
           pending_cancel_reminder_6day_at: string | null
           pending_cancel_started_at: string | null
           player_id: string
+          renewal_pi_id: string | null
           scheduling_reminder_24h_at: string | null
           scheduling_reminder_72h_at: string | null
           scheduling_started_at: string | null
@@ -823,11 +828,15 @@ export type Database = {
           welcomed_at: string | null
         }
         Insert: {
+          auto_renew_enabled?: boolean
+          auto_renew_off_acknowledged_at?: string | null
           coach_seen_at?: string | null
           created_at?: string
           cycle_cancels_used?: number
           cycle_lessons_delivered?: number
+          cycle_skips_used?: number
           cycle_started_at?: string | null
+          cycle_timezone?: string
           id?: string
           last_cancel_at?: string | null
           lifecycle_state?: Database["public"]["Enums"]["lifecycle_state_t"]
@@ -844,6 +853,7 @@ export type Database = {
           pending_cancel_reminder_6day_at?: string | null
           pending_cancel_started_at?: string | null
           player_id: string
+          renewal_pi_id?: string | null
           scheduling_reminder_24h_at?: string | null
           scheduling_reminder_72h_at?: string | null
           scheduling_started_at?: string | null
@@ -857,11 +867,15 @@ export type Database = {
           welcomed_at?: string | null
         }
         Update: {
+          auto_renew_enabled?: boolean
+          auto_renew_off_acknowledged_at?: string | null
           coach_seen_at?: string | null
           created_at?: string
           cycle_cancels_used?: number
           cycle_lessons_delivered?: number
+          cycle_skips_used?: number
           cycle_started_at?: string | null
+          cycle_timezone?: string
           id?: string
           last_cancel_at?: string | null
           lifecycle_state?: Database["public"]["Enums"]["lifecycle_state_t"]
@@ -878,6 +892,7 @@ export type Database = {
           pending_cancel_reminder_6day_at?: string | null
           pending_cancel_started_at?: string | null
           player_id?: string
+          renewal_pi_id?: string | null
           scheduling_reminder_24h_at?: string | null
           scheduling_reminder_72h_at?: string | null
           scheduling_started_at?: string | null

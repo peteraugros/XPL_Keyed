@@ -16,6 +16,7 @@ import { requireParentSession } from "../_lib/session";
 import SchedulerWizard from "./SchedulerWizard";
 import PaymentSummary from "./PaymentSummary";
 import SessionPolicyPanel from "./SessionPolicyPanel";
+import ActiveCycleManager from "./ActiveCycleManager";
 import styles from "./sessions.module.css";
 import Link from "next/link";
 
@@ -26,6 +27,8 @@ type SubLookup = {
   status: string;
   lifecycle_state: string;
   cycle_cancels_used: number;
+  cycle_skips_used: number;
+  auto_renew_enabled: boolean;
 };
 type CurriculumLookup = {
   id: string;
@@ -66,7 +69,9 @@ export default async function SessionsPage() {
 
   const subResp = await supabase
     .from("subscriptions")
-    .select("id, status, lifecycle_state, cycle_cancels_used")
+    .select(
+      "id, status, lifecycle_state, cycle_cancels_used, cycle_skips_used, auto_renew_enabled",
+    )
     .eq("player_id", player.id)
     .maybeSingle();
   const sub = subResp.data as SubLookup | null;
@@ -166,31 +171,15 @@ export default async function SessionsPage() {
       ) : null}
 
       {isActive && curriculum ? (
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Active cycle</div>
-          <h2 className={styles.cardTitle}>Your booked sessions</h2>
-          <ul className={styles.weekList}>
-            {slotsForClient.map((s) => (
-              <li key={s.id} className={styles.weekRow}>
-                <span className={styles.weekNum}>Week {s.week_number}</span>
-                <span className={styles.weekCopy}>
-                  {s.live_call_at
-                    ? new Intl.DateTimeFormat("en-US", {
-                        weekday: "long",
-                        month: "long",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      }).format(new Date(s.live_call_at))
-                    : "(no time yet)"}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className={styles.subtle}>
-            Reschedule, skip, and cancel controls land in phase 3.
-          </p>
-        </section>
+        <ActiveCycleManager
+          parentFirstName={parent.first_name}
+          parentEmail={parent.email}
+          kidFirstName={player.first_name}
+          kidDiscord={player.discord_username}
+          slots={slotsForClient}
+          skipsUsed={sub?.cycle_skips_used ?? 0}
+          autoRenewEnabled={sub?.auto_renew_enabled ?? true}
+        />
       ) : null}
 
       {!inScheduler && !inPayment && !isActive ? (
@@ -209,7 +198,7 @@ export default async function SessionsPage() {
 
       <SessionPolicyPanel
         cycleCancelsUsed={sub?.cycle_cancels_used ?? 0}
-        skipsUsed={0}
+        skipsUsed={sub?.cycle_skips_used ?? 0}
       />
     </div>
   );

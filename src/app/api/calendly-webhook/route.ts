@@ -187,93 +187,112 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
   const { slot, subscription, classification, hoursUntilCall, supabase } = args;
   const nowIso = new Date().toISOString();
 
-  let cycleCancelsUsedAfter = subscription.cycle_cancels_used;
-  let cycleLessonsDeliveredAfter = subscription.cycle_lessons_delivered;
-  let triggeredPendingCancel = false;
+  // New unified skip model per xpl-reschedule-spec.md. Both credit
+  // (>=24hr) and forfeit (<24hr) cancels count as 1 skip. Forfeit also
+  // advances cycle_lessons_delivered (kid keeps materials). 3rd skip in
+  // a cycle flips auto_renew_enabled=FALSE; the cycle still continues
+  // through lesson 4, then ends. No more pending_cancel triggered from
+  // here — that path is retired in favor of the auto-renew model.
+  const newSkipsUsed = subscription.cycle_skips_used + 1;
+  const newCancelsUsed = subscription.cycle_cancels_used + 1;
+  const newLessonsDelivered =
+    classification === "forfeit"
+      ? subscription.cycle_lessons_delivered + 1
+      : subscription.cycle_lessons_delivered;
+  const triggeredAutoRenewOff =
+    newSkipsUsed >= 3 && subscription.auto_renew_enabled;
 
-  if (classification === "credit") {
-    cycleCancelsUsedAfter = subscription.cycle_cancels_used + 1;
-    // cycle_lessons_delivered stays put; the lesson is credited back.
-  } else {
-    // Forfeit: the lesson counts as delivered (kid keeps materials), cycle
-    // advances, cap is NOT incremented.
-    cycleLessonsDeliveredAfter = subscription.cycle_lessons_delivered + 1;
-  }
-
-  // Per CLAUDE.md: 3rd CREDIT in a cycle triggers pending_cancel. Forfeits
-  // don't move the cap, so they never trigger pending_cancel.
-  if (classification === "credit" && cycleCancelsUsedAfter >= 3) {
-    triggeredPendingCancel = true;
-  }
-
-  // Subscription update
   const { error: subErr } = await supabase
     .from("subscriptions")
-    .update(
-      triggeredPendingCancel
-        ? {
-            last_cancel_at: nowIso,
-            cycle_cancels_used: cycleCancelsUsedAfter,
-            cycle_lessons_delivered: cycleLessonsDeliveredAfter,
-            status: "pending_cancel",
-            lifecycle_state: "PENDING_CANCEL",
-            // waiting_on='PARENT' per backend-spec section 2 "Reschedule
-            // / cancel requests": 3rd credit triggers pending_cancel,
-            // parent now confirms or undoes during the 7-day window.
-            waiting_on: "PARENT",
-            pending_cancel_started_at: nowIso,
-            pending_cancel_auto_confirm_at: new Date(
-              Date.now() + PENDING_CANCEL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
-            ).toISOString(),
-          }
-        : {
-            last_cancel_at: nowIso,
-            cycle_cancels_used: cycleCancelsUsedAfter,
-            cycle_lessons_delivered: cycleLessonsDeliveredAfter,
-          },
-    )
+    .update({
+      last_cancel_at: nowIso,
+      cycle_skips_used: newSkipsUsed,
+      cycle_cancels_used: newCancelsUsed,
+      cycle_lessons_delivered: newLessonsDelivered,
+      auto_renew_enabled: triggeredAutoRenewOff ? false : subscription.auto_renew_enabled,
+    } as never)
     .eq("id", subscription.id);
   if (subErr) throw subErr;
 
   // Audit row. waiting_on='SYSTEM' because our handler auto-classifies
-  // credit vs forfeit per the 24hr rule; Tim does not currently review.
-  // Backend-spec section 2 envisions a "Tim reviews credit" flow that
-  // would set waiting_on='TIM' here instead; not built yet.
+  // credit vs forfeit per the 24hr rule. The triggered_pending_cancel
+  // column is kept FALSE; rename / drop it in a follow-up migration once
+  // the new model is in production for all subscriptions.
   const { error: evErr } = await supabase.from("cancellation_events").insert({
     subscription_id: subscription.id,
     curriculum_slot_id: slot.id,
     initiated_via: "calendly_link",
     hours_until_call: hoursUntilCall,
     classification,
-    cycle_cancels_used_after: cycleCancelsUsedAfter,
-    triggered_pending_cancel: triggeredPendingCancel,
+    cycle_cancels_used_after: newSkipsUsed,
+    triggered_pending_cancel: false,
     waiting_on: "SYSTEM",
   });
   if (evErr) throw evErr;
 
-  // Mark the slot as cancelled so the Sunday cron doesn't ship it again.
-  // The cycle field is the source of truth for "did the lesson land"; this
-  // slot still belongs to the curriculum even when forfeited.
-  if (classification === "forfeit") {
-    await supabase
-      .from("curriculum_slots")
-      .update({ delivered_at: nowIso })
-      .eq("id", slot.id);
+  // Sentinel-mark the slot's event id so a duplicate webhook firing
+  // (or a stale Calendly retry) doesn't re-apply the cancel. Forfeit
+  // advances delivered_at so the Sunday cron doesn't re-ship.
+  const slotUpd = await supabase
+    .from("curriculum_slots")
+    .update(
+      classification === "forfeit"
+        ? { delivered_at: nowIso, live_call_event_id: `cancelled:${args.slot.id}` }
+        : { live_call_event_id: `cancelled:${args.slot.id}` },
+    )
+    .eq("id", slot.id);
+  if (slotUpd.error) {
+    console.error("[calendly-webhook][cancel] slot update failed", slotUpd.error);
   }
 
-  // Pause Stripe billing immediately on pending_cancel so we don't charge the
-  // parent during the 7-day undo window.
-  if (triggeredPendingCancel && subscription.stripe_subscription_id) {
-    await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-      cancel_at_period_end: true,
+  if (triggeredAutoRenewOff) {
+    await notifyParentAutoRenewOff(subscription, supabase);
+  } else {
+    // Standard cancel email (credit vs forfeit copy).
+    await notifyParent({
+      subscription,
+      classification,
+      triggeredPendingCancel: false,
     });
   }
+}
 
-  // Side effects: email parent, optionally DM Tim
-  await notifyParent({ subscription, classification, triggeredPendingCancel });
-  if (triggeredPendingCancel) {
-    await notifyTimCancelThird(subscription, supabase);
-  }
+// Email when the cancel just turned off auto-renew.
+async function notifyParentAutoRenewOff(
+  subscription: SubscriptionRow,
+  supabase: Supa,
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return;
+  const { data: player } = await supabase
+    .from("players")
+    .select("first_name, family_id")
+    .eq("id", subscription.player_id)
+    .maybeSingle();
+  const familyId = (player as { family_id?: string } | null)?.family_id;
+  if (!familyId) return;
+  const { data: parent } = await supabase
+    .from("parents")
+    .select("first_name, email")
+    .eq("family_id", familyId)
+    .limit(1)
+    .maybeSingle();
+  const p = parent as { first_name: string; email: string } | null;
+  if (!p) return;
+  const kidFirstName = (player as { first_name: string } | null)?.first_name ?? "your player";
+  const html = brandedEmailHtml({
+    headline: "Auto renew is off for the next cycle",
+    bodyHtml: `<p>Hi ${p.first_name},</p>
+<p>${kidFirstName} hit 3 skips this cycle, so auto renew is off for the next cycle. The current cycle still finishes through lesson 4 as planned. No surprise charges.</p>
+<p>If you want to keep going after this cycle, sign back into your dashboard and book a new cycle. Your progress and history are saved.</p>
+<p>Anything to share? Reply to Tim in your messages.</p>
+<p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,
+  });
+  await resend.emails.send({
+    from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
+    to: p.email,
+    subject: "Auto renew off for the next cycle",
+    html,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -742,7 +761,9 @@ type SubscriptionRow = {
   status: string;
   stripe_subscription_id: string | null;
   cycle_cancels_used: number;
+  cycle_skips_used: number;
   cycle_lessons_delivered: number;
+  auto_renew_enabled: boolean;
 };
 
 async function fetchSubscriptionForSlot(
@@ -752,7 +773,7 @@ async function fetchSubscriptionForSlot(
   const { data, error } = await supabase
     .from("subscriptions")
     .select(
-      "id, player_id, status, stripe_subscription_id, cycle_cancels_used, cycle_lessons_delivered",
+      "id, player_id, status, stripe_subscription_id, cycle_cancels_used, cycle_skips_used, cycle_lessons_delivered, auto_renew_enabled",
     )
     .eq("id", subscriptionId)
     .maybeSingle();
