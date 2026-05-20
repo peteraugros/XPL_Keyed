@@ -252,6 +252,8 @@ export type Database = {
       }
       curriculum_slots: {
         Row: {
+          coach_note: string | null
+          coach_note_at: string | null
           created_at: string
           curriculum_id: string
           delivered_at: string | null
@@ -269,6 +271,8 @@ export type Database = {
           week_number: number
         }
         Insert: {
+          coach_note?: string | null
+          coach_note_at?: string | null
           created_at?: string
           curriculum_id: string
           delivered_at?: string | null
@@ -286,6 +290,8 @@ export type Database = {
           week_number: number
         }
         Update: {
+          coach_note?: string | null
+          coach_note_at?: string | null
           created_at?: string
           curriculum_id?: string
           delivered_at?: string | null

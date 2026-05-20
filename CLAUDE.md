@@ -1120,6 +1120,52 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
 
+- **Calendar (Rounds 1 + 2): list view + coach cancel + post-call outcome marking (2026-05-20).** Operations stub replaced with a real schedule + accountability surface. `npx tsc --noEmit` clean after both rounds.
+
+  **Round 1 — list view + proactive coach cancel:**
+  - **Nav swap.** `AdminShell` NAV: Operations stub → `/admin/calendar`. SOON chip dropped.
+  - **`/admin/calendar` page.** Server Component fetches every upcoming live call + every booked trial call. Grouped into Today / Tomorrow / This week / Next week / Later buckets. Past events hidden (cutoff = midnight today). Single-source-of-truth for "what's on Tim's plate."
+  - **Event detail modal.** Click any event → full panel:
+    - Lesson plan (kid-facing label + parent-translation pair + skill description). Amber warning if the lesson is a stub.
+    - Client identity: kid name + rank + Fortnite username + Discord username + parent name + mailto.
+    - Link to client card.
+  - **Coach cancel flow** (paid lessons only — trial cancels still point at Calendly for round 1):
+    - Reveal button → form with **3 locked reasons** (Peter's revision from CLAUDE.md's longer list): `sick / out_of_control / need_to_reschedule`. Christmas/Thanksgiving are availability blocks at the Calendly level, not cancel reasons.
+    - **Type CANCEL to verify** before the submit button enables. Within-24hr warning banner.
+    - `POST /api/admin/calendar/coach-cancel` writes `coach_cancels` row + cancels Calendly event via REST (idempotent via the existing sentinel pattern) + stamps `delivered_at` + sentinels `live_call_event_id` + sends parent email in Tim's voice + posts auto-chat to kid thread (`sender_role='coach'`, `waiting_on='KID'`).
+    - Parent + kid copy per reason (REASON_COPY map): "Tim's out sick this week" / "Something came up Tim couldn't control" / "Tim needs to move this week's call. He'll reach out shortly."
+  - **Cancelled events stay on the calendar** (per Peter mid-build: "don't remove it, just a strike through with a reason"). Row renders with strike-through title, amber-red border, CANCELLED pill, cancel reason as subtitle. Modal hides the cancel form + shows a Status banner explaining what happened.
+  - **Cancel reason reconciliation.** Two sources joined into the calendar event: `coach_cancels.reason` (Tim cancelled) wins; falls back to `cancellation_events.classification + initiated_via` (parent cancelled). Friendly labels: "Tim cancelled: sick" / "parent cancel (inside 24hr)" / "no show (skip used)".
+
+  **Round 2 — post-call outcome marking (the "Tim forgot" backstop):**
+  - **Migration `20260520000200_post_call_outcome.sql`:**
+    - Adds `curriculum_slots.coach_note` + `coach_note_at` columns. Tim's 2-3 sentence observation surfaces on `/portal/progress` per week.
+    - Extends `derived_tasks_view` with **`call_outcome_pending` (P78)** — fires when `live_call_at < NOW() - 2 hours` AND no `live_call_completed_at` AND no `no_show_at` AND no `coach_cancels` row for the slot AND not parent-cancel-sentinel'd. Sits just above `new_student_welcome` (P70) because every 2-hour gap means a real family is wondering what happened. Stays in the queue until Tim marks an outcome.
+  - **`POST /api/admin/calendar/mark-outcome` endpoint** — discriminated body on `outcome`:
+    - **`done`**: stamps `live_call_completed_at` + `delivered_at` + optional `coach_note` + advances `cycle_lessons_delivered`. Sunday cron now ticks to the next lesson cleanly.
+    - **`no_show`** with `charge_skip=true` (default): forfeit-equivalent. `no_show_at` stamped, `cycle_skips_used+1`, `cycle_lessons_delivered+1` (kid keeps materials), `cancellation_events` audit row with `initiated_via='no_show'`, "Hope all is well" email to parent.
+    - **`no_show`** with `charge_skip=false` (courtesy pass): `no_show_at` stamped, `coach_cancels` row instead of skip charge, cycle pauses 1 week, parent email reads "Hope all is well, no charge this week." Per CLAUDE.md: "Tim can manually convert a no-show to a credit if a legitimate reason surfaces."
+    - **`coach_cancel_late`**: after-the-fact coach cancel. Same shape as the proactive cancel — coach_cancels row + Calendly REST cancel (best-effort) + parent email in Tim's voice + auto-chat to kid. Apology framing in the email ("Sorry I didn't get word to you sooner.").
+  - **`OutcomeForm`** Client Component in `CalendarClient.tsx`:
+    - Renders inside the event modal whenever `hoursUntil(live_call_at) <= 0` AND not cancelled.
+    - 3-button outcome picker. Click expands the relevant follow-up form:
+      - Done → coach note textarea with placeholder example
+      - No-show → charge-skip checkbox (default ON) + clear copy on what each option does
+      - Late cancel → 3-reason dropdown (same as proactive cancel)
+    - Success state renders an inline confirmation. `router.refresh()` on Done drops the `call_outcome_pending` Focused Home task.
+  - **Calendar modal decision tree** (clean conditional):
+    1. cancelled → Status banner (terminal)
+    2. past + not yet outcome'd → OutcomeForm
+    3. upcoming → CoachCancelForm (proactive cancel)
+    4. trial → placeholder pointing at Calendly
+  - **Focused Home render branch** for `call_outcome_pending`:
+    - Amber `POST CALL` pill (reuses `pastDuePill` style).
+    - Title: `How did [Kid]'s call go?` / body: `Live call was Nh ago. Mark it done, no show, or a late cancel so the family's records close out.`
+    - Inline CTA: **Mark outcome** → `/admin/calendar` + **Open client card**.
+  - **`/portal/progress` coach-note rendering.** Each week row in the current plan now shows Tim's coach note inline (when set) as a lime-bordered callout labeled "Note from Tim." Surfaces immediately after Tim marks the call done with a note. This is the strategic moat — Tim's voice landing on the parent's dashboard within minutes of the call ending.
+
+  **One important decision baked in:** the kid no-show path counts as a skip by default (Peter: "if a kid misses that just counts as an illegal cancel or a skip, no refund, just a Hope all is well"). The courtesy-pass override is the safety valve for genuine emergencies. Avoids the "just don't reply, win" hack.
+
 - **Money page + Waitlist page + 2 new Focused Home tasks (2026-05-20).** Six pieces landed end-to-end. `npx tsc --noEmit` clean.
   - **`/admin/money` rebuilt from stub.** Server Component that calls Stripe directly (no caching at 1-10 client scale; 5-min revalidate is the upgrade path if /admin/money render gets slow):
     - Headline stats grid: Paying / 12, Cycle run rate (paying × $56), This month, Year to date, Past due, Auto renew off.

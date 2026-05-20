@@ -314,7 +314,11 @@ function EventModal({
           </a>
         </div>
 
-        {/* Cancel state OR cancel form */}
+        {/* Decision tree for the action section:
+              cancelled                 → status banner (terminal)
+              past + not yet outcome'd  → OutcomeForm (mark done / no_show / late cancel)
+              upcoming                  → CoachCancelForm (proactive cancel)
+              trial                     → placeholder */}
         {isPaid && event.cancelled ? (
           <div className={styles.modalSection}>
             <div className={styles.modalSectionLabel}>Status</div>
@@ -328,6 +332,12 @@ function EventModal({
                   : null}
             </div>
           </div>
+        ) : isPaid && hoursUntil(event.when_iso) <= 0 ? (
+          <OutcomeForm
+            slotId={event.slot_id}
+            kidFirstName={event.kid_first_name}
+            onDone={onClose}
+          />
         ) : isPaid ? (
           <CoachCancelForm slotId={event.slot_id} kidFirstName={event.kid_first_name} onDone={onClose} when={event.when_iso} />
         ) : (
@@ -500,6 +510,207 @@ function CoachCancelForm({
           Never mind
         </button>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Post-call outcome form (Round 2)
+// ---------------------------------------------------------------------------
+// Renders inside the event modal once live_call_at has passed. Three
+// outcomes: It happened / Student no-show / I had to cancel last minute.
+
+type Outcome = "done" | "no_show" | "coach_cancel_late" | null;
+
+function OutcomeForm({
+  slotId,
+  kidFirstName,
+  onDone,
+}: {
+  slotId: string;
+  kidFirstName: string;
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const [outcome, setOutcome] = useState<Outcome>(null);
+  const [coachNote, setCoachNote] = useState("");
+  const [chargeSkip, setChargeSkip] = useState(true);
+  const [reason, setReason] =
+    useState<typeof REASONS[number]["value"]>("sick");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  async function submit() {
+    if (!outcome) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const body: Record<string, unknown> = { slot_id: slotId, outcome };
+      if (outcome === "done") body.coach_note = coachNote.trim() || undefined;
+      if (outcome === "no_show") body.charge_skip = chargeSkip;
+      if (outcome === "coach_cancel_late") body.reason = reason;
+
+      const res = await fetch("/api/admin/calendar/mark-outcome", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const r = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(r.error ?? "Mark failed. Try again.");
+        setSubmitting(false);
+        return;
+      }
+      const msg =
+        outcome === "done"
+          ? "Marked done. Cycle counter advanced."
+          : outcome === "no_show"
+            ? chargeSkip
+              ? `Marked no show. 1 skip charged. ${kidFirstName}'s parent emailed.`
+              : `Marked no show. Courtesy pass — no skip charged. ${kidFirstName}'s parent emailed.`
+            : `Marked as late cancel. ${kidFirstName}'s parent and ${kidFirstName} both notified.`;
+      setDone(msg);
+      setSubmitting(false);
+    } catch {
+      setError("Could not reach the server.");
+      setSubmitting(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className={styles.modalSection}>
+        <div className={styles.modalSectionLabel}>Marked</div>
+        <p className={styles.modalSectionText}>{done}</p>
+        <button
+          type="button"
+          className={styles.outcomeBtn}
+          onClick={() => {
+            onDone();
+            router.refresh();
+          }}
+        >
+          Done
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.modalSection}>
+      <div className={styles.modalSectionLabel}>How did this call go?</div>
+      <div className={styles.outcomeRow}>
+        <button
+          type="button"
+          onClick={() => setOutcome("done")}
+          className={`${styles.outcomeBtn} ${outcome === "done" ? styles.outcomeBtnActiveOk : ""}`}
+        >
+          ✅ It happened
+        </button>
+        <button
+          type="button"
+          onClick={() => setOutcome("no_show")}
+          className={`${styles.outcomeBtn} ${outcome === "no_show" ? styles.outcomeBtnActiveWarn : ""}`}
+        >
+          🟡 Student no show
+        </button>
+        <button
+          type="button"
+          onClick={() => setOutcome("coach_cancel_late")}
+          className={`${styles.outcomeBtn} ${outcome === "coach_cancel_late" ? styles.outcomeBtnActiveEpic : ""}`}
+        >
+          🟠 I had to cancel
+        </button>
+      </div>
+
+      {outcome === "done" ? (
+        <>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Note for the parent (optional)</span>
+            <textarea
+              value={coachNote}
+              onChange={(e) => setCoachNote(e.target.value)}
+              className={styles.fieldInput}
+              rows={3}
+              maxLength={2000}
+              placeholder={`e.g. ${kidFirstName} crushed the tunneling drills today. Working on edit-confirm timing next.`}
+            />
+          </label>
+          <p className={styles.modalSectionSub}>
+            Surfaces on the parent&apos;s Progress page. Strategic moat
+            material; specifics &gt; generic praise.
+          </p>
+        </>
+      ) : null}
+
+      {outcome === "no_show" ? (
+        <>
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={chargeSkip}
+              onChange={(e) => setChargeSkip(e.target.checked)}
+            />
+            <span>
+              Count as 1 skip ({chargeSkip ? "default" : "uncheck for courtesy pass"})
+            </span>
+          </label>
+          <p className={styles.modalSectionSub}>
+            {chargeSkip
+              ? `${kidFirstName} keeps the slides + voiceover. Cycle advances. Parent gets "Hope all is well" email.`
+              : `No skip charged. Cycle pauses one week. Parent still gets "Hope all is well, no charge" email. Use only for real emergencies.`}
+          </p>
+        </>
+      ) : null}
+
+      {outcome === "coach_cancel_late" ? (
+        <>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Reason</span>
+            <select
+              value={reason}
+              onChange={(e) =>
+                setReason(e.target.value as typeof REASONS[number]["value"])
+              }
+              className={styles.fieldInput}
+            >
+              {REASONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className={styles.modalSectionSub}>
+            Treated as a coach cancel: family&apos;s cycle pauses one week,
+            no skip charged. Parent gets an apology email in your voice.
+          </p>
+        </>
+      ) : null}
+
+      {error ? <div className={styles.modalError}>{error}</div> : null}
+
+      {outcome ? (
+        <div className={styles.modalActions}>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={submitting}
+            className={styles.outcomeSubmitBtn}
+          >
+            {submitting ? "Saving..." : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOutcome(null)}
+            disabled={submitting}
+            className={styles.cancelLinkBtn}
+          >
+            Pick a different outcome
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

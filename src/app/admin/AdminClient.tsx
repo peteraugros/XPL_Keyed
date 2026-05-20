@@ -574,6 +574,7 @@ function FocusedHome({
   const isAutoRenewOff = topTask.task_type === "subscription_auto_renew_off";
   const isLessonStub = topTask.task_type === "lesson_authoring_needed";
   const isTikTok = topTask.task_type === "tiktok_daily_reminder";
+  const isOutcomePending = topTask.task_type === "call_outcome_pending";
   const isAwareness =
     isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff || isTikTok;
 
@@ -637,6 +638,8 @@ function FocusedHome({
           <span className={styles.pastDuePill}>LESSON STUB</span>
         ) : isTikTok ? (
           <span className={styles.newTrialPill}>FUNNEL</span>
+        ) : isOutcomePending ? (
+          <span className={styles.pastDuePill}>POST CALL</span>
         ) : (
           "Next thing"
         )}
@@ -748,6 +751,18 @@ function FocusedHome({
         </div>
       ) : isTikTok ? (
         <TikTokLogButton onDone={() => router.refresh()} />
+      ) : isOutcomePending ? (
+        <div className={styles.inlineReplyRow}>
+          <a href={"/admin/calendar" as never} className={styles.focusedHomeCta}>
+            Mark outcome
+          </a>
+          <a
+            href={`/admin/clients?client=${topTask.client_id}`}
+            className={styles.inlineReplySecondary}
+          >
+            Open client card
+          </a>
+        </div>
       ) : (
         <a href={`/admin/clients?client=${topTask.client_id}`} className={styles.focusedHomeCta}>
           {phrasing.cta}
@@ -1319,6 +1334,20 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         title: `${name} dropped a clip.`,
         body: payload.vod_url ? "Watch it before the call so you walk in informed." : "Watch it before the call so you walk in informed.",
         cta: "Open card",
+      };
+    }
+    case "call_outcome_pending": {
+      const payload = (t.task_payload ?? {}) as {
+        live_call_at?: string;
+        week_number?: number;
+      };
+      const when = payload.live_call_at ? new Date(payload.live_call_at) : null;
+      const hours = when ? Math.floor((Date.now() - when.getTime()) / (1000 * 60 * 60)) : 0;
+      const when_label = hours < 4 ? `${hours}h ago` : when ? when.toLocaleDateString("en-US", { weekday: "short" }) : "earlier";
+      return {
+        title: `How did ${name}'s call go?`,
+        body: `Live call was ${when_label}. Mark it done, no show, or a late cancel so the family's records close out.`,
+        cta: "Mark outcome",
       };
     }
     case "lesson_authoring_needed": {

@@ -43,6 +43,8 @@ type SlotLookup = {
   live_call_completed_at: string | null;
   no_show_at: string | null;
   delivered_at: string | null;
+  coach_note: string | null;
+  coach_note_at: string | null;
 };
 
 type LessonLookup = {
@@ -164,7 +166,7 @@ export default async function ProgressPage() {
     const slotsResp = await supabase
       .from("curriculum_slots")
       .select(
-        "id, curriculum_id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id, live_call_completed_at, no_show_at, delivered_at",
+        "id, curriculum_id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id, live_call_completed_at, no_show_at, delivered_at, coach_note, coach_note_at",
       )
       .in("curriculum_id", ids)
       .order("week_number", { ascending: true });
@@ -299,6 +301,12 @@ export default async function ProgressPage() {
                     {status.kind === "upcoming" || status.kind === "completed" ? (
                       <span className={progressStyles.weekWhen}>
                         {formatDateTime(status.at)}
+                      </span>
+                    ) : null}
+                    {s.coach_note ? (
+                      <span className={progressStyles.coachNote}>
+                        <span className={progressStyles.coachNoteLabel}>Note from Tim</span>
+                        {s.coach_note}
                       </span>
                     ) : null}
                   </span>

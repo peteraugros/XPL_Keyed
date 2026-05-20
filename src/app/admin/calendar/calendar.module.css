@@ -379,3 +379,65 @@
   padding: 10px 12px;
   line-height: 1.5;
 }
+
+/* --- Outcome form (Round 2) --- */
+.outcomeRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.outcomeBtn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 48px;
+}
+.outcomeBtn:hover {
+  border-color: var(--lime);
+}
+.outcomeBtnActiveOk {
+  border-color: rgba(49, 146, 54, 0.65);
+  background: rgba(49, 146, 54, 0.08);
+}
+.outcomeBtnActiveWarn {
+  border-color: rgba(245, 166, 35, 0.65);
+  background: rgba(245, 166, 35, 0.08);
+}
+.outcomeBtnActiveEpic {
+  border-color: rgba(200, 7, 21, 0.55);
+  background: rgba(200, 7, 21, 0.06);
+}
+.outcomeSubmitBtn {
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 44px;
+}
+.outcomeSubmitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 6px;
+  cursor: pointer;
+}
