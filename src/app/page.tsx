@@ -72,6 +72,13 @@ export default function HomePage() {
               <a href="#how" className="btn btn-ghost">See how it works</a>
             </div>
             <div className="credentials">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/hero-silhouette.png"
+                alt=""
+                aria-hidden="true"
+                className="soldier-drop"
+              />
               <div className="cred-item">
                 <div className="cred-num">Unreal</div>
                 <div className="cred-label">Current rank</div>

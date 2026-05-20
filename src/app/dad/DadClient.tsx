@@ -32,14 +32,27 @@ type QueueItem = {
 
 type ResolutionType = "handled_directly" | "returned_to_tim" | "no_action_needed";
 
+type NotificationRow = {
+  id: string;
+  channel: string;
+  trigger: string;
+  recipient_type: string;
+  status: string;
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+};
+
 export default function DadClient({
   dadName,
   queue,
   timDadMessages,
+  notifications,
 }: {
   dadName: string;
   queue: QueueItem[];
   timDadMessages: TimDadMessage[];
+  notifications: NotificationRow[];
 }) {
   const router = useRouter();
 
@@ -85,11 +98,80 @@ export default function DadClient({
         <TimDadChannel initialMessages={timDadMessages} viewerRole="dad" />
       </section>
 
+      <NotificationLogPanel rows={notifications} />
+
       <footer className={styles.footer}>
         Phase 1 Dad surface. Operational alerts, business glance, and View as Tim land later.
       </footer>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Recent system activity — every transactional email the platform fired.
+// Visible only on /admin/dad so Peter can spot patterns without giving
+// Tim the noise.
+// ---------------------------------------------------------------------------
+function NotificationLogPanel({ rows }: { rows: NotificationRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <section className={styles.channelBlock}>
+        <h2 className={styles.queueTitle}>Recent system activity</h2>
+        <p className={styles.subtle}>No emails sent yet.</p>
+      </section>
+    );
+  }
+  const failed = rows.filter((r) => r.status === "failed");
+  return (
+    <section className={styles.channelBlock}>
+      <h2 className={styles.queueTitle}>Recent system activity</h2>
+      <p className={styles.subtle}>
+        Last {rows.length} transactional emails the platform fired.
+        {failed.length > 0 ? ` ${failed.length} failed.` : ""}
+      </p>
+      <ul className={styles.notifList}>
+        {rows.map((r) => (
+          <li
+            key={r.id}
+            className={`${styles.notifRow} ${r.status === "failed" ? styles.notifRowFailed : ""}`}
+          >
+            <span className={styles.notifTime}>{formatTime(r.created_at)}</span>
+            <span className={styles.notifBody}>
+              <span className={styles.notifTrigger}>{r.trigger}</span>
+              <span className={styles.notifMeta}>
+                {r.channel} · {r.recipient_type}
+                {r.error_message ? ` · ${r.error_message}` : ""}
+              </span>
+            </span>
+            <span
+              className={`${styles.notifStatus} ${
+                r.status === "sent"
+                  ? styles.notifStatusOk
+                  : r.status === "failed"
+                    ? styles.notifStatusFail
+                    : ""
+              }`}
+            >
+              {r.status}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(d);
+  const timeRaw = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(d);
+  return `${datePart} ${timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) => ap.toLowerCase())}`;
 }
 
 function StuckRow({

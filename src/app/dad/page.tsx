@@ -35,6 +35,17 @@ type StuckRow = {
   created_at: string;
 };
 
+export type NotificationRow = {
+  id: string;
+  channel: string;
+  trigger: string;
+  recipient_type: string;
+  status: string;
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+};
+
 type TimDadRow = {
   id: string;
   sender_role: "tim" | "dad";
@@ -237,6 +248,18 @@ export default async function DadPage() {
     .limit(50);
   const timDadMessages = (timDadLookup.data ?? []) as TimDadRow[];
 
+  // Recent system activity from notification_log (last 50 emails). Gives
+  // Peter visibility into every transactional email the platform fires
+  // so he can spot patterns (high failure rate, unexpected sends, etc).
+  const notifLookup = await supabase
+    .from("notification_log")
+    .select(
+      "id, channel, trigger, recipient_type, status, error_message, sent_at, created_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const notifications = (notifLookup.data ?? []) as NotificationRow[];
+
   // Pass everything to the client component for rendering.
   const queue = stucks.map((s) => ({
     id: s.id,
@@ -257,6 +280,7 @@ export default async function DadPage() {
         dadName={coach.display_name}
         queue={queue}
         timDadMessages={timDadMessages}
+        notifications={notifications}
       />
     </div>
   );

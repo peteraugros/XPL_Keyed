@@ -20,7 +20,7 @@ import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { cancelCalendlyEvent } from "@/lib/calendly/api";
 import { brandedEmailHtml } from "@/lib/email/template";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { sendBrandedEmail } from "@/lib/email/send";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -233,10 +233,11 @@ async function sendAutoRenewOffEmail(
 <p>Anything to share? Have ${kidFirstName} message me in the chat. You see everything in your dashboard.</p>
 <p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,
   });
-  await resend.emails.send({
-    from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
+  await sendBrandedEmail({
     to: parentEmail,
     subject: "Auto renew off for the next cycle",
     html,
+    trigger: "auto_renew_off",
+    recipientType: "parent",
   });
 }

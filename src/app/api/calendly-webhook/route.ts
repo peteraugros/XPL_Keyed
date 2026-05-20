@@ -21,8 +21,8 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { stripe } from "@/lib/stripe/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
 import { brandedEmailHtml } from "@/lib/email/template";
+import { sendBrandedEmail } from "@/lib/email/send";
 import { sendDirectMessage } from "@/lib/discord/bot";
 
 export const runtime = "nodejs";
@@ -288,11 +288,14 @@ async function notifyParentAutoRenewOff(
 <p>Anything to share? Have ${kidFirstName} message me in the chat. You see everything in your dashboard.</p>
 <p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,
   });
-  await resend.emails.send({
-    from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
+  await sendBrandedEmail({
     to: p.email,
     subject: "Auto renew off for the next cycle",
     html,
+    trigger: "auto_renew_off",
+    recipientType: "parent",
+    relatedEntityType: "subscription",
+    relatedEntityId: subscription.id,
   });
 }
 
@@ -421,16 +424,14 @@ async function handleInviteeCreated(payload: InviteePayload, supabase: Supa) {
     kidDiscord,
   });
 
-  try {
-    await resend.emails.send({
-      from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-      to: parentEmail,
-      subject,
-      html,
-    });
-  } catch (err) {
-    console.error("[calendly-webhook] confirmation send failed", err);
-  }
+  await sendBrandedEmail({
+    to: parentEmail,
+    subject,
+    html,
+    trigger: "branded_booking_confirmation",
+    recipientType: "parent",
+    relatedEntityType: "trial_call",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -585,16 +586,15 @@ ${closingLine}
     ctaLabel: bookedCount >= totalSlots ? "Complete checkout" : "Open dashboard",
     ctaHref: `${APP_URL}/portal/sessions`,
   });
-  try {
-    await resend.emails.send({
-      from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-      to: parent.email,
-      subject: `${player.first_name}'s Week ${slot.week_number} is set`,
-      html,
-    });
-  } catch (err) {
-    console.error("[calendly-webhook][paid] confirmation send failed", err);
-  }
+  await sendBrandedEmail({
+    to: parent.email,
+    subject: `${player.first_name}'s Week ${slot.week_number} is set`,
+    html,
+    trigger: "branded_booking_confirmation",
+    recipientType: "parent",
+    relatedEntityType: "curriculum_slot",
+    relatedEntityId: slot.id,
+  });
 }
 
 function formatFullDate(date: Date, tz: string): string {
@@ -825,16 +825,15 @@ async function notifyParent(args: {
     body = forfeitEmail(player.first_name, parent.first_name);
   }
 
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: parent.email,
-      subject,
-      html: body,
-    });
-  } catch (err) {
-    console.error("[calendly-webhook] resend send failed", err);
-  }
+  await sendBrandedEmail({
+    to: parent.email,
+    subject,
+    html: body,
+    trigger: "parent_cancel_notification",
+    recipientType: "parent",
+    relatedEntityType: "subscription",
+    relatedEntityId: subscription.id,
+  });
 }
 
 async function notifyTimCancelThird(subscription: SubscriptionRow, supabase: Supa) {

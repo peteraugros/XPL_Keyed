@@ -19,7 +19,7 @@ import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { cancelCalendlyEvent } from "@/lib/calendly/api";
 import { brandedEmailHtml } from "@/lib/email/template";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { sendBrandedEmail } from "@/lib/email/send";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -209,17 +209,15 @@ export async function POST(req: Request) {
       ctaLabel: "Pick a new time",
       ctaHref: `${appUrl}/portal/sessions`,
     });
-    try {
-      await resend.emails.send({
-        from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-        to: parent.email,
-        subject: copy.subject,
-        html,
-      });
-    } catch (err) {
-      console.error("[admin/calendar/coach-cancel] parent email send failed", err);
-      // Non-fatal — local state is committed already.
-    }
+    await sendBrandedEmail({
+      to: parent.email,
+      subject: copy.subject,
+      html,
+      trigger: "coach_cancel",
+      recipientType: "parent",
+      relatedEntityType: "curriculum_slot",
+      relatedEntityId: slot.id,
+    });
   }
 
   // 5. Auto-chat to the kid (sender_role='coach', templated in Tim's voice)

@@ -29,8 +29,8 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
 import { brandedEmailHtml } from "@/lib/email/template";
+import { sendBrandedEmail } from "@/lib/email/send";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -254,18 +254,19 @@ ${inlineCta}
     ctaHref: approvalUrl,
   });
 
-  try {
-    await resend.emails.send({
-      from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-      to: parent.email,
-      subject: `Congratulations, you are in`,
-      html,
-    });
-  } catch (err) {
+  const emailResult = await sendBrandedEmail({
+    to: parent.email,
+    subject: `Congratulations, you are in`,
+    html,
+    trigger: "stage_c_take_on",
+    recipientType: "parent",
+    relatedEntityType: "curriculum",
+    relatedEntityId: curriculumId,
+  });
+  if (!emailResult.ok) {
     // The curriculum is written; the email is the discoverability channel.
     // Log + return ok-with-warning so Tim can manually share the link
     // if the email send fails.
-    console.error("[take-on] conversion email send failed", err);
     return NextResponse.json({
       ok: true,
       warning: "email_send_failed",

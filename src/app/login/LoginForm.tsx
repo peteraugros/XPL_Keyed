@@ -19,11 +19,13 @@ export default function LoginForm({
   showCoachOption,
   next,
   callbackError,
+  initialCoachPanel,
 }: {
   initialRole: Role;
   showCoachOption: boolean;
   next: string | null;
   callbackError: string | null;
+  initialCoachPanel?: boolean;
 }) {
   const [role, setRole] = useState<Role>(initialRole);
   const [email, setEmail] = useState("");
@@ -33,7 +35,7 @@ export default function LoginForm({
   // Hidden coach password panel. Reveal mechanism: triple-tap the brand
   // mark within 1.5 seconds. No visual hint that it exists — Tim knows
   // the trick.
-  const [secretRevealed, setSecretRevealed] = useState(false);
+  const [secretRevealed, setSecretRevealed] = useState(initialCoachPanel === true);
   const [secretUsername, setSecretUsername] = useState("");
   const [secretPassword, setSecretPassword] = useState("");
   const [secretSubmitting, setSecretSubmitting] = useState(false);
@@ -42,7 +44,7 @@ export default function LoginForm({
 
   function onBrandTap() {
     const now = Date.now();
-    tapTimesRef.current = [...tapTimesRef.current.filter((t) => now - t < 1500), now];
+    tapTimesRef.current = [...tapTimesRef.current.filter((t) => now - t < 2500), now];
     if (tapTimesRef.current.length >= 3) {
       setSecretRevealed(true);
       tapTimesRef.current = [];
@@ -125,7 +127,14 @@ export default function LoginForm({
           className={styles.brand}
           onClick={onBrandTap}
           aria-label="XPL Keyed"
-          style={{ background: "none", border: "none", cursor: "default", padding: 0 }}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "default",
+            padding: "8px 0",
+            width: "100%",
+            display: "block",
+          }}
         >
           XPL KEYED
         </button>

@@ -15,7 +15,7 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { sendBrandedEmail } from "@/lib/email/send";
 import { brandedEmailHtml } from "@/lib/email/template";
 
 export const runtime = "nodejs";
@@ -75,15 +75,16 @@ export async function POST(req: Request) {
     ctaHref: verifyUrl,
   });
 
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: parsed.parent_email,
-      subject: "Confirm your child's coaching trial",
-      html,
-    });
-  } catch (err) {
-    console.error("[intake/request-verification] resend failed", err);
+  const r = await sendBrandedEmail({
+    to: parsed.parent_email,
+    subject: "Confirm your child's coaching trial",
+    html,
+    trigger: "coppa_verification",
+    recipientType: "parent",
+    relatedEntityType: "intake",
+    relatedEntityId: parsed.intake_id,
+  });
+  if (!r.ok) {
     return NextResponse.json({ error: "email_send_failed" }, { status: 502 });
   }
 

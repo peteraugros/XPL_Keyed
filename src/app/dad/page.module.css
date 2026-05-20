@@ -252,3 +252,81 @@
   color: var(--text-faint);
   margin-top: 12px;
 }
+
+/* --- Notification log panel --- */
+.subtle {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+.notifList {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+.notifRow {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+.notifRowFailed {
+  border-color: rgba(200, 7, 21, 0.45);
+  background: rgba(200, 7, 21, 0.05);
+}
+.notifTime {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.notifBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.notifTrigger {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+.notifMeta {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.notifStatus {
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.notifStatusOk {
+  background: rgba(49, 146, 54, 0.14);
+  border-color: rgba(49, 146, 54, 0.55);
+  color: var(--uncommon);
+}
+.notifStatusFail {
+  background: rgba(200, 7, 21, 0.12);
+  border-color: rgba(200, 7, 21, 0.55);
+  color: var(--epic);
+}

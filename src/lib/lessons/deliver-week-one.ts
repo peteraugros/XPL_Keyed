@@ -7,7 +7,7 @@
 // the same guard).
 
 import { brandedEmailHtml } from "@/lib/email/template";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { sendBrandedEmail } from "@/lib/email/send";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 type TalkingPoint = { category?: string; text: string };
@@ -159,15 +159,16 @@ export async function deliverWeekOneImmediately(
     return { ok: false, reason: "slot_has_no_lesson_or_vod" };
   }
 
-  try {
-    await resend.emails.send({
-      from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-      to: parent.email,
-      subject: `${player.first_name}'s week ${slot.week_number} lesson is ready`,
-      html,
-    });
-  } catch (err) {
-    console.error("[deliver-week-one] resend send failed", err);
+  const r = await sendBrandedEmail({
+    to: parent.email,
+    subject: `${player.first_name}'s week ${slot.week_number} lesson is ready`,
+    html,
+    trigger: "lesson_delivery_week1",
+    recipientType: "parent",
+    relatedEntityType: "curriculum_slot",
+    relatedEntityId: slot.id,
+  });
+  if (!r.ok) {
     return { ok: false, reason: "send_failed" };
   }
 

@@ -28,7 +28,7 @@ import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { cancelCalendlyEvent } from "@/lib/calendly/api";
 import { brandedEmailHtml } from "@/lib/email/template";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { sendBrandedEmail } from "@/lib/email/send";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -283,16 +283,15 @@ ${
 <p>Anything to share? Have ${player.first_name} message me in the chat. I see everything in your dashboard.</p>
 <p>Talk soon,<br/>Tim</p>`,
       });
-      try {
-        await resend.emails.send({
-          from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-          to: parent.email,
-          subject: headline,
-          html,
-        });
-      } catch (err) {
-        console.error("[mark-outcome:no_show] email send failed", err);
-      }
+      await sendBrandedEmail({
+        to: parent.email,
+        subject: headline,
+        html,
+        trigger: "no_show",
+        recipientType: "parent",
+        relatedEntityType: "curriculum_slot",
+        relatedEntityId: slot.id,
+      });
     }
 
     return NextResponse.json({ ok: true, outcome: "no_show", charged_skip: body.charge_skip });
@@ -346,16 +345,15 @@ ${
         ctaLabel: "Pick a new time",
         ctaHref: `${appUrl}/portal/sessions`,
       });
-      try {
-        await resend.emails.send({
-          from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-          to: parent.email,
-          subject: copy.subject,
-          html,
-        });
-      } catch (err) {
-        console.error("[mark-outcome:coach_cancel_late] email send failed", err);
-      }
+      await sendBrandedEmail({
+        to: parent.email,
+        subject: copy.subject,
+        html,
+        trigger: "coach_cancel_late",
+        recipientType: "parent",
+        relatedEntityType: "curriculum_slot",
+        relatedEntityId: slot.id,
+      });
     }
 
     // Auto-chat to kid

@@ -673,7 +673,7 @@ The scaffold lands here. Don't reconstruct from memory — read the files, then 
 Wired-but-invisible + specced-but-unbuilt items surfaced by the 2026-05-20 audit, plus a couple of new asks. None block production for Tim's n=1 instance; each closes a real UX or operator gap.
 
 1. **Tim secret password login.** ✅ Built 2026-05-20. Triple-tap the brand on `/login` to reveal username + password form. See "Done" entry for setup SQL.
-2. **`notification_log` table wiring.** Schema exists in `20260517000000_initial_schema.sql`, zero reads/writes. Make it a write-side audit: every Resend email send + every system-fired in-app event logs a row. Surface on Dad admin as a "Recent system activity" panel. ~45 min.
+2. **`notification_log` table wiring.** ✅ Built 2026-05-20. Node-side `sendBrandedEmail()` wrapper writes every Resend send + status to the table. All 14 Node-side call sites migrated. Dad admin shows last 50 rows. **Deno Edge Functions still bypass** — see item #12.
 3. **Read receipts on messages.** Schema has `messages.read_by_recipient_at` + `read_by_parent_at` columns; never set. Wire `MessageThread` to mark-as-read on mount (per-viewer). Unlocks "unread from Tim" badge for kid + parent. ~30 min.
 4. **Lesson edit route at `/admin/lessons/<id>/edit`.** Today Tim can author NEW lessons (`/admin/lessons/new`) but stub lessons created by Stage C take-on / auto-renew are uneditable in place. He has to author a fresh lesson + swap it in. ~45 min for a route that loads existing lesson data into the existing LessonForm + a PATCH endpoint.
 5. **Live trial-call countdown + "Join Discord call" CTA on `/play`.** Spec calls for a 15-min-before-call live button. Today it's a static disabled button. Blocked on storing `subscriptions.trial_call_at` from intake (already wired by Calendly webhook). Just needs a small client component that re-enables the button based on the time. ~30 min.
@@ -683,6 +683,7 @@ Wired-but-invisible + specced-but-unbuilt items surfaced by the 2026-05-20 audit
 9. **60-day refund window enforcement.** Today the policy lives in ToS + email copy; no actual block on Stripe-portal refund requests > 60 days. Customer experience unchanged at MVP scale. Build when first real refund flows in.
 10. **Day-7 unscheduled auto-cancel for scattered renewals.** Existing `cron-scheduling-abandonment` Edge Function needs a branch for "post-charge unscheduled." Currently parent gets reminded but never auto-cancelled.
 11. **Calendly auto-booking of uniform predicted times.** Auto-renew sets `live_call_at` to predicted times but doesn't create a real Calendly event. Parent has to manually reschedule into a real slot. Either use Calendly's one-time scheduling-link API or add an auto-suggest UI on next sign-in.
+12. **Deno-side notification_log wiring.** The Node-side helper landed (#2 above) but every cron Edge Function (`cron-day7-dunning-ping`, `cron-dunning-parent-reminders`, `cron-pending-cancel-lifecycle`, `cron-waitlist-offer-lifecycle`, `cron-waitlist-freshness-check`, `cron-sunday-lesson-delivery`, `cron-scheduling-abandonment`, `cron-payment-abandonment`, `cron-auto-renew-detection`) sends through the legacy Resend path. Needs a parallel Deno helper at `supabase/functions/_shared/resend.ts` that also inserts a notification_log row. ~30 min.
 
 ### Human setup (only Peter can do)
 
@@ -1137,6 +1138,62 @@ This section is the running source of truth for what's on Peter's plate. Update 
     - Coach attribution defaults to the oldest active coach (single-coach MVP). Multi-coach attribution lands later via session var or `auth.uid()` lookup.
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
+
+- **Marketing hero soldier silhouette + notification_log audit wiring (2026-05-20).** Two pieces in one session. `npx tsc --noEmit` clean.
+
+  **Marketing hero — Fortnite silhouette drop-in:**
+  - New `<img>` inside `.credentials` on the marketing landing (`src/app/page.tsx`). Pure black silhouette + transparent PNG at `public/images/hero-silhouette.png`.
+  - Source was a generic Fortnite character silhouette (Tim's call — the original soldier image read too "Call of Duty"). Processed via a node + sharp script that:
+    1. Loads the source PNG
+    2. Scans pixel rows from bottom up to find the gap between the figure and any watermark/attribution strip below
+    3. Crops just below the figure's feet
+    4. Applies a binary threshold (pixels brighter than 200 avg → fully transparent; everything else → solid pure black with full alpha)
+    5. Auto-trims surrounding transparent pixels via `sharp.trim()`
+  - **Triggered on `:has(.rarity-bars:hover)`** — a CSS-only mechanism that requires no JavaScript. The soldier drops from `translateY(-120vh)` with a 1.1s cubic-bezier easing curve:
+    - 0%: above the viewport, scale 0.55, opacity 0
+    - 35%: opacity 1 (becomes visible mid-fall)
+    - 55%: lands hard at translateY(18px) with scale(1.18, 0.78) — horizontal squash + vertical compress
+    - 72%: small recoil to translateY(-18px) with scale(0.94, 1.08)
+    - 86%: settling bob
+    - 100%: rests at translateY(0) scale(1)
+  - **Position**: `absolute` inside `.credentials` with `bottom: 100%` so the soldier's feet sit AT the top edge of the stats row when landed. `right: clamp(0px, 3vw, 50px)` biases right toward the rarity bars; `width: clamp(370px, 50vw, 640px)` scales responsively.
+  - Mobile (<768px): hidden via `display: none` — no sensible side-room when the hero collapses to a single column.
+  - `prefers-reduced-motion` respected — soldier appears in place without the drop/squash animation.
+  - **Image processing flag**: the original soldier silhouette source was a watermarked Dreamstime preview. **Not licensed for production use.** Peter swapped to a different (still unknown-provenance) Fortnite silhouette. Need to verify the new image's licensing before launch.
+
+  **notification_log audit wiring** (TODO item #2 from the Open TODO list — now ✅ done):
+  - Schema (`notification_log` table from migration `20260517000000_initial_schema.sql`) had zero reads or writes since day one. Wired as a write-side audit trail.
+  - **`src/lib/email/send.ts`** — new `sendBrandedEmail()` wrapper:
+    - Body: `{to, subject, html, trigger, recipientType, recipientId?, relatedEntityType?, relatedEntityId?}`
+    - Strict `trigger` enum: `magic_link / coppa_verification / branded_booking_confirmation / stage_c_take_on / stage_c_decline / lesson_delivery_week1 / auto_renew_off / coach_cancel / coach_cancel_late / no_show / parent_cancel_notification / other`
+    - Strict `recipientType` enum: `coach / parent / player`
+    - Strict `relatedEntityType` enum: `curriculum_slot / subscription / cancellation_event / waitlist_entry / curriculum / intake / trial_call / no_show`
+    - Calls `resend.emails.send` THEN writes a `notification_log` row with `status='sent' + sent_at=NOW()` on success, OR `status='failed' + error_message=<msg>` on Resend failure. Never throws — caller's main flow keeps going.
+    - If `RESEND_API_KEY` not set, writes `status='failed' + error_message='resend_not_configured'` and returns `{ ok: false }`.
+  - **14 Resend call sites migrated** to the wrapper:
+    1. `/api/portal/sessions/[slot_id]/cancel` — auto_renew_off
+    2. `/api/portal/sessions/[slot_id]/reschedule` — auto_renew_off
+    3. `/api/admin/calendar/coach-cancel` — coach_cancel
+    4. `/api/admin/calendar/mark-outcome` (no-show branch) — no_show
+    5. `/api/admin/calendar/mark-outcome` (late-cancel branch) — coach_cancel_late
+    6. `/api/admin/conversion/take-on` — stage_c_take_on
+    7. `/api/admin/conversion/decline` — stage_c_decline
+    8. `/api/intake/request-verification` — coppa_verification
+    9. `/api/calendly-webhook` (trial confirmation) — branded_booking_confirmation
+    10. `/api/calendly-webhook` (paid-lesson confirmation) — branded_booking_confirmation
+    11. `/api/calendly-webhook` (parent cancel notification) — parent_cancel_notification
+    12. `/api/calendly-webhook` (auto-renew-off) — auto_renew_off
+    13. `/lib/supabase/auth.ts` `deliver()` (magic links, all 3 callers tagged with the correct recipient role)
+    14. `/lib/lessons/deliver-week-one.ts` — lesson_delivery_week1
+  - Verified: `grep -rn "resend.emails.send" src/` returns only the one inside `send.ts`. No bypass.
+  - **Dad admin panel surfaces it.** `/admin/dad` now shows a "Recent system activity" section below the Tim ↔ Dad channel:
+    - Last 50 rows from `notification_log` ordered newest first.
+    - Each row: date+time / trigger label / `channel · recipient_type` / status pill (green for sent, red for failed).
+    - Failed rows get a red row border. Summary line at the top: "Last N transactional emails. X failed."
+    - Read-only — no resend/retry yet.
+
+  **Deferred to a later session:**
+  - **Deno Edge Functions still use the old Resend path**. Every cron (`cron-day7-dunning-ping`, `cron-dunning-parent-reminders`, `cron-pending-cancel-lifecycle`, `cron-waitlist-offer-lifecycle`, `cron-waitlist-freshness-check`, `cron-sunday-lesson-delivery`, `cron-scheduling-abandonment`, `cron-payment-abandonment`, `cron-auto-renew-detection`) sends through `supabase/functions/_shared/resend.ts` which doesn't write to notification_log. Needs a parallel Deno helper that writes to the table. Added to the Open TODO list as item #12.
 
 - **Lesson plan panel + library-driven auto-renew + nav reorder (2026-05-20).** Three phases shipped together. Closes the "Tim has no view into student progress + no swap controls" gap. `npx tsc --noEmit` clean.
 

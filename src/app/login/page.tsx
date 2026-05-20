@@ -67,12 +67,20 @@ export default async function LoginPage({
       ? roleParam
       : "parent";
 
+  // ?coach=1 bypasses the triple-tap and renders the password panel
+  // immediately. Quiet escape hatch for when HMR is stuck or the
+  // tap-target isn't responsive.
+  const coachParam =
+    (Array.isArray(params.coach) ? params.coach[0] : params.coach) ?? null;
+  const initialCoachPanel = coachParam === "1";
+
   return (
     <LoginForm
       initialRole={initialRole}
       showCoachOption={showCoachOption}
       next={nextParam}
       callbackError={errorParam}
+      initialCoachPanel={initialCoachPanel}
     />
   );
 }

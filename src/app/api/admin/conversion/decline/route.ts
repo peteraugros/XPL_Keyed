@@ -15,7 +15,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { sendBrandedEmail } from "@/lib/email/send";
 import { brandedEmailHtml } from "@/lib/email/template";
 import type { TablesUpdate } from "@/types/db";
 
@@ -110,15 +110,18 @@ export async function POST(req: Request) {
 <p style="margin-top:24px;">Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
   });
 
-  try {
-    await resend.emails.send({
-      from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
-      to: parent.email,
-      subject: `About ${player.first_name}'s coaching call`,
-      html,
-    });
-  } catch (err) {
-    console.error("[decline] email send failed", err);
+  const r = await sendBrandedEmail({
+    to: parent.email,
+    subject: `About ${player.first_name}'s coaching call`,
+    html,
+    trigger: "stage_c_decline",
+    recipientType: "parent",
+    // No clean subscription_id in scope here (we ran an UPDATE without
+    // returning). Recipient_id covers the audit.
+    relatedEntityType: null,
+    relatedEntityId: null,
+  });
+  if (!r.ok) {
     // The subscription is already declined. Email failure is observability-only.
     return NextResponse.json({ ok: true, warning: "email_send_failed" });
   }

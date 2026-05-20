@@ -19,8 +19,8 @@
 // Both helpers return an `ok` / `code` shape so route handlers can map to
 // HTTP status codes without leaking detail to the client.
 
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
 import { brandedEmailHtml } from "@/lib/email/template";
+import { sendBrandedEmail } from "@/lib/email/send";
 import type { createServiceRoleClient } from "@/lib/supabase/server";
 
 type ServiceRoleClient = ReturnType<typeof createServiceRoleClient>;
@@ -75,6 +75,7 @@ export async function sendParentMagicLink(
       `<p>Tap the button to sign in to your XPL Keyed dashboard. The link is good for one hour.</p>`,
     ctaLabel: opts.ctaLabel ?? "Open your dashboard",
     ctaHref: linkResult.data.properties.action_link,
+    recipientType: "parent",
   });
 }
 
@@ -117,6 +118,7 @@ export async function sendCoachMagicLink(
     bodyHtml: `<p>Tap the button to open the coach admin. The link is good for one hour.</p>`,
     ctaLabel: "Open admin",
     ctaHref: linkResult.data.properties.action_link,
+    recipientType: "coach",
   });
 }
 
@@ -186,6 +188,10 @@ export async function sendPlayerMagicLink(
 <p style="font-size:13px;color:rgba(255,255,255,0.6);">You have full read access to ${escapeHtml(playerRow.data.first_name)}'s messages and lessons from your own parent dashboard. This link is only for the player view.</p>`,
     ctaLabel: `Open ${escapeHtml(playerRow.data.first_name)}'s portal`,
     ctaHref: linkResult.data.properties.action_link,
+    // Magic link is delivered to the parent's inbox but signs the
+    // synthetic player auth user in. Audit-wise this is a 'player'
+    // signal — that's whose session lands.
+    recipientType: "player",
   });
 }
 
@@ -206,6 +212,7 @@ async function deliver(opts: {
   bodyHtml: string;
   ctaLabel: string;
   ctaHref: string;
+  recipientType: "parent" | "player" | "coach";
 }): Promise<MagicLinkResult> {
   // Every magic-link email gets a bookmark/login fallback footer so the
   // recipient has a durable way back even if this email is deleted. Display
@@ -214,23 +221,19 @@ async function deliver(opts: {
   const loginDisplay = APP_URL.replace(/^https?:\/\//, "");
   const bodyWithFooter = `${opts.bodyHtml}
 <p style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.6);border-top:1px solid rgba(255,255,255,0.12);padding-top:16px;">Need to come back later? Sign in any time at <a href="${APP_URL}/login" style="color:#C7FF3D;">${loginDisplay}/login</a>.</p>`;
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: opts.to,
-      subject: opts.subject,
-      html: brandedEmailHtml({
-        headline: opts.headline,
-        bodyHtml: bodyWithFooter,
-        ctaLabel: opts.ctaLabel,
-        ctaHref: opts.ctaHref,
-      }),
-    });
-    return { ok: true };
-  } catch (err) {
-    console.error("[auth] resend send failed", err);
-    return { ok: false, code: "send_failed" };
-  }
+  const r = await sendBrandedEmail({
+    to: opts.to,
+    subject: opts.subject,
+    html: brandedEmailHtml({
+      headline: opts.headline,
+      bodyHtml: bodyWithFooter,
+      ctaLabel: opts.ctaLabel,
+      ctaHref: opts.ctaHref,
+    }),
+    trigger: "magic_link",
+    recipientType: opts.recipientType,
+  });
+  return r.ok ? { ok: true } : { ok: false, code: "send_failed" };
 }
 
 function escapeHtml(s: string): string {
