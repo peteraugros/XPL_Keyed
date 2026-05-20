@@ -1,50 +1,322 @@
-/* Parent dashboard, trial state. Calm informational tone. Tokens from
-   globals.css :root. Dash free per Hard rule #8. Mobile first. */
+/* Parent dashboard, HOME briefing. Layout (sidebar + topbar) lives in
+   portal-shell.module.css. This file styles the page contents only.
+   Tokens from globals.css. Calm informational tone. Dash free per Hard
+   rule #8. Mobile first. */
 
-.shell {
-  min-height: 100dvh;
-  background: var(--bg);
-  color: var(--text);
-  padding: 24px 20px 80px;
-  position: relative;
-  overflow: hidden;
-}
-.shell::before {
-  content: "";
-  position: absolute;
-  width: 360px;
-  height: 360px;
-  border-radius: 50%;
-  background: var(--rare);
-  filter: blur(90px);
-  opacity: 0.18;
-  top: -140px;
-  right: -120px;
-  pointer-events: none;
-}
-
-.frame {
-  position: relative;
-  z-index: 1;
-  max-width: 720px;
-  margin: 0 auto;
+.home {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
-.topBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+/* --- Hero row (hero on left, primary action card on right at desktop) --- */
+.heroRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
 }
-.brand {
+@media (min-width: 768px) {
+  .heroRow {
+    grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+    gap: 18px;
+  }
+}
+
+/* --- Hero --- */
+.hero {
+  padding: 2px 2px 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.heroEyebrow {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 12px;
   letter-spacing: 2px;
   color: var(--lime);
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.8vw, 44px);
+  line-height: 1.05;
+  letter-spacing: 1px;
+  margin: 0 0 10px;
+}
+.heroBody {
+  font-size: 16px;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.55;
+}
+
+/* --- Primary action card (lives in hero row at desktop) --- */
+.heroActionCard {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+/* --- Alert (urgent action) --- */
+.alert {
+  background: linear-gradient(135deg, rgba(199, 255, 61, 0.14), rgba(76, 81, 247, 0.10));
+  border: 1px solid rgba(199, 255, 61, 0.45);
+  border-radius: 12px;
+  padding: 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alertEyebrow {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.alertTitle {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  margin: 0;
+  line-height: 1.2;
+}
+.alertBody {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.55;
+}
+.alertCta {
+  align-self: flex-start;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 13px 20px;
+  min-height: 48px;
+  cursor: pointer;
+  text-decoration: none;
+  margin-top: 6px;
+}
+.alertSubtle {
+  font-size: 14px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+/* Warn variant (pending_cancel — winding down). Legendary orange accent
+   to read as "act soon" without the emergency red of dunning. */
+.alertWarn {
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.16), rgba(199, 255, 61, 0.06));
+  border: 1px solid rgba(245, 166, 35, 0.55);
+  border-radius: 12px;
+  padding: 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alertWarn .alertEyebrow {
+  color: var(--legendary);
+}
+
+/* Soft variant (ended — canceled or declined). Calm, no urgency. */
+.alertSoft {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alertSoft .alertEyebrow {
+  color: var(--text-faint);
+}
+
+/* Celebrate variant (pending curriculum after Tim accepts). Hero-level
+   prominence — larger title, stronger gradient, lime border, more padding.
+   Used for the "Congratulations, you are in" beat so it cannot be missed
+   on the parent's first /portal visit post-acceptance. */
+.alertCelebrate {
+  background: linear-gradient(135deg, rgba(199, 255, 61, 0.20), rgba(76, 81, 247, 0.14));
+  border: 1.5px solid rgba(199, 255, 61, 0.60);
+  border-radius: 14px;
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 0 0 1px rgba(199, 255, 61, 0.10), 0 8px 28px rgba(76, 81, 247, 0.18);
+}
+.alertEyebrowCelebrate {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 2.5px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.alertTitleLarge {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.8vw, 42px);
+  letter-spacing: 1px;
+  margin: 0;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+/* Bulleted "You can:" list inside the enrolled celebration. */
+.alertList {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.alertList li::marker {
+  color: var(--lime);
+}
+
+/* Row of action buttons (View Sessions + Message Me) at the bottom of
+   the enrolled celebration. */
+.alertCtaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+.alertCtaSecondary {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(199, 255, 61, 0.45);
+  border-radius: 10px;
+  padding: 13px 20px;
+  min-height: 48px;
+  cursor: pointer;
+  text-decoration: none;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+.alertCtaSecondary:hover {
+  border-color: var(--lime);
+  background: rgba(199, 255, 61, 0.08);
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+/* --- Summary grid (the 3 primary cards) --- */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+/* Two columns at moderate widths so a single-card-per-row stack doesn't
+   push everything below the fold on tablet sized windows. */
+@media (min-width: 560px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 880px) {
+  .summaryGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+  min-height: 144px;
+}
+.summaryCard:hover {
+  border-color: rgba(199, 255, 61, 0.35);
+  background: var(--bg-3);
+  transform: translateY(-1px);
+}
+.summaryEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.summaryTitle {
+  font-family: var(--font-display);
+  font-size: 19px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  line-height: 1.15;
+}
+.summaryBody {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  flex: 1;
+}
+.summaryLink {
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--lime);
+  font-family: var(--font-display);
+  margin-top: 4px;
+}
+.summaryLink::after {
+  content: " \2192";
+}
+
+/* Title + body shared by .heroActionCard and the alert action variants. */
+.actionsTitle {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  line-height: 1.2;
+}
+.actionsBody {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+/* --- Reusable button + status classes used by PortalClient.tsx --- */
+/* SignOutButton (rendered in sidebar footer) */
 .signOutBtn {
   font-family: var(--font-body);
   font-size: 13px;
@@ -53,8 +325,8 @@
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 8px 14px;
-  min-height: 36px;
+  padding: 10px 14px;
+  min-height: 44px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
@@ -67,143 +339,7 @@
   cursor: not-allowed;
 }
 
-/* Hero */
-.hero {
-  padding: 8px 4px 16px;
-}
-.heroEyebrow {
-  font-family: var(--font-display);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--lime);
-  margin-bottom: 8px;
-}
-.heroTitle {
-  font-family: var(--font-display);
-  font-size: clamp(34px, 7vw, 52px);
-  line-height: 1;
-  letter-spacing: 1px;
-  margin: 0 0 12px;
-}
-.heroBody {
-  font-size: 16px;
-  color: var(--text-dim);
-  margin: 0;
-}
-
-/* Cards */
-.card {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px 20px;
-}
-.cardEyebrow {
-  font-family: var(--font-display);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--text-faint);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-}
-.cardTitle {
-  font-family: var(--font-display);
-  font-size: 24px;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-.cardBody {
-  font-size: 15px;
-  color: var(--text-dim);
-  margin: 0 0 8px;
-}
-.subtle {
-  font-size: 13px;
-  color: var(--text-faint);
-  margin: 8px 0 0;
-}
-.code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--bg-3);
-  color: var(--text);
-}
-
-.progressPill {
-  font-family: var(--font-body);
-  font-size: 12px;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--bg-3);
-  color: var(--text-dim);
-  text-transform: none;
-}
-
-/* Quest checklist */
-.questList {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.questRow {
-  display: grid;
-  grid-template-columns: 36px 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 14px;
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-.questRowDone {
-  background: rgba(49, 146, 54, 0.08);
-  border-color: rgba(49, 146, 54, 0.35);
-}
-.questCheck {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text-faint);
-}
-.questRowDone .questCheck {
-  background: var(--uncommon);
-  border-color: var(--uncommon);
-  color: #fff;
-}
-.questCopy { min-width: 0; }
-.questLabel {
-  font-family: var(--font-display);
-  font-size: 15px;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
-}
-.questBlurb {
-  font-size: 13px;
-  color: var(--text-faint);
-  line-height: 1.4;
-}
-.questAction {
-  display: flex;
-  justify-content: flex-end;
-}
+/* NudgeButton (still imported by /portal/progress later; kept for compat) */
 .nudgeBtn {
   font-family: var(--font-body);
   font-size: 12px;
@@ -214,7 +350,7 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 8px 12px;
-  min-height: 36px;
+  min-height: 44px;
   cursor: pointer;
   white-space: nowrap;
   transition: color 0.15s, border-color 0.15s;
@@ -224,205 +360,7 @@
   border-color: var(--lime);
 }
 
-/* Mobile: stack the action below the copy so the row stays scannable. */
-@media (max-width: 479px) {
-  .questRow {
-    grid-template-columns: 28px 1fr;
-  }
-  .questAction {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    padding-left: 40px;
-  }
-}
-
-/* Bullets (what to expect) */
-.bullets {
-  margin: 4px 0 0;
-  padding-left: 20px;
-  color: var(--text-dim);
-  font-size: 15px;
-}
-.bullets li {
-  margin-bottom: 6px;
-}
-.bullets li::marker {
-  color: var(--lime);
-}
-
-/* Controls (empty states) */
-.controlsGrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 12px;
-}
-@media (min-width: 560px) {
-  .controlsGrid { grid-template-columns: 1fr 1fr 1fr; }
-}
-.controlCard {
-  background: var(--bg-3);
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  min-height: 88px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.controlTitle {
-  font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 1px;
-  color: var(--text);
-}
-.controlEmpty {
-  font-size: 12px;
-  color: var(--text-faint);
-  line-height: 1.4;
-}
-.trailing {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 16px;
-}
-.tertiaryBtn {
-  align-self: flex-start;
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--text-faint);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 8px 14px;
-  min-height: 36px;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* Contact strip */
-.contact {
-  background: linear-gradient(135deg, rgba(199, 255, 61, 0.06), rgba(76, 81, 247, 0.06));
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
-}
-.contactInner {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.contactEyebrow {
-  font-family: var(--font-display);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--text-faint);
-  text-transform: uppercase;
-}
-.contactBody {
-  font-size: 15px;
-  color: var(--text);
-}
-.contactLink {
-  color: var(--lime);
-  border-bottom: 1px solid rgba(199, 255, 61, 0.45);
-}
-
-/* Active subscription banner */
-.activeBanner {
-  background: linear-gradient(135deg, rgba(49, 146, 54, 0.18), rgba(199, 255, 61, 0.10));
-  border: 1px solid rgba(49, 146, 54, 0.55);
-  border-radius: 16px;
-  padding: 22px 22px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.activeBannerEyebrow {
-  font-family: var(--font-display);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--uncommon);
-  text-transform: uppercase;
-}
-
-/* Active-state curriculum list */
-.curriculumList {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.curriculumWeek {
-  display: grid;
-  grid-template-columns: 80px 1fr;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  align-items: start;
-}
-.curriculumWeekNum {
-  font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 1px;
-  color: var(--lime);
-  text-transform: uppercase;
-}
-.curriculumWeekCopy {
-  font-size: 14px;
-  color: var(--text);
-  line-height: 1.5;
-}
-.curriculumWeekTerm {
-  color: var(--text-faint);
-  font-size: 13px;
-}
-
-/* Curriculum approval banner */
-.curriculumBanner {
-  background: linear-gradient(135deg, rgba(199, 255, 61, 0.14), rgba(76, 81, 247, 0.10));
-  border: 1px solid rgba(199, 255, 61, 0.45);
-  border-radius: 16px;
-  padding: 22px 22px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.curriculumBannerEyebrow {
-  font-family: var(--font-display);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--lime);
-  text-transform: uppercase;
-}
-.curriculumBannerTitle {
-  font-family: var(--font-display);
-  font-size: 24px;
-  letter-spacing: 0.5px;
-  margin: 0;
-  line-height: 1.15;
-}
-.curriculumBannerCta {
-  align-self: flex-start;
-  font-family: var(--font-display);
-  font-size: 14px;
-  letter-spacing: 1.5px;
-  background: var(--lime);
-  color: var(--bg);
-  border: none;
-  border-radius: 10px;
-  padding: 12px 18px;
-  min-height: 44px;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-/* Send player link CTA */
+/* SendPlayerLinkButton + ManagePaymentButton share these classes. */
 .playerLinkRow {
   display: flex;
   flex-direction: column;
@@ -486,7 +424,7 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 8px 14px;
-  min-height: 36px;
+  min-height: 44px;
   cursor: pointer;
 }
 .playerLinkSecondaryBtn:hover {
@@ -494,10 +432,9 @@
   border-color: var(--text-dim);
 }
 
-/* Footer */
-.footer {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-faint);
+@media (prefers-reduced-motion: reduce) {
+  .summaryCard,
+  .playerLinkBtn {
+    transition: none;
+  }
 }

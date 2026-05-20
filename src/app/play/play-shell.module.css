@@ -1,0 +1,224 @@
+/* Kid-side sidebar shell. Same mechanic as the parent's PortalShell
+   but kid-tone: rarity-accented nav items, slightly bigger tap targets,
+   friendlier section names. Dash free per Hard rule #8. Mobile first. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 86vw;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+  padding: 22px 14px 18px;
+  gap: 20px;
+}
+.sidebarOpen {
+  transform: translateX(0);
+}
+@media (min-width: 768px) {
+  .sidebar {
+    transform: translateX(0);
+    width: 248px;
+  }
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.brandMark {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 3px;
+  color: var(--lime);
+}
+.brandSub {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.navLink {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 10px;
+  min-height: 48px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+}
+.navLink:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.navLinkActive {
+  background: rgba(199, 255, 61, 0.10);
+  color: var(--text);
+  box-shadow: inset 4px 0 0 var(--lime);
+}
+.navLinkActive .navLabel {
+  color: var(--lime);
+}
+.navLabel {
+  display: inline-block;
+}
+
+.sidebarFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.signOutBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.signOutBtn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+.signOutBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  z-index: 30;
+  cursor: pointer;
+}
+@media (min-width: 768px) {
+  .scrim {
+    display: none;
+  }
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .main {
+    margin-left: 248px;
+  }
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(11, 21, 56, 0.7);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.topBarTitle {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 1px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.hamburger {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0;
+}
+.hamburger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+}
+@media (min-width: 768px) {
+  .hamburger {
+    display: none;
+  }
+}
+
+.content {
+  flex: 1;
+  padding: 22px 18px 80px;
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+}
+@media (min-width: 768px) {
+  .content {
+    padding: 30px 30px 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}

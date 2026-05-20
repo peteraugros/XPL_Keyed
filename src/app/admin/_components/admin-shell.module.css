@@ -1,0 +1,236 @@
+/* Coach-side sidebar shell. Tokens from globals.css. Lime active state,
+   no rarity gamification (functional surface, not gamified). Dash free. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 256px;
+  max-width: 86vw;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+  padding: 20px 14px 16px;
+  gap: 18px;
+}
+.sidebarOpen {
+  transform: translateX(0);
+}
+@media (min-width: 768px) {
+  .sidebar {
+    transform: translateX(0);
+    width: 232px;
+  }
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.brandMark {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: var(--lime);
+}
+.brandSub {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.navLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  min-height: 44px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.navLink:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.navLinkActive {
+  background: rgba(199, 255, 61, 0.10);
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--lime);
+}
+.navLabel {
+  font-weight: 500;
+}
+.navSoon {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+.sidebarFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.sidebarFooterName {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--text);
+  padding: 0 10px;
+  text-transform: uppercase;
+}
+.signOutBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.signOutBtn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+.signOutBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  z-index: 30;
+  cursor: pointer;
+}
+@media (min-width: 768px) {
+  .scrim {
+    display: none;
+  }
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .main {
+    margin-left: 232px;
+  }
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(11, 21, 56, 0.7);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.topBarTitle {
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+.hamburger {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0;
+}
+.hamburger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+}
+@media (min-width: 768px) {
+  .hamburger {
+    display: none;
+  }
+}
+
+.content {
+  flex: 1;
+  padding: 24px 20px 80px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+@media (min-width: 768px) {
+  .content {
+    padding: 30px 30px 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}

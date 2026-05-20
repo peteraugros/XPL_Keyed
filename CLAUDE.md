@@ -1120,6 +1120,24 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
 
+- **Focused Home awareness card sweep (2026-05-19 night).** Five new awareness-class task types added to `derived_tasks_view`, extending the pattern established by `new_student_welcome` (action-required, P70) and `new_trial_booked` (awareness, P40). Awareness cards have no `waiting_on='TIM'` filter — they auto-drop when the underlying state changes (parent finishes payment, Stripe recovers, trial wraps into `trial_decision`, etc.). No "mark as seen" action required. `npx tsc --noEmit` clean.
+  - **Migration `20260519000400_awareness_cards_sweep.sql`** — `CREATE OR REPLACE VIEW derived_tasks_view` to add 5 new UNION ALL branches. The view now has 10 task types total, ranked:
+    - 80 `trial_decision` (action required)
+    - 70 `new_student_welcome` (action required)
+    - 60 `message_thread` coach-channel
+    - **55 `past_due_opened`** *(NEW)* — `lifecycle_state='PAST_DUE'`. Awareness; Stripe is auto-retrying. Body shows day count since `past_due_started_at`. Day-7 dunning still owns the hard escalation path separately.
+    - 50 `message_thread` player-channel
+    - **45 `pending_payment`** *(NEW)* — `lifecycle_state='PENDING_PAYMENT'`. All 4 slots reserved, parent on Stripe Checkout. Anchored on `payment_pending_at`.
+    - 40 `new_trial_booked` (awareness)
+    - **38 `vod_dropped`** *(NEW)* — kid posted a VOD during trial within the last 14 days. Surfaces the most recent VOD per player (DISTINCT ON `player_id` ORDER BY created_at DESC). `task_payload.vod_url` carries the link.
+    - **38 `prep_answered`** *(NEW)* — kid completed the 3 prep questions during trial within the last 14 days. `task_payload.q1_choice` + `q2_choice` carry the slugs.
+    - **35 `parent_started_scheduling`** *(NEW)* — `lifecycle_state IN ('ACCEPTED_PENDING_SCHEDULING', 'SCHEDULING_IN_PROGRESS')` with `scheduling_started_at` stamped. `task_payload.slots_booked` is a live subquery against `curriculum_slots` so the card can show "2 of 4 slots reserved" without server-side context fetching.
+    - 20 `cancellation_event` (action required)
+  - **Render in `AdminClient.tsx`:** five new branches in `phraseForTask()` with type-specific bodies that pull from `task_payload` directly (no new server-side context plumbing). `past_due_opened` body says "Day N" based on `past_due_started_at`; `parent_started_scheduling` body branches on slot count (0 / 1-3 / 4); `vod_dropped` adds a secondary "Watch clip" link next to "Open card"; `prep_answered` translates Q1/Q2 slugs via the existing `Q1_LABELS` + `Q2_LABELS` maps. Each gets its own eyebrow pill — `SCHEDULING` / `AWAITING PAYMENT` / `CARD DECLINED` / `NEW VOD` / `PREP IN`.
+  - **Visual treatment:** `past_due_opened` gets a new amber-accented variant (`focusedHomePastDue` + `pastDuePill` styles, using the `--legendary` token from the rarity palette). All other new types share the existing rare-blue `focusedHomeTrialBooked` variant. None of them pulse (only `new_student_welcome` does that — it's the celebratory event).
+  - **Skipped from this sweep:** "waitlist family joined" as a unified-queue card. Waitlist entries don't fit the kid-centric shape of `derived_tasks_view` (no `player_id`), and the existing Pipeline waitlist column + stats strip already surface them. Add only if Pipeline visibility proves insufficient.
+  - **One schema gotcha caught:** `prep_responses` uses `submitted_at` (not `created_at`); `vod_uploads` uses `created_at`. Verified against `\d` output before the migration applied cleanly.
+
 #### 🔧 Setup (blocking the next coding work)
 
 1. ~~**PNG icons** for the PWA.~~ **DONE 2026-05-17 night via SVG.** `public/icons/icon.svg` (full-bleed, rounded corners, blue `#0B1538` + white "K") and `public/icons/icon-maskable.svg` (no corners, K shrunk to fit the central 80% safe zone for Android launcher masking). `manifest.json` updated to two entries (`purpose:"any"` + `purpose:"maskable"`), `sizes:"any"`, `type:"image/svg+xml"`. Android Chrome + Edge handle SVG manifest icons; iOS "Add to Home Screen" ignores manifest icons entirely and reads `<link rel="apple-touch-icon">` (which must be a PNG). If iOS adoption matters pre-launch, rasterize `icon.svg` to a 180×180 PNG and add `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">` in `src/app/layout.tsx`. The in-tab favicon (data-URI SVG in layout.tsx) is separate and stays as lime-K on dark blue.

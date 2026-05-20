@@ -137,23 +137,56 @@ async function handleCheckoutSessionCompleted(
   // one-time payment with off-session card save, not a Stripe Subscription
   // object. Future cycles fire via PaymentIntents from our cron, not Stripe's
   // recurring billing. (Spec: "manually-advanced cycle" — see CLAUDE.md.)
+  const paidAt = new Date();
+  // waiting_on=TIM here surfaces the new_student_welcome task on
+  // Focused Home so Tim sees the conversion. The welcome endpoint
+  // flips it back to SYSTEM when Tim taps "I welcomed them".
   const subscriptionUpdate = await supabase
     .from("subscriptions")
     .update({
       tier: "monthly",
       status: "active",
       lifecycle_state: "ACTIVE",
-      waiting_on: "SYSTEM",
-      cycle_started_at: new Date().toISOString(),
+      waiting_on: "TIM",
+      cycle_started_at: paidAt.toISOString(),
       cycle_lessons_delivered: 0,
       cycle_cancels_used: 0,
       past_due_started_at: null,
       notified_at_day7_dunning: null,
+      welcomed_at: null,
+      coach_seen_at: null,
     } as never)
     .eq("id", subscriptionId);
   if (subscriptionUpdate.error) {
     console.error("[stripe-webhook] subscription update failed", subscriptionUpdate.error);
     throw new Error("subscription_update_failed");
+  }
+
+  // Decide whether Week 1 needs immediate delivery. Rule (per Peter,
+  // 2026-05-19): deliver immediately if there is NO Sunday between
+  // today and Week 1's live call. Otherwise wait for the Sunday cron.
+  // Defensive: if anything in this branch fails, we log + continue —
+  // the Sunday cron will catch the slot on its next run.
+  try {
+    const week1Resp = await supabase
+      .from("curriculum_slots")
+      .select("id, live_call_at")
+      .eq("curriculum_id", curriculumId)
+      .eq("week_number", 1)
+      .maybeSingle();
+    const week1 = week1Resp.data as { id: string; live_call_at: string | null } | null;
+    if (week1?.live_call_at) {
+      const { shouldDeliverWeek1Immediately } = await import("@/lib/lessons/timing");
+      if (shouldDeliverWeek1Immediately(paidAt, new Date(week1.live_call_at))) {
+        const { deliverWeekOneImmediately } = await import("@/lib/lessons/deliver-week-one");
+        const result = await deliverWeekOneImmediately(subscriptionId);
+        if (!result.ok) {
+          console.warn("[stripe-webhook] immediate week-1 delivery skipped:", result.reason);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[stripe-webhook] immediate-delivery branch threw", err);
   }
 }
 

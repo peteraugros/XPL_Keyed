@@ -61,7 +61,7 @@ Deno.serve(async (_req) => {
       subject: `4 days left to confirm or undo ${name}'s cancellation`,
       html: brandedEmailHtml({
         headline: `${name}'s subscription is pending end`,
-        bodyHtml: `<p>You have 4 days left to confirm or undo this. No new lessons and no charges will happen during the pending window.</p>`,
+        bodyHtml: `<p>You have 4 days left to confirm or undo this. No new lessons run and no charges will happen during the pending window.</p><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
         ctaLabel: "Review options",
         ctaHref: `${NEXT_PUBLIC_APP_URL}/parent/subscription`,
       }),
@@ -91,7 +91,7 @@ Deno.serve(async (_req) => {
       subject: `Last reminder: ${name}'s subscription ends tomorrow`,
       html: brandedEmailHtml({
         headline: `Last reminder`,
-        bodyHtml: `<p>Tomorrow ${name}'s subscription ends automatically unless you confirm or undo. Progress is saved if it ends. You can restart any time.</p>`,
+        bodyHtml: `<p>Tomorrow ${name}'s subscription ends automatically unless you confirm or undo. Progress is saved if it ends. You can restart any time.</p><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
         ctaLabel: "Review options",
         ctaHref: `${NEXT_PUBLIC_APP_URL}/parent/subscription`,
       }),
@@ -125,7 +125,7 @@ Deno.serve(async (_req) => {
         subject: `${name}'s subscription has ended`,
         html: brandedEmailHtml({
           headline: `${name}'s subscription has ended`,
-          bodyHtml: `<p>We've paused ${name}'s subscription. Progress is saved. Restart any time.</p>`,
+          bodyHtml: `<p>I've paused ${name}'s subscription. Progress is saved. Restart any time.</p><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
           ctaLabel: "Restart subscription",
           ctaHref: `${NEXT_PUBLIC_APP_URL}/parent/restart`,
         }),

@@ -22,6 +22,7 @@ import crypto from "node:crypto";
 import { stripe } from "@/lib/stripe/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { brandedEmailHtml } from "@/lib/email/template";
 import { sendDirectMessage } from "@/lib/discord/bot";
 
 export const runtime = "nodejs";
@@ -110,6 +111,51 @@ async function handleInviteeCanceled(payload: InviteePayload, supabase: Supa) {
 
   if (canceledByHost) {
     await applyCoachCancel(slot, supabase);
+    return;
+  }
+
+  // Phase 2: pre-payment paid-lesson cancel. The parent booked a slot
+  // during the scheduling wizard then cancelled before paying. Clear
+  // the slot so the wizard re-offers it; don't touch cycle_cancels_used
+  // (the cycle hasn't started). Step lifecycle back if we were already
+  // at PENDING_PAYMENT.
+  const lifecycle = (subscription as { lifecycle_state?: string }).lifecycle_state;
+  if (
+    lifecycle === "ACCEPTED_PENDING_SCHEDULING" ||
+    lifecycle === "SCHEDULING_IN_PROGRESS" ||
+    lifecycle === "PENDING_PAYMENT"
+  ) {
+    await supabase
+      .from("curriculum_slots")
+      .update({ live_call_at: null, live_call_event_id: null } as never)
+      .eq("id", slot.id);
+    // Step lifecycle back if needed: PENDING_PAYMENT -> SCHEDULING_IN_PROGRESS
+    // (still have bookings) or -> ACCEPTED_PENDING_SCHEDULING (no bookings left).
+    // curriculum_slots is keyed by curriculum_id, not subscription_id, so we
+    // resolve the curriculum first.
+    const slotRow = await supabase
+      .from("curriculum_slots")
+      .select("curriculum_id")
+      .eq("id", slot.id)
+      .maybeSingle();
+    const curriculumId = (slotRow.data as { curriculum_id: string } | null)?.curriculum_id;
+    if (!curriculumId) return;
+    const remainingRow = await supabase
+      .from("curriculum_slots")
+      .select("id, live_call_at")
+      .eq("curriculum_id", curriculumId);
+    const remaining = (remainingRow.data ?? []) as Array<{ live_call_at: string | null }>;
+    const stillBooked = remaining.filter((s) => s.live_call_at).length;
+    const newLifecycle =
+      stillBooked === 0 ? "ACCEPTED_PENDING_SCHEDULING" : "SCHEDULING_IN_PROGRESS";
+    await supabase
+      .from("subscriptions")
+      .update({
+        lifecycle_state: newLifecycle,
+        waiting_on: "PARENT",
+        payment_pending_at: null,
+      } as never)
+      .eq("id", slot.subscription_id);
     return;
   }
 
@@ -246,6 +292,24 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
 // gets confirmation of the new time. Reschedule-specific copy can be a
 // follow-up.
 
+// Phase 2 discriminator. Returns true if the booking is for a paid
+// lesson event type, false for the free intro call. Resolution order:
+//   1. CALENDLY_PAID_LESSON_EVENT_TYPE_URI env var exact match on
+//      scheduled_event.event_type URI (canonical).
+//   2. Display name substring match — any event type whose name
+//      includes "paid" (case-insensitive).
+//   3. Otherwise assume intro call.
+function isPaidLessonBooking(payload: InviteePayload): boolean {
+  const eventTypeUri = payload.scheduled_event?.event_type;
+  const paidEventTypeUri = process.env.CALENDLY_PAID_LESSON_EVENT_TYPE_URI;
+  if (paidEventTypeUri && eventTypeUri && eventTypeUri === paidEventTypeUri) {
+    return true;
+  }
+  const name = payload.scheduled_event?.name?.toLowerCase() ?? "";
+  if (name.includes("paid")) return true;
+  return false;
+}
+
 async function handleInviteeCreated(payload: InviteePayload, supabase: Supa) {
   const startIso = payload.scheduled_event?.start_time;
   const parentEmail = payload.email;
@@ -255,6 +319,11 @@ async function handleInviteeCreated(payload: InviteePayload, supabase: Supa) {
       hasStart: !!startIso,
       hasEmail: !!parentEmail,
     });
+    return;
+  }
+
+  if (isPaidLessonBooking(payload)) {
+    await handlePaidLessonCreated(payload, supabase, startIso, parentEmail, eventUri);
     return;
   }
 
@@ -344,6 +413,170 @@ async function handleInviteeCreated(payload: InviteePayload, supabase: Supa) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// invitee.created — PAID LESSON
+// ---------------------------------------------------------------------------
+// Phase 2 of the conversion flow. Parent has approved the curriculum
+// and is booking the 4 weekly sessions through /portal/sessions. Each
+// Calendly booking fires this handler.
+//
+// Wire-up:
+//   1. Resolve parent email -> family -> player -> pending curriculum
+//      -> next pending slot (lowest week_number with live_call_at IS NULL).
+//   2. Write live_call_at + live_call_event_id to that slot.
+//   3. If this is slot 1, set curricula.cycle_anchor_at = startIso.
+//   4. Count booked slots after the write. 4 -> PENDING_PAYMENT; else
+//      SCHEDULING_IN_PROGRESS.
+//   5. Send a confirmation email in Tim's voice with the booked time.
+
+async function handlePaidLessonCreated(
+  payload: InviteePayload,
+  supabase: Supa,
+  startIso: string,
+  parentEmail: string,
+  eventUri: string | null,
+) {
+  const parentRow = await supabase
+    .from("parents")
+    .select("family_id, first_name, email")
+    .ilike("email", parentEmail)
+    .maybeSingle();
+  const parent = parentRow.data as
+    | { family_id: string; first_name: string; email: string }
+    | null;
+  if (!parent) {
+    console.warn("[calendly-webhook][paid] no parent for", parentEmail);
+    return;
+  }
+
+  const playerRow = await supabase
+    .from("players")
+    .select("id, first_name")
+    .eq("family_id", parent.family_id)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const player = playerRow.data as { id: string; first_name: string } | null;
+  if (!player) {
+    console.warn("[calendly-webhook][paid] no player for family", parent.family_id);
+    return;
+  }
+
+  const curriculumRow = await supabase
+    .from("curricula")
+    .select("id, cycle_anchor_at")
+    .eq("player_id", player.id)
+    .eq("status", "pending_approval")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const curriculum = curriculumRow.data as
+    | { id: string; cycle_anchor_at: string | null }
+    | null;
+  if (!curriculum) {
+    console.warn("[calendly-webhook][paid] no pending curriculum for player", player.id);
+    return;
+  }
+
+  // Find next pending slot.
+  const slotRow = await supabase
+    .from("curriculum_slots")
+    .select("id, week_number")
+    .eq("curriculum_id", curriculum.id)
+    .is("live_call_at", null)
+    .order("week_number", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const slot = slotRow.data as { id: string; week_number: number } | null;
+  if (!slot) {
+    console.warn("[calendly-webhook][paid] no pending slot for curriculum", curriculum.id);
+    return;
+  }
+
+  // Write the slot.
+  const slotUpdate = await supabase
+    .from("curriculum_slots")
+    .update({
+      live_call_at: startIso,
+      live_call_event_id: eventUri,
+    } as never)
+    .eq("id", slot.id);
+  if (slotUpdate.error) {
+    console.error("[calendly-webhook][paid] slot update failed", slotUpdate.error);
+    return;
+  }
+
+  // If this is Week 1, anchor the cycle.
+  if (slot.week_number === 1 && !curriculum.cycle_anchor_at) {
+    const curriculumUpdate = await supabase
+      .from("curricula")
+      .update({ cycle_anchor_at: startIso } as never)
+      .eq("id", curriculum.id);
+    if (curriculumUpdate.error) {
+      console.error("[calendly-webhook][paid] cycle_anchor_at write failed", curriculumUpdate.error);
+    }
+  }
+
+  // Count booked slots and advance lifecycle.
+  const allSlotsRow = await supabase
+    .from("curriculum_slots")
+    .select("id, live_call_at")
+    .eq("curriculum_id", curriculum.id);
+  const allSlots = (allSlotsRow.data ?? []) as Array<{ live_call_at: string | null }>;
+  const bookedCount = allSlots.filter((s) => s.live_call_at).length;
+  const totalSlots = allSlots.length;
+
+  let nextLifecycle: "SCHEDULING_IN_PROGRESS" | "PENDING_PAYMENT" =
+    "SCHEDULING_IN_PROGRESS";
+  const updatePatch: Record<string, unknown> = {
+    lifecycle_state: nextLifecycle,
+    waiting_on: "PARENT",
+  };
+  if (bookedCount >= totalSlots) {
+    nextLifecycle = "PENDING_PAYMENT";
+    updatePatch.lifecycle_state = nextLifecycle;
+    updatePatch.payment_pending_at = new Date().toISOString();
+  }
+
+  const subUpdate = await supabase
+    .from("subscriptions")
+    .update(updatePatch as never)
+    .eq("player_id", player.id);
+  if (subUpdate.error) {
+    console.error("[calendly-webhook][paid] subscription lifecycle update failed", subUpdate.error);
+  }
+
+  // Confirmation email in Tim's voice.
+  const tz = payload.timezone || "America/Los_Angeles";
+  const startDate = new Date(startIso);
+  const fullDate = formatFullDate(startDate, tz);
+  const timeStr = formatTime(startDate, tz);
+  const remaining = totalSlots - bookedCount;
+  const closingLine =
+    remaining > 0
+      ? `<p>Reserve Week ${slot.week_number + 1} when you have a minute. ${remaining} session${remaining === 1 ? "" : "s"} left to lock in.</p>`
+      : `<p>All four sessions are reserved. Last step is the $56 first-cycle charge in your dashboard. Once that lands the portal lights up for ${player.first_name}.</p>`;
+  const html = brandedEmailHtml({
+    headline: `Week ${slot.week_number} reserved`,
+    bodyHtml: `<p>Hi ${parent.first_name},</p>
+<p>Week ${slot.week_number} of ${totalSlots} is on the calendar for ${player.first_name}: ${fullDate} at ${timeStr}. The call happens on Discord.</p>
+${closingLine}
+<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+    ctaLabel: bookedCount >= totalSlots ? "Complete checkout" : "Open dashboard",
+    ctaHref: `${APP_URL}/portal/sessions`,
+  });
+  try {
+    await resend.emails.send({
+      from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
+      to: parent.email,
+      subject: `${player.first_name}'s Week ${slot.week_number} is set`,
+      html,
+    });
+  } catch (err) {
+    console.error("[calendly-webhook][paid] confirmation send failed", err);
+  }
+}
+
 function formatFullDate(date: Date, tz: string): string {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -412,20 +645,20 @@ function bookingConfirmationHtml(args: {
 <h1 style="font-family:'Anton',Impact,sans-serif;font-size:28px;letter-spacing:1px;margin:0 0 16px;color:#C7FF3D;">You're booked</h1>
 <div style="font-size:15px;color:rgba(255,255,255,0.92);">
 <p>Hi ${esc(args.parentFirstName)},</p>
-<p>${subject} all set for a 30 minute free intro call with Tim.</p>
+<p>${subject} all set for our 30 minute free intro call.</p>
 <p>
   <strong>When:</strong> ${esc(args.fullDate)} at ${esc(args.timeStr)}<br/>
   <strong>Where:</strong> Discord (XPL Keyed coaching server)
 </p>
-<p><strong>What happens next:</strong> in the next day or so, be sure to accept the invite Tim will send to ${kidPossessive} Discord username${discordParen}. That's where the call will happen.</p>
+<p><strong>What happens next:</strong> in the next day or so, be sure to accept the Discord invite I'll send to ${kidPossessive} username${discordParen}. That's where the call will happen.</p>
 <p><strong>A few reminders:</strong></p>
 <ul style="padding-left:20px;margin:8px 0;">
   <li>Parents are welcome to listen in on the first call and ask questions at the end.</li>
-  <li>Tim never calls or texts your phone.</li>
+  <li>I never call or text your phone.</li>
   <li>No payment info needed today.</li>
 </ul>
-<p>Questions? Sign in to your XPL Keyed dashboard and message Tim in the Messages panel. Tim sees it and replies there. Otherwise, see you ${esc(args.fullDate.split(",")[0])}.</p>
-<p style="margin-top:24px;">Peter<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">(Tim's dad, who runs the back end of XPL Keyed)</span></p>
+<p>Questions? Sign in to your XPL Keyed dashboard and message me in the Messages panel. I see it on my end and reply there. Otherwise, see you ${esc(args.fullDate.split(",")[0])}.</p>
+<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>
 <p style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.6);border-top:1px solid rgba(255,255,255,0.12);padding-top:16px;">Need to come back later? Sign in any time at <a href="${APP_URL}/login" style="color:#C7FF3D;">${APP_URL.replace(/^https?:\/\//, "")}/login</a>.</p>
 </div>
 <p style="margin-top:32px;font-size:12px;color:rgba(255,255,255,0.5);">XPL Keyed. Independent Fortnite coaching.</p>
@@ -687,6 +920,12 @@ type InviteePayload = {
   event?: string;
   scheduled_event?: {
     uri: string;
+    // Event type URI (e.g., https://api.calendly.com/event_types/<id>).
+    // Used to discriminate intro-call vs paid-lesson invitee.created.
+    event_type?: string;
+    // Event type display name (e.g., "Paid lesson 30 min"). Fallback
+    // discriminator when event_type URI isn't matched by env config.
+    name?: string;
     start_time?: string;
     end_time?: string;
   };

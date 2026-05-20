@@ -48,7 +48,7 @@ function renderLessonEmail(opts: {
     .join("");
   return brandedEmailHtml({
     headline: `${opts.kidName}'s lesson is ready`,
-    bodyHtml: `<p><strong>${opts.parentLabel}.</strong> ${opts.parentSkillDescription}. <em>(Fortnite term: ${opts.fortniteLabel}.)</em></p><h2 style="font-family:'Anton',Impact,sans-serif;font-size:18px;letter-spacing:1px;margin:28px 0 8px;color:#C7FF3D;">🤫 For your back pocket</h2><ul style="margin:0;padding-left:20px;">${bullets}</ul>`,
+    bodyHtml: `<p>This week's lesson for ${opts.kidName} is ready in the portal.</p><p><strong>${opts.parentLabel}.</strong> ${opts.parentSkillDescription}. <em>(Fortnite term: ${opts.fortniteLabel}.)</em></p><h2 style="font-family:'Anton',Impact,sans-serif;font-size:18px;letter-spacing:1px;margin:28px 0 8px;color:#C7FF3D;">🤫 For your back pocket</h2><ul style="margin:0;padding-left:20px;">${bullets}</ul><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
     ctaLabel: "Open lesson",
     ctaHref: opts.portalUrl,
   });
@@ -64,7 +64,7 @@ function renderVodEmail(opts: {
     .join("");
   return brandedEmailHtml({
     headline: `${opts.kidName}'s VOD review is ready`,
-    bodyHtml: `<p>This week Tim reviewed ${opts.kidName}'s own gameplay frame by frame. The breakdown is in the portal.</p><h2 style="font-family:'Anton',Impact,sans-serif;font-size:18px;letter-spacing:1px;margin:28px 0 8px;color:#C7FF3D;">🤫 For your back pocket</h2><ul style="margin:0;padding-left:20px;">${bullets}</ul>`,
+    bodyHtml: `<p>This week I reviewed ${opts.kidName}'s own gameplay frame by frame. The breakdown is in the portal.</p><h2 style="font-family:'Anton',Impact,sans-serif;font-size:18px;letter-spacing:1px;margin:28px 0 8px;color:#C7FF3D;">🤫 For your back pocket</h2><ul style="margin:0;padding-left:20px;">${bullets}</ul><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
     ctaLabel: "Open VOD review",
     ctaHref: opts.portalUrl,
   });

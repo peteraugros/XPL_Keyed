@@ -130,8 +130,27 @@ export default async function CurriculumApprovalPage({
         ) : (
           <div className={styles.card}>
             <div className={styles.eyebrow}>{player.first_name}&apos;s 4 week plan</div>
-            <h1 className={styles.headline}>Tim&apos;s curriculum for {player.first_name}</h1>
-            <p className={styles.body}>Hi {parent.first_name}. Here is what Tim has in mind.</p>
+            <h1 className={styles.headline}>Tim wants to coach {player.first_name}</h1>
+            <p className={styles.body}>
+              Hi {parent.first_name}. Here is the deal.
+            </p>
+
+            {/* The sell + CTA up top — that's the action the parent
+                came here to take. The full 4 week plan is below for
+                review but doesn't block reaching the button. */}
+            <div className={styles.terms}>
+              <p>
+                <strong>$56 for 4 lessons</strong> (one per week). Cancel the
+                subscription any time.
+              </p>
+              <p className={styles.termsSubtle}>
+                Cancel a paid lesson more than 24 hours out and the cycle pauses
+                one week, full credit. Up to 2 cancellations per 4 lesson cycle.
+                A 3rd cancel ends the subscription.
+              </p>
+            </div>
+
+            <ApproveButton token={token} />
 
             {curriculum.personalization_note ? (
               <div className={styles.note}>
@@ -140,6 +159,7 @@ export default async function CurriculumApprovalPage({
               </div>
             ) : null}
 
+            <div className={styles.lessonsHeader}>The 4 week plan</div>
             <ul className={styles.weekList}>
               {slots.map((slot) => {
                 const lesson = slot.lesson_id ? lessonsById.get(slot.lesson_id) : null;
@@ -164,20 +184,6 @@ export default async function CurriculumApprovalPage({
                 );
               })}
             </ul>
-
-            <div className={styles.terms}>
-              <p>
-                <strong>$56 for 4 lessons</strong> (one per week). Cancel the
-                subscription any time.
-              </p>
-              <p className={styles.termsSubtle}>
-                Cancel a paid lesson more than 24 hours out and the cycle pauses
-                one week, full credit. Up to 2 cancellations per 4 lesson cycle.
-                A 3rd cancel ends the subscription.
-              </p>
-            </div>
-
-            <ApproveButton token={token} />
           </div>
         )}
       </div>

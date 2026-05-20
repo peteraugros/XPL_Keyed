@@ -1,0 +1,218 @@
+/* Shared chrome for every /play/* page that isn't HQ. Calmer than HQ
+   (no rarity gamification on these inner pages — they're informational
+   surfaces, not the dopamine drop). Tokens from globals.css. Dash free. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 880px;
+}
+
+/* --- Hero (compact) --- */
+.hero {
+  padding: 2px 2px 4px;
+}
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 4.2vw, 38px);
+  line-height: 1.05;
+  letter-spacing: 1px;
+  margin: 0 0 8px;
+}
+.intro {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+/* --- Card --- */
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cardEyebrow {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  margin: 0;
+  line-height: 1.2;
+}
+.cardBody {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.5;
+}
+.cardSubtle {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+/* --- Lesson list (Library) --- */
+.weekList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.weekRow {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.weekNum {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.weekLabel {
+  font-size: 14px;
+  color: var(--text);
+}
+.weekStatus {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  justify-self: end;
+}
+.weekStatusDone {
+  background: rgba(49, 146, 54, 0.14);
+  border-color: rgba(49, 146, 54, 0.55);
+  color: var(--uncommon);
+}
+
+/* --- Form (Loadout) --- */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+@media (min-width: 560px) {
+  .formRow {
+    flex-direction: row;
+    align-items: center;
+  }
+  .formLabel {
+    flex: 0 0 160px;
+  }
+  .formInput,
+  .formSelect {
+    flex: 1;
+  }
+}
+.formLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.formInput,
+.formSelect {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  width: 100%;
+}
+.formInput:focus,
+.formSelect:focus {
+  outline: 2px solid var(--lime);
+  outline-offset: 1px;
+}
+.formInput:disabled {
+  opacity: 0.6;
+}
+.formNote {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 0;
+}
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 4px;
+}
+.saveBtn {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.saveBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.saveBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.statusOk {
+  font-size: 13px;
+  color: var(--uncommon);
+}
+.statusError {
+  font-size: 13px;
+  color: var(--epic);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saveBtn {
+    transition: none;
+  }
+}

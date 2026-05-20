@@ -17,7 +17,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
-import MessageThread, { type MessageRow } from "@/components/MessageThread";
 
 type QuestKey = "signup" | "drop_vod" | "answer_questions" | "join_discord";
 
@@ -70,7 +69,6 @@ export default function PlayClient({
   initialCompletedQuests,
   initialVodUrl,
   initialPrep,
-  initialMessages,
   subscriptionStatus,
   cycleLessonsDelivered,
   curriculumWeeks,
@@ -79,7 +77,6 @@ export default function PlayClient({
   fortniteUsername: string | null;
   initialCompletedQuests: string[];
   initialVodUrl: string | null;
-  initialMessages: MessageRow[];
   subscriptionStatus: string;
   cycleLessonsDelivered: number;
   curriculumWeeks: CurriculumWeek[];
@@ -110,7 +107,22 @@ export default function PlayClient({
   const [discordError, setDiscordError] = useState<string | null>(null);
 
   const isDone = (key: QuestKey) => completed.has(key);
-  const isActive = subscriptionStatus === "active";
+  // Phase discriminator. trial → quest log. active → cycle counter + plan.
+  // paused (past_due / pending_cancel) → quiet "on hold" copy, hide quests.
+  // ended (canceled / declined) → quiet wrap up copy, keep messages.
+  type Phase = "trial" | "active" | "paused" | "ended";
+  const phase: Phase =
+    subscriptionStatus === "active"
+      ? "active"
+      : subscriptionStatus === "past_due" || subscriptionStatus === "pending_cancel"
+        ? "paused"
+        : subscriptionStatus === "canceled" || subscriptionStatus === "declined"
+          ? "ended"
+          : "trial";
+  const isTrial = phase === "trial";
+  const isActive = phase === "active";
+  const isPaused = phase === "paused";
+  const isEnded = phase === "ended";
   const totalQuests = 4;
   const xpPercent = useMemo(
     () => (completed.size / totalQuests) * 100,
@@ -213,45 +225,35 @@ export default function PlayClient({
     setDiscordSubmitting(false);
   }
 
-  async function onSignOut() {
-    try {
-      await fetch("/api/auth/signout", { method: "POST" });
-    } catch {
-      /* fall through to redirect anyway */
-    }
-    (router.replace as (u: string) => void)("/login");
-    router.refresh();
-  }
-
   const q3Unlocked = isDone("drop_vod");
 
   return (
-    <div className={styles.frame}>
-      <header className={styles.topBar}>
-        <div className={styles.brand}>XPL KEYED</div>
-        <button type="button" onClick={onSignOut} className={styles.signOutBtn}>
-          Sign out
-        </button>
-      </header>
-
+    <div className={styles.hq}>
       <section className={styles.hero}>
         <div className={styles.heroEyebrow}>
-          {isActive ? "Player profile. Active." : "Player profile."}
+          {isActive
+            ? "HQ. Active."
+            : isPaused
+              ? "HQ. On hold."
+              : isEnded
+                ? "HQ."
+                : "HQ. Free trial."}
         </div>
         <h1 className={styles.heroTitle}>What up, {playerFirstName}.</h1>
         <p className={styles.heroBody}>
           {isActive
-            ? `Lesson ${cycleLessonsDelivered + 1} of 4 incoming Sunday. Watch the messages for anything Tim drops in the meantime.`
-            : "Your free call is locked in. Finish your prep so we can hit the ground running."}
+            ? `Lesson ${cycleLessonsDelivered + 1} of 4 incoming Sunday. Hit Tim in Comms for anything between drops.`
+            : isPaused
+              ? "Lessons are on a brief hold. Your parents are sorting it. Tim still sees your messages in Comms."
+              : isEnded
+                ? "Coaching wrapped for now. Your thread with Tim is still open from Comms."
+                : "Your free call is locked in. Finish your prep so we can hit the ground running."}
         </p>
         {fortniteUsername ? (
           <div className={styles.heroIgn}>
             IGN <span className={styles.heroIgnValue}>{fortniteUsername}</span>
           </div>
         ) : null}
-        <p className={styles.subtle} style={{ marginTop: 8 }}>
-          Bookmark this page so you can come back any time.
-        </p>
       </section>
 
       {isActive ? (
@@ -288,23 +290,52 @@ export default function PlayClient({
             </section>
           ) : null}
         </>
-      ) : (
-      <section className={styles.xpStrip}>
-        <div className={styles.xpRow}>
-          <span className={styles.xpLabel}>XP</span>
-          <span className={styles.xpCount}>{completed.size * 25} / 100</span>
-        </div>
-        <div className={styles.xpBar} aria-hidden>
-          <div className={styles.xpFill} style={{ width: `${xpPercent}%` }} />
-        </div>
-        <div className={styles.xpHint}>
-          Earn XP for each quest. More coming after your first paid cycle.
-        </div>
-      </section>
-      )}
+      ) : null}
+
+      {isTrial ? (
+        <section className={styles.xpStrip}>
+          <div className={styles.xpRow}>
+            <span className={styles.xpLabel}>XP</span>
+            <span className={styles.xpCount}>{completed.size * 25} / 100</span>
+          </div>
+          <div className={styles.xpBar} aria-hidden>
+            <div className={styles.xpFill} style={{ width: `${xpPercent}%` }} />
+          </div>
+          <div className={styles.xpHint}>
+            Earn XP for each quest. More coming after your first paid cycle.
+          </div>
+        </section>
+      ) : null}
+
+      {isPaused ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>On hold</div>
+          <h2 className={styles.cardTitle}>Lessons paused</h2>
+          <p className={styles.cardBody}>
+            {subscriptionStatus === "past_due"
+              ? "We hit a payment snag. Your parents are sorting it. Nothing about your progress changes, the cycle just waits."
+              : "Your subscription is winding down. Your parents have an Undo link if they change their mind."}
+          </p>
+          <p className={styles.subtle}>
+            Want to ping Tim? Message him below. He still sees everything you send.
+          </p>
+        </section>
+      ) : null}
+
+      {isEnded ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>Wrapped</div>
+          <h2 className={styles.cardTitle}>Coaching is paused for now</h2>
+          <p className={styles.cardBody}>
+            {subscriptionStatus === "declined"
+              ? "Tim suggested some other paths after the trial. The message thread with him is still open if you want to stay in touch."
+              : "Your subscription ended. Your messages and history are saved. Your parents can restart any time."}
+          </p>
+        </section>
+      ) : null}
 
       {/* ============ QUEST LOG (trial-state only) ============ */}
-      {!isActive && (
+      {isTrial && (
       <section className={styles.questBlock}>
         <h2 className={styles.questHeader}>Quest log</h2>
 
@@ -547,35 +578,9 @@ export default function PlayClient({
       </section>
       )}
 
-      {/* Message Tim — open from intake. Parent-visible. */}
-      <section className={styles.card}>
-        <div className={styles.cardEyebrow}>Messages</div>
-        <h2 className={styles.cardTitle}>Message Tim</h2>
-        <MessageThread
-          initialMessages={initialMessages}
-          viewerRole="player"
-          kidFirstName={playerFirstName}
-          endpoint="/api/play/message"
-        />
-      </section>
-
-      {/* Locked sections (hidden once subscription is active) */}
-      {!isActive && (
-      <section className={styles.lockedBlock}>
-        <article className={styles.lockedCard}>
-          <div className={styles.lockedEyebrow}>Locked</div>
-          <h3 className={styles.lockedTitle}>Lesson library</h3>
-          <p className={styles.lockedCopy}>
-            Unlocks the Sunday after your first paid lesson drops.
-          </p>
-        </article>
-      </section>
-      )}
-
-      <footer className={styles.footer}>
-        Your parents can see every message and quest you submit. No DMs
-        with Tim. Coaching only happens in the server.
-      </footer>
+      <p className={styles.parentReminder}>
+        Your parents can see every message and quest you submit. No DMs with Tim. Coaching only happens in the server.
+      </p>
     </div>
   );
 }

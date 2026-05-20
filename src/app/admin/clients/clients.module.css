@@ -1,0 +1,321 @@
+/* Master-detail layout for /admin/clients. Left rail (always visible
+   on desktop, conditionally on mobile). Right detail pane. Tokens
+   from globals.css. Dash free per Hard rule #8. */
+
+/* One unified card containing both rail + detail. Internal vertical
+   divider separates the two columns on desktop. On mobile the layout
+   collapses to a single column and we hide whichever half isn't active. */
+.layout {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 768px) {
+  .layout {
+    grid-template-columns: 300px 1fr;
+    align-items: stretch;
+  }
+}
+
+/* --- Rail --- */
+.rail {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 768px) {
+  .rail {
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 80px;
+    max-height: calc(100dvh - 100px);
+  }
+}
+@media (max-width: 767px) {
+  .railHiddenMobile {
+    display: none;
+  }
+}
+
+.railHeader {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.railHeaderUrgent {
+  font-size: 10px;
+  color: var(--lime);
+  letter-spacing: 1.2px;
+}
+
+.railEmpty {
+  padding: 24px 16px;
+  font-size: 13px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.railList {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.railRow {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 64px;
+  font: inherit;
+  color: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.railRow:hover {
+  background: var(--bg-3);
+}
+.railRowSelected {
+  background: rgba(199, 255, 61, 0.10);
+  border-color: rgba(199, 255, 61, 0.45);
+}
+.railRowSelected:hover {
+  background: rgba(199, 255, 61, 0.14);
+}
+
+.railRowTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.railKid {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+.dotTim {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  flex: 0 0 8px;
+  box-shadow: 0 0 0 2px rgba(199, 255, 61, 0.18);
+}
+.railParent {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.railMeta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+  align-items: center;
+}
+.phasePill {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.phaseTrial {
+  background: rgba(199, 255, 61, 0.10);
+  border-color: rgba(199, 255, 61, 0.40);
+  color: var(--lime);
+}
+.phaseActive {
+  background: rgba(49, 146, 54, 0.14);
+  border-color: rgba(49, 146, 54, 0.50);
+  color: var(--uncommon);
+}
+.phaseEpic {
+  background: rgba(200, 7, 21, 0.14);
+  border-color: rgba(200, 7, 21, 0.50);
+  color: #ff7a85;
+}
+.phaseLegendary {
+  background: rgba(245, 166, 35, 0.14);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: var(--legendary);
+}
+.metaText {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* --- Detail --- */
+.detail {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 18px;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .detail {
+    padding: 18px 20px 20px;
+  }
+}
+@media (max-width: 767px) {
+  .detailHiddenMobile {
+    display: none;
+  }
+}
+
+.detailEmpty {
+  padding: 40px 16px;
+  text-align: center;
+}
+.detailEmptyTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.detailEmptyBody {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 50ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.detailInner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backBtn {
+  align-self: flex-start;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  min-height: 44px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.backBtn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+@media (min-width: 768px) {
+  .backBtn {
+    display: none;
+  }
+}
+
+/* --- Active client detail (sits flush inside the unified layout card) --- */
+.activeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.activeHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.activeKid {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 0.5px;
+  margin: 0;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+.activeParent {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.pill {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.pillActive {
+  background: rgba(49, 146, 54, 0.14);
+  border-color: rgba(49, 146, 54, 0.50);
+  color: var(--uncommon);
+}
+.pillEpic {
+  background: rgba(200, 7, 21, 0.12);
+  border-color: rgba(200, 7, 21, 0.50);
+  color: #ff7a85;
+}
+.pillLegendary {
+  background: rgba(245, 166, 35, 0.14);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: var(--legendary);
+}
+
+.messagesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.sectionLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .railRow {
+    transition: none;
+  }
+}

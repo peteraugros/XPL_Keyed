@@ -21,10 +21,12 @@ const NEXT_PUBLIC_APP_URL = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? "https://xplk
 
 const OFFER_WINDOW_MS = 48 * 3_600_000;
 
+const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`;
+
 function offerBody(kidName: string, bookUrl: string, headline: string, lede: string) {
   return brandedEmailHtml({
     headline,
-    bodyHtml: `<p>${lede}</p><p>This link expires in 48 hours. Book your free 30 minute call to claim the spot for ${kidName}.</p>`,
+    bodyHtml: `<p>${lede}</p><p>This link expires in 48 hours. Book your free 30 minute call to claim the spot for ${kidName}.</p>${SIGNATURE}`,
     ctaLabel: "Book free call",
     ctaHref: bookUrl,
   });
@@ -33,7 +35,7 @@ function offerBody(kidName: string, bookUrl: string, headline: string, lede: str
 function reminderBody(kidName: string, bookUrl: string) {
   return brandedEmailHtml({
     headline: `Spot for ${kidName} is still open`,
-    bodyHtml: `<p>The spot we offered yesterday is still open, but it goes to the next family tomorrow.</p>`,
+    bodyHtml: `<p>The spot I offered yesterday is still open, but it goes to the next family tomorrow.</p>${SIGNATURE}`,
     ctaLabel: "Book free call",
     ctaHref: bookUrl,
   });
@@ -42,7 +44,7 @@ function reminderBody(kidName: string, bookUrl: string) {
 function expiryBody(kidName: string) {
   return brandedEmailHtml({
     headline: `Spot passed to the next family`,
-    bodyHtml: `<p>We've passed the spot to the next family. ${kidName} is still on the list for the next opening.</p>`,
+    bodyHtml: `<p>I've passed the spot to the next family. ${kidName} is still on the list for the next opening.</p>${SIGNATURE}`,
   });
 }
 
@@ -127,12 +129,12 @@ Deno.serve(async (_req) => {
 
     await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
       to: next.parent_email,
-      subject: `A spot opened in Tim's coaching roster`,
+      subject: `A spot opened in my coaching roster`,
       html: offerBody(
         next.kid_first_name,
         `${NEXT_PUBLIC_APP_URL}/offer/${offerToken}`,
         `A spot opened for ${next.kid_first_name}`,
-        `Tim's roster is capped at 12 students and one just opened up.`,
+        `My roster is capped at 12 students and one just opened up.`,
       ),
     });
     promoted++;

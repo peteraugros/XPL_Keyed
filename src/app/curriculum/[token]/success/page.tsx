@@ -1,45 +1,76 @@
 // /curriculum/[token]/success
 //
-// Stripe redirects here after a successful checkout. We don't do DB writes
-// here — the Stripe webhook handler is the canonical source of truth for
-// state transitions (subscription.status='active', curricula.status='active',
-// cycle_started_at=NOW()). This page is just a confirmation surface.
+// Celebratory landing after Stripe checkout. The Stripe webhook is the
+// canonical source of truth for state changes (subscription.status='active',
+// curricula.status='active', cycle anchor). This page just renders the
+// welcome moment.
 //
-// The webhook fires near-simultaneously with this redirect. There's a
-// small race where the parent might land here before the webhook has
-// finished processing; in that case the "Open your dashboard" button is
-// still the right action — by the time they click through, the state has
-// usually flipped. If it hasn't, /portal still works (just shows the old
-// trial-state UI for a beat, then the active-state branch).
+// Server Component fetches the kid's first name via the token so the
+// modal copy can be personalized ("Jake receives his first PDF lesson
+// today" rather than generic "your child").
 
-import styles from "../page.module.css";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { shouldDeliverWeek1Immediately } from "@/lib/lessons/timing";
+import SuccessClient from "./SuccessClient";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export default function CurriculumSuccessPage() {
+type CurriculumLookup = { id: string; player_id: string };
+type PlayerLookup = { first_name: string };
+type Week1Lookup = { live_call_at: string | null };
+
+export default async function CurriculumSuccessPage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = await params;
+  const supabase = createServiceRoleClient();
+
+  // Best effort lookups. If anything fails we fall back to safe defaults
+  // — the success page should still render cleanly even if a token
+  // doesn't resolve.
+  let kidFirstName: string | null = null;
+  let immediateDelivery = false;
+  try {
+    const curriculumLookup = await supabase
+      .from("curricula")
+      .select("id, player_id")
+      .eq("approval_token", token)
+      .maybeSingle();
+    const curriculum = curriculumLookup.data as CurriculumLookup | null;
+    if (curriculum) {
+      const playerLookup = await supabase
+        .from("players")
+        .select("first_name")
+        .eq("id", curriculum.player_id)
+        .maybeSingle();
+      const player = playerLookup.data as PlayerLookup | null;
+      kidFirstName = player?.first_name ?? null;
+
+      const week1Lookup = await supabase
+        .from("curriculum_slots")
+        .select("live_call_at")
+        .eq("curriculum_id", curriculum.id)
+        .eq("week_number", 1)
+        .maybeSingle();
+      const week1 = week1Lookup.data as Week1Lookup | null;
+      if (week1?.live_call_at) {
+        immediateDelivery = shouldDeliverWeek1Immediately(
+          new Date(),
+          new Date(week1.live_call_at),
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[curriculum/success] lookup failed", err);
+  }
+
   return (
-    <div className={styles.shell}>
-      <div className={styles.frame}>
-        <div className={styles.brand}>XPL KEYED</div>
-        <div className={styles.card}>
-          <div className={styles.eyebrow}>You&apos;re in</div>
-          <h1 className={styles.headline}>Subscription locked in</h1>
-          <p className={styles.body}>
-            Thanks for approving the plan. Tim will start preparing your
-            first lesson. The lesson drops on Sunday with a parent email
-            translation alongside.
-          </p>
-          <p className={styles.body}>
-            Sign in to your XPL Keyed dashboard to see the cycle progress
-            and message Tim directly.
-          </p>
-          <a href="/portal" className={styles.primaryBtn}>Open your dashboard</a>
-          <p className={styles.placeholderNote}>
-            You can manage payment, see call recordings, and cancel any time
-            from the dashboard.
-          </p>
-        </div>
-      </div>
-    </div>
+    <SuccessClient
+      kidFirstName={kidFirstName}
+      immediateDelivery={immediateDelivery}
+    />
   );
 }

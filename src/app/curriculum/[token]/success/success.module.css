@@ -1,0 +1,144 @@
+/* /curriculum/[token]/success — celebratory landing after Stripe.
+   CSS only confetti. Tokens from globals.css. Dash free. */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 80px;
+}
+
+/* --- Confetti --- */
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.particle {
+  position: absolute;
+  border-radius: 1px;
+  animation-name: confettiFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+@keyframes confettiFall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .particle {
+    animation: none;
+    opacity: 0.35;
+  }
+}
+
+/* --- Card --- */
+.card {
+  position: relative;
+  z-index: 2;
+  max-width: 520px;
+  width: 100%;
+  background: var(--bg-2);
+  border: 1.5px solid rgba(199, 255, 61, 0.45);
+  border-radius: 14px;
+  padding: 32px 30px 28px;
+  box-shadow: 0 0 0 1px rgba(199, 255, 61, 0.10), 0 16px 48px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.brandMark {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 3px;
+  color: var(--lime);
+  margin-bottom: 4px;
+}
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2.5px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+.headline {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5.5vw, 44px);
+  letter-spacing: 1px;
+  margin: 0 0 4px;
+  line-height: 1.05;
+}
+.bodyText {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.55;
+  max-width: 50ch;
+}
+.bullets {
+  list-style: none;
+  margin: 8px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bullets li {
+  padding-left: 20px;
+  position: relative;
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.bullets li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  opacity: 0.8;
+}
+.primaryBtn {
+  align-self: flex-start;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 22px;
+  min-height: 48px;
+  cursor: pointer;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: transform 0.15s;
+}
+.primaryBtn:hover {
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .primaryBtn {
+    transition: none;
+  }
+}

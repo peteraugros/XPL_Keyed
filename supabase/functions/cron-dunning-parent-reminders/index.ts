@@ -45,10 +45,12 @@ async function fetchTargets(
   return (data ?? []) as DunningTarget[];
 }
 
+const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`;
+
 function bodyDay3(firstName: string): string {
   return brandedEmailHtml({
     headline: `Payment hold on ${firstName}'s subscription`,
-    bodyHtml: `<p>Your card was declined a few days ago. We've paused ${firstName}'s lessons while you update payment. No charge, no impact on your cycle.</p><p>Update your card to resume.</p>`,
+    bodyHtml: `<p>Your card was declined a few days ago. I've paused ${firstName}'s lessons while you update payment. No charge, no impact on your cycle.</p><p>Update your card to resume.</p>${SIGNATURE}`,
     ctaLabel: "Update card",
     ctaHref: STRIPE_PORTAL_URL,
   });
@@ -57,7 +59,7 @@ function bodyDay3(firstName: string): string {
 function bodyDay6(firstName: string): string {
   return brandedEmailHtml({
     headline: `Day 6: payment still on hold`,
-    bodyHtml: `<p>We're still holding ${firstName}'s spot, but if the card hasn't been updated by Day 14 we'll end the subscription. Progress stays saved if that happens.</p>`,
+    bodyHtml: `<p>I'm still holding ${firstName}'s spot, but if the card hasn't been updated by Day 14 the subscription ends. Progress stays saved if that happens.</p>${SIGNATURE}`,
     ctaLabel: "Update card",
     ctaHref: STRIPE_PORTAL_URL,
   });

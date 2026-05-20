@@ -47,14 +47,9 @@ export default async function AdminLessonsNewPage() {
   }
 
   return (
-    <div className={styles.shell}>
-      <div className={styles.frame}>
-        <header className={styles.topBar}>
-          <div className={styles.brand}>XPL KEYED ADMIN</div>
-          <a href="/admin/lessons" className={styles.backLink}>Back to library</a>
-        </header>
-        <LessonForm />
-      </div>
+    <div className={styles.frame}>
+      <a href="/admin/lessons" className={styles.backLink}>Back to library</a>
+      <LessonForm />
     </div>
   );
 }

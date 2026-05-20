@@ -1,188 +1,41 @@
-// /admin — Tim's coach dashboard. Trial-window slice of Task 7c.
+// /admin — Tim's Home briefing.
 //
-// Server Component handles auth + coach gate + data fetch. Interactive
-// elements (Discord URL form, eventual Stage C buttons) live in AdminClient.
+// Auth + role gate is handled by /admin/layout.tsx via requireCoachSession.
+// This page only fetches Home data: focused-mode tasks, command-mode
+// pipeline cards (+ waitlist), stuck-return banner notes, done-today
+// counter, and the stats strip.
 //
-// Coach gate:
-//   * unauthenticated                 -> /login?next=/admin
-//   * authed coach row matches uid    -> render
-//   * authed coach row matches email
-//     but auth_user_id is NULL        -> auto-link, then render
-//                                        (one-shot self-healing — the seed
-//                                        migration intentionally leaves
-//                                        coaches.auth_user_id NULL so we
-//                                        don't have to chicken-and-egg
-//                                        the Tim row creation)
-//   * authed parent / player          -> /portal or /play
-//   * orphan auth user                -> /login?error=no_role
-//
-// What this version shows:
-//   * Stats strip — paying / trials this week / waitlist count + oldest.
-//   * New Trials cards — every subscription.status='trial', joined with
-//     player, parent, quest_completions, latest VOD, prep responses.
-//     Each card has an inline form for Tim to paste the per-kid Discord
-//     channel invite URL.
-//   * Active Clients list — every subscription.status='active'.
-//   * Revenue MTD — stubbed at $0 today; wires up when Stripe invoice
-//     events are landing real payments.
-//
-// What's DELIBERATELY OUT:
-//   * Upcoming Calls list. Trial-call dates aren't stored on the
-//     subscription yet (flagged on /portal). Paid-lesson calls live in
-//     curriculum_slots, but there are none in trial state. Skipped until
-//     that data lands.
-//   * Stage C "Take Jake on / Decline / Still deciding" buttons. They
-//     belong to the curriculum drafter — its own task downstream.
-//   * Multi-coach polish. Single coach (Tim) for MVP; the schema
-//     supports multi-coach, but we pull Tim's row directly.
+// Trial cards, active client rows, and Tim ↔ Dad channel are no longer
+// rendered here — they live on /admin/clients and /admin/dad. The shell
+// (admin/layout.tsx) owns the brand, coach name, and sign out.
 
-import { redirect as _redirect } from "next/navigation";
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
+import { requireCoachSession } from "./_lib/session";
 import AdminClient from "./AdminClient";
-import styles from "./page.module.css";
-
-function redirect(url: string): never {
-  (_redirect as (u: string) => never)(url);
-  throw new Error("redirect did not throw");
-}
 
 export const dynamic = "force-dynamic";
-
-type CoachLookup = {
-  id: string;
-  email: string;
-  display_name: string;
-  auth_user_id: string | null;
-  is_active: boolean;
-  admin_mode: "focused" | "command";
-};
-type IdLookup = { id: string };
 
 type SubscriptionRow = {
   id: string;
   player_id: string;
   status: string;
-  tier: string;
   cycle_lessons_delivered: number;
   cycle_cancels_used: number;
   created_at: string;
+  lifecycle_state?: string;
+  waiting_on?: string;
 };
-
-type PlayerRow = {
-  id: string;
-  family_id: string;
-  first_name: string;
-  age: number;
-  fortnite_username: string | null;
-  discord_username: string | null;
-  current_rank: string | null;
-  platform: string | null;
-  hours_per_week: number | null;
-  discord_channel_url: string | null;
-};
-
-type ParentRow = {
-  family_id: string;
-  first_name: string;
-  email: string;
-};
-
+type PlayerSummary = { id: string; family_id: string; first_name: string };
+type ParentSummary = { family_id: string; first_name: string };
 type QuestRow = { player_id: string; quest_key: string };
-
-type VodRow = {
-  player_id: string;
-  url: string;
-  created_at: string;
-};
-
-type PrepRow = {
-  player_id: string;
-  q1_choice: string;
-  q1_other_text: string | null;
-  q2_choice: string;
-  q2_other_text: string | null;
-  q3_reflection: string;
-};
-
-type MessageRow = {
-  id: string;
-  player_id: string;
-  sender_role: "coach" | "player" | "bot";
-  body: string;
-  created_at: string;
-};
-
 type WaitlistRow = { created_at: string };
 
-type TimDadRow = {
-  id: string;
-  sender_role: "tim" | "dad";
-  body: string;
-  created_at: string;
-};
+export default async function AdminHome() {
+  const { supabase, coach } = await requireCoachSession();
 
-export default async function AdminPage() {
-  const supabase = await createClient();
-  const userResult = await supabase.auth.getUser();
-  const user = userResult.data.user;
-  if (!user) redirect("/login?next=/admin");
-
-  // Coach gate. Try auth_user_id match first.
-  let coachLookup = await supabase
-    .from("coaches")
-    .select("id, email, display_name, auth_user_id, is_active, admin_mode")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  let coach = coachLookup.data as CoachLookup | null;
-
-  // Auto-link branch: coach with matching email but no auth_user_id yet.
-  // Service role client because the cookie-bound client can't UPDATE a row
-  // it doesn't own under the coach RLS (and at this moment auth.uid()
-  // hasn't been written to the coach row, so the policy denies the write).
-  if (!coach && user.email) {
-    const adminClient = createServiceRoleClient();
-    const unlinkedLookup = await adminClient
-      .from("coaches")
-      .select("id, email, display_name, auth_user_id, is_active, admin_mode")
-      .ilike("email", user.email)
-      .is("auth_user_id", null)
-      .maybeSingle();
-    const unlinked = unlinkedLookup.data as CoachLookup | null;
-    if (unlinked?.id && unlinked.is_active) {
-      const linkResult = await adminClient
-        .from("coaches")
-        .update({ auth_user_id: user.id } as never)
-        .eq("id", unlinked.id);
-      if (linkResult.error) {
-        console.error("[admin] coach auto-link failed", linkResult.error);
-      } else {
-        coach = { ...unlinked, auth_user_id: user.id };
-      }
-    }
-  }
-
-  if (!coach || !coach.is_active) {
-    // Not a coach. Same role-redirect tree as the other portals.
-    const parentRow = await supabase
-      .from("parents")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if ((parentRow.data as IdLookup | null)?.id) redirect("/portal");
-
-    const playerRow = await supabase
-      .from("players")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if ((playerRow.data as IdLookup | null)?.id) redirect("/play");
-
-    redirect("/login?error=no_role");
-  }
-
-  // We're authenticated as the coach. Coach RLS (*_coach_all) gives full
-  // SELECT/INSERT/UPDATE on every business table.
+  // Subscriptions powers two things on Home:
+  //   1. Stats — count actives (active + past_due + pending_cancel) vs cap,
+  //              count trials this week.
+  //   2. Pipeline (Command mode) — one row per kid keyed by lifecycle_state.
   const [
     subsLookup,
     waitlistOldestLookup,
@@ -190,7 +43,9 @@ export default async function AdminPage() {
   ] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("id, player_id, status, tier, cycle_lessons_delivered, cycle_cancels_used, created_at, lifecycle_state, waiting_on")
+      .select(
+        "id, player_id, status, cycle_lessons_delivered, cycle_cancels_used, created_at, lifecycle_state, waiting_on",
+      )
       .order("created_at", { ascending: false }),
     supabase
       .from("waitlist_entries")
@@ -207,69 +62,41 @@ export default async function AdminPage() {
 
   const subscriptions = (subsLookup.data ?? []) as SubscriptionRow[];
   const trials = subscriptions.filter((s) => s.status === "trial");
-  const actives = subscriptions.filter((s) => s.status === "active");
-  const playerIds = subscriptions.map((s) => s.player_id);
+  const activeIsh = subscriptions.filter(
+    (s) =>
+      s.status === "active" ||
+      s.status === "past_due" ||
+      s.status === "pending_cancel",
+  );
 
-  let players: PlayerRow[] = [];
-  let parents: ParentRow[] = [];
+  // Player + parent lookups for Pipeline names (Command mode shows kid +
+  // parent first name on each card).
+  const playerIds = subscriptions.map((s) => s.player_id);
+  let players: PlayerSummary[] = [];
+  let parents: ParentSummary[] = [];
   let quests: QuestRow[] = [];
-  let vods: VodRow[] = [];
-  let preps: PrepRow[] = [];
-  let messages: MessageRow[] = [];
   if (playerIds.length > 0) {
     const playerLookup = await supabase
       .from("players")
-      .select(
-        "id, family_id, first_name, age, fortnite_username, discord_username, current_rank, platform, hours_per_week, discord_channel_url",
-      )
+      .select("id, family_id, first_name")
       .in("id", playerIds);
-    players = (playerLookup.data ?? []) as PlayerRow[];
+    players = (playerLookup.data ?? []) as PlayerSummary[];
 
     const familyIds = Array.from(new Set(players.map((p) => p.family_id)));
-    const [parentLookup, questLookup, vodLookup, prepLookup, messageLookup] = await Promise.all([
+    const [parentLookup, questLookup] = await Promise.all([
       supabase
         .from("parents")
-        .select("family_id, first_name, email")
+        .select("family_id, first_name")
         .in("family_id", familyIds),
       supabase
         .from("quest_completions")
         .select("player_id, quest_key")
         .in("player_id", playerIds),
-      supabase
-        .from("vod_uploads")
-        .select("player_id, url, created_at")
-        .in("player_id", playerIds)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("prep_responses")
-        .select("player_id, q1_choice, q1_other_text, q2_choice, q2_other_text, q3_reflection")
-        .in("player_id", playerIds),
-      supabase
-        .from("messages")
-        .select("id, player_id, sender_role, body, created_at")
-        .in("player_id", playerIds)
-        .order("created_at", { ascending: true })
-        .limit(500),
     ]);
-    parents = (parentLookup.data ?? []) as ParentRow[];
+    parents = (parentLookup.data ?? []) as ParentSummary[];
     quests = (questLookup.data ?? []) as QuestRow[];
-    vods = (vodLookup.data ?? []) as VodRow[];
-    preps = (prepLookup.data ?? []) as PrepRow[];
-    messages = (messageLookup.data ?? []) as MessageRow[];
   }
 
-  // Stats
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
-  const trialsThisWeek = trials.filter(
-    (s) => new Date(s.created_at) >= sevenDaysAgo,
-  ).length;
-  const waitlistOldest = (waitlistOldestLookup.data as WaitlistRow | null)?.created_at;
-  const waitlistDays = waitlistOldest
-    ? Math.floor((Date.now() - new Date(waitlistOldest).getTime()) / (1000 * 3600 * 24))
-    : null;
-  const waitlistCount = (waitlistCountLookup as unknown as { count: number | null }).count ?? 0;
-
-  // Index helpers for the client
   const playersById = new Map(players.map((p) => [p.id, p]));
   const parentByFamily = new Map(parents.map((p) => [p.family_id, p]));
   const questsByPlayer = new Map<string, Set<string>>();
@@ -277,51 +104,20 @@ export default async function AdminPage() {
     if (!questsByPlayer.has(q.player_id)) questsByPlayer.set(q.player_id, new Set());
     questsByPlayer.get(q.player_id)!.add(q.quest_key);
   }
-  const vodByPlayer = new Map<string, string>();
-  for (const v of vods) {
-    if (!vodByPlayer.has(v.player_id)) vodByPlayer.set(v.player_id, v.url);
-  }
-  const prepByPlayer = new Map(preps.map((p) => [p.player_id, p]));
-  const messagesByPlayer = new Map<string, MessageRow[]>();
-  for (const m of messages) {
-    const arr = messagesByPlayer.get(m.player_id) ?? [];
-    arr.push(m);
-    messagesByPlayer.set(m.player_id, arr);
-  }
 
-  const trialCards = trials.map((sub) => {
-    const player = playersById.get(sub.player_id);
-    const parent = player ? parentByFamily.get(player.family_id) : undefined;
-    const completed = questsByPlayer.get(sub.player_id) ?? new Set<string>();
-    return {
-      subscription_id: sub.id,
-      player_id: sub.player_id,
-      player: player ?? null,
-      parent: parent ?? null,
-      completed_quest_keys: Array.from(completed),
-      latest_vod_url: vodByPlayer.get(sub.player_id) ?? null,
-      prep: prepByPlayer.get(sub.player_id) ?? null,
-      messages: messagesByPlayer.get(sub.player_id) ?? [],
-      created_at: sub.created_at,
-    };
-  });
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+  const trialsThisWeek = trials.filter(
+    (s) => new Date(s.created_at) >= sevenDaysAgo,
+  ).length;
 
-  const activeRows = actives.map((sub) => {
-    const player = playersById.get(sub.player_id);
-    const parent = player ? parentByFamily.get(player.family_id) : undefined;
-    return {
-      subscription_id: sub.id,
-      player_id: sub.player_id,
-      player_first_name: player?.first_name ?? "(unknown)",
-      parent_first_name: parent?.first_name ?? "(unknown)",
-      cycle_lessons_delivered: sub.cycle_lessons_delivered,
-      cycle_cancels_used: sub.cycle_cancels_used,
-      messages: messagesByPlayer.get(sub.player_id) ?? [],
-    };
-  });
+  const waitlistOldest = (waitlistOldestLookup.data as WaitlistRow | null)?.created_at;
+  const waitlistDays = waitlistOldest
+    ? Math.floor((Date.now() - new Date(waitlistOldest).getTime()) / (1000 * 3600 * 24))
+    : null;
+  const waitlistCount =
+    (waitlistCountLookup as unknown as { count: number | null }).count ?? 0;
 
-  // Focused-mode Home: top task from derived_tasks_view + remaining count.
-  // Per Coach Dashboard Spec/CEO/admin-spec-focused.md section 4 ("One Thing").
+  // Focused-mode Home: top task from derived_tasks_view + remaining.
   type DerivedTask = {
     task_type: string;
     client_id: string;
@@ -336,12 +132,9 @@ export default async function AdminPage() {
     .select("task_type, client_id, client_name, age_in_state, source_object_id, priority_score, task_payload")
     .order("priority_score", { ascending: false })
     .order("age_in_state", { ascending: false })
-    .limit(20); // top 20 — Home uses #1, expansion section uses #2..N
+    .limit(20);
   const tasks = (tasksLookup.data ?? []) as DerivedTask[];
 
-  // Stuck-return banner: resolved-with-note Stuck events Tim hasn't ack'd.
-  // Surfaces Dad's "Send back with note" guidance on Tim's next /admin visit
-  // per dad-admin-spec.md section 3 (no silent reassignments).
   type ReturnedStuck = {
     id: string;
     object_type: string;
@@ -358,9 +151,6 @@ export default async function AdminPage() {
     .limit(10);
   const returnedStucks = (returnedLookup.data ?? []) as ReturnedStuck[];
 
-  // "✦ X done today" count for Focused Home. Anchors on local-server
-  // midnight; UI uses the same timezone the server runs in. Good-enough
-  // approximation at MVP scale.
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const doneTodayLookup = await supabase
@@ -371,19 +161,161 @@ export default async function AdminPage() {
   const doneToday =
     (doneTodayLookup as unknown as { count: number | null }).count ?? 0;
 
-  // Tim ↔ Dad channel — operator-to-operator 1:1 thread.
-  // Per Coach Dashboard Spec/dad-admin-spec.md + admin-modes.md (shared
-  // across both modes).
-  const timDadLookup = await supabase
-    .from("tim_dad_messages")
-    .select("id, sender_role, body, created_at")
-    .order("created_at", { ascending: true })
-    .limit(50);
-  const timDadMessages = (timDadLookup.data ?? []) as TimDadRow[];
+  // Welcome contexts: for any new_student_welcome task on Tim's Home,
+  // fetch the 4 booked curriculum slots so the welcome card can render
+  // the dates + the .ics download link without a client round-trip.
+  // task_payload.subscription_id identifies which row to pull.
+  type WelcomeSlot = {
+    week_number: number;
+    live_call_at: string | null;
+    live_call_event_id: string | null;
+  };
+  type WelcomeContext = {
+    subscription_id: string;
+    player_id: string;
+    slots: WelcomeSlot[];
+    has_auto_booked: boolean;
+  };
+  const welcomeTaskSubIds = tasks
+    .filter((t) => t.task_type === "new_student_welcome")
+    .map((t) => (t.task_payload?.subscription_id as string | undefined) ?? null)
+    .filter((id): id is string => !!id);
+  const welcomeContexts: WelcomeContext[] = [];
+  if (welcomeTaskSubIds.length > 0) {
+    const subRows = await supabase
+      .from("subscriptions")
+      .select("id, player_id")
+      .in("id", welcomeTaskSubIds);
+    const subList = (subRows.data ?? []) as Array<{ id: string; player_id: string }>;
+    const playerIdsForWelcome = subList.map((s) => s.player_id);
+    const curriculaRows = await supabase
+      .from("curricula")
+      .select("id, player_id")
+      .in("player_id", playerIdsForWelcome)
+      .eq("status", "active");
+    const curriculaByPlayer = new Map<string, string>();
+    for (const c of (curriculaRows.data ?? []) as Array<{ id: string; player_id: string }>) {
+      curriculaByPlayer.set(c.player_id, c.id);
+    }
+    const curriculumIds = Array.from(curriculaByPlayer.values());
+    const slotsRows =
+      curriculumIds.length > 0
+        ? await supabase
+            .from("curriculum_slots")
+            .select("curriculum_id, week_number, live_call_at, live_call_event_id")
+            .in("curriculum_id", curriculumIds)
+            .order("week_number", { ascending: true })
+        : { data: [] };
+    const slotsByCurriculum = new Map<string, WelcomeSlot[]>();
+    for (const s of (slotsRows.data ?? []) as Array<{
+      curriculum_id: string;
+      week_number: number;
+      live_call_at: string | null;
+      live_call_event_id: string | null;
+    }>) {
+      const arr = slotsByCurriculum.get(s.curriculum_id) ?? [];
+      arr.push({
+        week_number: s.week_number,
+        live_call_at: s.live_call_at,
+        live_call_event_id: s.live_call_event_id,
+      });
+      slotsByCurriculum.set(s.curriculum_id, arr);
+    }
+    for (const s of subList) {
+      const curriculumId = curriculaByPlayer.get(s.player_id);
+      const slots = curriculumId ? slotsByCurriculum.get(curriculumId) ?? [] : [];
+      welcomeContexts.push({
+        subscription_id: s.id,
+        player_id: s.player_id,
+        slots,
+        has_auto_booked: slots.some((sl) =>
+          sl.live_call_event_id?.startsWith("auto:"),
+        ),
+      });
+    }
+  }
 
-  // Command-mode Pipeline needs waitlist entries too (own column on the
-  // kanban). Focused mode doesn't surface them on Home; the spec's
-  // intake-funnel narrative keeps them muted.
+  // Trial-booked contexts: for any new_trial_booked task on Tim's Home,
+  // fetch kid age + parent email + prep completion count so the card
+  // can show readiness at a glance.
+  type TrialBookedContext = {
+    subscription_id: string;
+    player_id: string;
+    kid_age: number;
+    parent_first_name: string;
+    parent_email: string;
+    prep_completed: number;
+    total_quests: number;
+    trial_call_at: string | null;
+  };
+  const trialBookedTaskSubIds = tasks
+    .filter((t) => t.task_type === "new_trial_booked")
+    .map((t) => (t.task_payload?.subscription_id as string | undefined) ?? null)
+    .filter((id): id is string => !!id);
+  const trialBookedContexts: TrialBookedContext[] = [];
+  if (trialBookedTaskSubIds.length > 0) {
+    const subRows = await supabase
+      .from("subscriptions")
+      .select("id, player_id, trial_call_at")
+      .in("id", trialBookedTaskSubIds);
+    const subList = (subRows.data ?? []) as Array<{
+      id: string;
+      player_id: string;
+      trial_call_at: string | null;
+    }>;
+    const playerIdsForTrial = subList.map((s) => s.player_id);
+    const playerRows = await supabase
+      .from("players")
+      .select("id, family_id, age")
+      .in("id", playerIdsForTrial);
+    const playerById = new Map(
+      ((playerRows.data ?? []) as Array<{
+        id: string;
+        family_id: string;
+        age: number;
+      }>).map((p) => [p.id, p]),
+    );
+    const familyIdsForTrial = Array.from(
+      new Set(
+        Array.from(playerById.values()).map((p) => p.family_id),
+      ),
+    );
+    const parentRows = await supabase
+      .from("parents")
+      .select("family_id, first_name, email")
+      .in("family_id", familyIdsForTrial);
+    const parentByFamilyT = new Map(
+      ((parentRows.data ?? []) as Array<{
+        family_id: string;
+        first_name: string;
+        email: string;
+      }>).map((p) => [p.family_id, p]),
+    );
+    const questRows = await supabase
+      .from("quest_completions")
+      .select("player_id, quest_key")
+      .in("player_id", playerIdsForTrial);
+    const questsByPlayerT = new Map<string, number>();
+    for (const q of ((questRows.data ?? []) as Array<{ player_id: string }>)) {
+      questsByPlayerT.set(q.player_id, (questsByPlayerT.get(q.player_id) ?? 0) + 1);
+    }
+    for (const s of subList) {
+      const p = playerById.get(s.player_id);
+      if (!p) continue;
+      const parent = parentByFamilyT.get(p.family_id);
+      trialBookedContexts.push({
+        subscription_id: s.id,
+        player_id: s.player_id,
+        kid_age: p.age,
+        parent_first_name: parent?.first_name ?? "(unknown)",
+        parent_email: parent?.email ?? "",
+        prep_completed: questsByPlayerT.get(s.player_id) ?? 0,
+        total_quests: 4,
+        trial_call_at: s.trial_call_at,
+      });
+    }
+  }
+
   const waitlistEntriesLookup = await supabase
     .from("waitlist_entries")
     .select("id, parent_email, kid_first_name, kid_age, created_at, status")
@@ -398,8 +330,7 @@ export default async function AdminPage() {
     status: string;
   }>;
 
-  // Command-mode Pipeline cards — flatten ALL subscriptions (not just
-  // trials + actives) so we have one row per kid keyed by lifecycle_state.
+  // Pipeline cards — one row per subscription with denormalized names.
   const pipelineCards = subscriptions.map((sub) => {
     const player = playersById.get(sub.player_id);
     const parent = player ? parentByFamily.get(player.family_id) : undefined;
@@ -409,8 +340,8 @@ export default async function AdminPage() {
       player_id: sub.player_id,
       player_first_name: player?.first_name ?? "(unknown)",
       parent_first_name: parent?.first_name ?? "(unknown)",
-      lifecycle_state: (sub as unknown as { lifecycle_state?: string }).lifecycle_state ?? "TRIAL_PREP",
-      waiting_on: (sub as unknown as { waiting_on?: string }).waiting_on ?? "SYSTEM",
+      lifecycle_state: sub.lifecycle_state ?? "TRIAL_PREP",
+      waiting_on: sub.waiting_on ?? "SYSTEM",
       cycle_lessons_delivered: sub.cycle_lessons_delivered,
       cycle_cancels_used: sub.cycle_cancels_used,
       prep_completed: completed.size,
@@ -418,26 +349,22 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className={styles.shell}>
-      <AdminClient
-        coachName={coach.display_name}
-        coachMode={coach.admin_mode}
-        stats={{
-          payingCount: actives.length,
-          capacity: 12,
-          trialsThisWeek,
-          waitlistCount,
-          waitlistOldestDays: waitlistDays,
-        }}
-        tasks={tasks}
-        trialCards={trialCards}
-        activeRows={activeRows}
-        pipelineCards={pipelineCards}
-        waitlistEntries={waitlistEntries}
-        returnedStucks={returnedStucks}
-        doneToday={doneToday}
-        timDadMessages={timDadMessages}
-      />
-    </div>
+    <AdminClient
+      coachMode={coach.admin_mode}
+      stats={{
+        payingCount: activeIsh.length,
+        capacity: 12,
+        trialsThisWeek,
+        waitlistCount,
+        waitlistOldestDays: waitlistDays,
+      }}
+      tasks={tasks}
+      pipelineCards={pipelineCards}
+      waitlistEntries={waitlistEntries}
+      returnedStucks={returnedStucks}
+      doneToday={doneToday}
+      welcomeContexts={welcomeContexts}
+      trialBookedContexts={trialBookedContexts}
+    />
   );
 }

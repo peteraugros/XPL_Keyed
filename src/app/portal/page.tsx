@@ -1,548 +1,442 @@
-// /portal — parent dashboard, trial state.
+// /portal — Parent dashboard HOME.
 //
-// Server Component. Auth + role gate happens here:
-//   * unauthenticated visitor       -> /login?next=/portal
-//   * authed user with a parent row -> render the dashboard
-//   * authed user that is a player  -> /play (this is them on the wrong tab)
-//   * authed user that is a coach   -> /admin (also wrong tab; 404 today)
-//   * authed user with no role row  -> /login (their session is orphaned)
+// Briefing layout, not "the entire application." The sidebar (portal/layout.tsx)
+// is the structure; deeper content lives on per section pages reachable from
+// the sidebar (Progress, Sessions, Messages, Billing, etc). This page answers
+// the four questions a parent walks in with:
 //
-// The page is intentionally calm and informational — parent isn't a player
-// (Design system & PWA section of CLAUDE.md). No XP bar, no rarity badges,
-// no sound toggles. Tone matches branded transactional email: dark bg,
-// lime accents, Inter body.
+//   1. Is my child doing okay?            -> hero status line
+//   2. What should I pay attention to?    -> urgent alerts strip
+//   3. Is there anything I need to do?    -> quick actions
+//   4. Where do I go for specific things? -> 3 card summary grid + sidebar
 //
-// What's deliberately empty in trial state:
-//   * Billing / Call recordings / Message audit panels render with the
-//     shape they'll have post-conversion, but with explicit empty-state
-//     copy ("nothing here yet"). CLAUDE.md: "Empty state intentionally
-//     shows what *will* be there so it feels familiar when it fills in."
-//   * Cancel trial CTA is rendered but inert pending the real backend
-//     flow. Same posture as the nudge buttons.
+// Branches on a single `phase` discriminator derived from subscription.status:
 //
-// What's NOT here yet (open follow-ups documented in CLAUDE.md):
-//   * The live trial-call date. We don't store the Calendly event URI on
-//     the subscription yet, so the "Free call scheduled" card points the
-//     parent at their Calendly confirmation email rather than re-rendering
-//     date/time/reschedule inline.
-//   * The /api/portal/nudge endpoint. The buttons render with an inert
-//     "coming soon" client toast.
-//   * A real cancel-trial flow. Trial cancellation is a multi-step backend
-//     dance (Calendly event cancel + subscriptions.status='canceled' + auth
-//     user cleanup) and warrants its own task.
+//   * trial          (status='trial')          — pre conversion briefing
+//   * active         (status='active')         — paid cycle in progress
+//   * past_due       (status='past_due')       — payment hold, cycle frozen
+//   * pending_cancel (status='pending_cancel') — winding down, 7 day undo window
+//   * ended          (status in canceled|declined|null) — final, soft state
+//
+// Undo for pending_cancel + restart for ended both point at offline paths
+// (Calendly email Undo link / email Tim) because the in portal endpoints
+// aren't built yet. The UI is honest about that; it doesn't render dead
+// buttons.
 
-import { redirect as _redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { SignOutButton, NudgeButton, SendPlayerLinkButton, ManagePaymentButton } from "./PortalClient";
-import MessageThread from "@/components/MessageThread";
-
-function formatShortDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(iso));
-}
+import Link from "next/link";
+import { requireParentSession } from "./_lib/session";
+import { SendPlayerLinkButton, ManagePaymentButton } from "./PortalClient";
+import SessionPersistenceModal from "@/components/SessionPersistenceModal";
+import PaymentProcessingCard from "./PaymentProcessingCard";
 import styles from "./page.module.css";
-
-// next/navigation's redirect is typedRoutes-aware. Several targets here
-// include query strings or point at routes that don't exist yet (/play,
-// /admin), neither of which is in the generated Route union. Use a
-// string-typed wrapper so control flow narrowing still sees the `never`
-// return.
-function redirect(url: string): never {
-  (_redirect as (u: string) => never)(url);
-  // _redirect throws internally; this satisfies TS's reachability check.
-  throw new Error("redirect did not throw");
-}
 
 export const dynamic = "force-dynamic";
 
-type QuestKey = "signup" | "drop_vod" | "answer_questions" | "join_discord";
-
-type QuestRow = {
-  key: QuestKey;
-  label: string;
-  parentBlurb: string;
-  doneLabel: string;
+// Casts at the boundary to dodge @supabase/ssr 0.5's chained generic regression.
+type SubLookup = {
+  status: string;
+  cycle_lessons_delivered: number;
+  cycle_cancels_used: number;
+  cycle_started_at: string | null;
+  pending_cancel_auto_confirm_at: string | null;
+  trial_call_at: string | null;
 };
+type QuestRow = { quest_key: string };
+type MessageRow = {
+  id: string;
+  sender_role: "coach" | "player" | "bot";
+  body: string;
+  created_at: string;
+};
+type PendingCurriculum = { approval_token: string };
 
-const QUESTS: QuestRow[] = [
-  {
-    key: "signup",
-    label: "Sign up",
-    parentBlurb: "Completed when the free call was booked.",
-    doneLabel: "Done at booking",
-  },
-  {
-    key: "drop_vod",
-    label: "Drop a VOD",
-    parentBlurb: "A clip from a recent ranked game. Tim watches it before the call.",
-    doneLabel: "VOD shared with Tim",
-  },
-  {
-    key: "answer_questions",
-    label: "Answer 3 quick questions",
-    parentBlurb: "Two taps and a short reflection. About 2 minutes.",
-    doneLabel: "Answered",
-  },
-  {
-    key: "join_discord",
-    label: "Join Tim's Discord",
-    parentBlurb: "Where the call happens. Your child uses the Discord username on file.",
-    doneLabel: "In the server",
-  },
-];
+type Phase = "trial" | "active" | "past_due" | "pending_cancel" | "ended";
 
-// @supabase/ssr 0.5's chained .select().eq().maybeSingle() doesn't always
-// propagate the Database generic through to the returned row type; the
-// chain falls back to `never` on some shapes. Declaring the expected row
-// shapes and casting at the boundary is the standard escape hatch. The
-// runtime payloads match these shapes by construction (the columns are
-// in the schema; RLS filters which rows we see, not which columns).
-type ParentLookup = { first_name: string; email: string; family_id: string };
-type PlayerLookup = { id: string; first_name: string; discord_username: string | null };
-type SubscriptionLookup = { tier: string; status: string };
-type QuestLookup = { quest_key: string; completed_at: string };
-type IdLookup = { id: string };
-
-export default async function PortalPage() {
-  const supabase = await createClient();
-
-  const userResult = await supabase.auth.getUser();
-  const user = userResult.data.user;
-  if (!user) redirect("/login?next=/portal");
-
-  // Parent row is the source of truth for "this auth user is a parent."
-  const parentRow = await supabase
-    .from("parents")
-    .select("first_name, email, family_id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  if (parentRow.error) {
-    console.error("[portal] parent lookup failed", parentRow.error);
-    redirect("/login?error=portal_lookup");
+function phaseFor(status: string | undefined): Phase {
+  switch (status) {
+    case "active":
+      return "active";
+    case "past_due":
+      return "past_due";
+    case "pending_cancel":
+      return "pending_cancel";
+    case "canceled":
+    case "declined":
+      return "ended";
+    case "trial":
+      return "trial";
+    default:
+      return "trial";
   }
+}
 
-  const parent = parentRow.data as ParentLookup | null;
-  if (!parent) {
-    // Could be a player or a coach on the wrong route.
-    const playerRow = await supabase
-      .from("players")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if ((playerRow.data as IdLookup | null)?.id) redirect("/play");
+function formatShortDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(iso));
+}
 
-    const coachRow = await supabase
-      .from("coaches")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if ((coachRow.data as IdLookup | null)?.id) redirect("/admin");
+// "Saturday, May 23 at 2:30pm" style for the trial call card. Server
+// timezone is used (typically America/Los_Angeles in this project's
+// local dev + Vercel default), which matches Tim's slot definitions in
+// Calendly. AM/PM is lower cased with no space to match the booking
+// email's formatting.
+function formatCallDateTime(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(d);
+  const timeRaw = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(d);
+  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
+    ap.toLowerCase(),
+  );
+  return `${datePart} at ${timePart}`;
+}
 
-    // Orphan auth user. Bounce to login.
-    redirect("/login?error=no_role");
-  }
+export default async function PortalHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ welcome?: string }>;
+}) {
+  const { welcome } = await searchParams;
+  const showWelcome = welcome === "1";
+  const { supabase, parent, player } = await requireParentSession();
 
-  // Oldest player wins for MVP (1-kid families). Multi-kid families will
-  // need a kid selector in the nav (deferred per CLAUDE.md spec).
-  const playerLookupRaw = await supabase
-    .from("players")
-    .select("id, first_name, discord_username")
-    .eq("family_id", parent.family_id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  const player = playerLookupRaw.data as PlayerLookup | null;
-  if (playerLookupRaw.error || !player) {
-    console.error("[portal] player lookup failed", playerLookupRaw.error);
-    redirect("/login?error=portal_player");
-  }
-
-  const [subscriptionLookup, questLookup, messageLookup, pendingCurriculumLookup, activeCurriculumLookup] = await Promise.all([
+  const [subResp, questResp, msgResp, pendingResp] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("tier, status, cycle_started_at, cycle_lessons_delivered, cycle_cancels_used")
+      .select(
+        "status, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at",
+      )
       .eq("player_id", player.id)
       .maybeSingle(),
     supabase
       .from("quest_completions")
-      .select("quest_key, completed_at")
+      .select("quest_key")
       .eq("player_id", player.id),
     supabase
       .from("messages")
       .select("id, sender_role, body, created_at")
       .eq("player_id", player.id)
-      .order("created_at", { ascending: true })
-      .limit(100),
+      .order("created_at", { ascending: false })
+      .limit(1),
     supabase
       .from("curricula")
-      .select("approval_token, personalization_note")
+      .select("approval_token")
       .eq("player_id", player.id)
       .eq("status", "pending_approval")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from("curricula")
-      .select("id, personalization_note")
-      .eq("player_id", player.id)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
   ]);
 
-  const subscription = subscriptionLookup.data as
-    | {
-        tier: string;
-        status: string;
-        cycle_started_at: string | null;
-        cycle_lessons_delivered: number;
-        cycle_cancels_used: number;
-      }
-    | null;
-  const questRows = (questLookup.data ?? []) as QuestLookup[];
-  const completedQuestKeys = new Set<string>(questRows.map((row) => row.quest_key));
-  const completedCount = QUESTS.filter((q) => completedQuestKeys.has(q.key)).length;
-  const messages = (messageLookup.data ?? []) as Array<{
-    id: string;
-    sender_role: "coach" | "player" | "bot";
-    body: string;
-    created_at: string;
-  }>;
-  const pendingCurriculum = pendingCurriculumLookup.data as
-    | { approval_token: string; personalization_note: string | null }
-    | null;
-  const activeCurriculum = activeCurriculumLookup.data as
-    | { id: string; personalization_note: string | null }
-    | null;
+  const sub = subResp.data as SubLookup | null;
+  const completedQuests = ((questResp.data ?? []) as QuestRow[]).length;
+  const latestMessage = ((msgResp.data ?? []) as MessageRow[])[0] ?? null;
+  const pendingCurriculum = pendingResp.data as PendingCurriculum | null;
 
-  // Active-state curriculum weeks (slots + lesson translation).
-  type SlotWithLesson = {
-    week_number: number;
-    is_vod_review: boolean;
-    fortnite_label: string | null;
-    parent_label: string | null;
-    parent_skill_description: string | null;
-  };
-  let curriculumWeeks: SlotWithLesson[] = [];
-  if (activeCurriculum) {
-    const slotLookup = await supabase
+  // Week-1-delivered signal for the welcome state copy. If Week 1's
+  // delivered_at is set, the parent has received the PDF today.
+  // Otherwise the lesson is queued for the next Sunday.
+  let week1Delivered = false;
+  if (showWelcome) {
+    const week1Lookup = await supabase
       .from("curriculum_slots")
-      .select("week_number, is_vod_review, lesson_id")
-      .eq("curriculum_id", activeCurriculum.id)
-      .order("week_number", { ascending: true });
-    const slots = (slotLookup.data ?? []) as Array<{
-      week_number: number;
-      is_vod_review: boolean;
-      lesson_id: string | null;
-    }>;
-    const lessonIds = slots.map((s) => s.lesson_id).filter((id): id is string => Boolean(id));
-    const lessonLookup =
-      lessonIds.length > 0
-        ? await supabase
-            .from("lessons")
-            .select("id, fortnite_label, parent_label, parent_skill_description")
-            .in("id", lessonIds)
-        : { data: [] };
-    const lessonsById = new Map<
-      string,
-      { fortnite_label: string; parent_label: string; parent_skill_description: string }
-    >();
-    for (const l of (lessonLookup.data ?? []) as Array<{
-      id: string;
-      fortnite_label: string;
-      parent_label: string;
-      parent_skill_description: string;
-    }>) {
-      lessonsById.set(l.id, {
-        fortnite_label: l.fortnite_label,
-        parent_label: l.parent_label,
-        parent_skill_description: l.parent_skill_description,
-      });
-    }
-    curriculumWeeks = slots.map((s) => {
-      const lesson = s.lesson_id ? lessonsById.get(s.lesson_id) ?? null : null;
-      return {
-        week_number: s.week_number,
-        is_vod_review: s.is_vod_review,
-        fortnite_label: lesson?.fortnite_label ?? null,
-        parent_label: lesson?.parent_label ?? null,
-        parent_skill_description: lesson?.parent_skill_description ?? null,
-      };
-    });
+      .select("delivered_at, curricula!inner(player_id, status)")
+      .eq("curricula.player_id", player.id)
+      .eq("curricula.status", "active")
+      .eq("week_number", 1)
+      .maybeSingle();
+    const week1 = week1Lookup.data as { delivered_at: string | null } | null;
+    week1Delivered = !!week1?.delivered_at;
   }
-  const isActive = subscription?.status === "active";
+
+  const phase = phaseFor(sub?.status);
+  const cycleProgress = sub?.cycle_lessons_delivered ?? 0;
+  const cancelsUsed = sub?.cycle_cancels_used ?? 0;
+  const autoConfirmDate = formatShortDate(sub?.pending_cancel_auto_confirm_at ?? null);
+  // Calendly's invitee.created webhook populates trial_call_at on the
+  // subscription as soon as the parent books. NULL only in the brief
+  // window before the webhook fires.
+  const callDateTime = formatCallDateTime(sub?.trial_call_at ?? null);
+
+  const heroByPhase: Record<Phase, { eyebrow: string; body: string }> = {
+    trial: {
+      eyebrow: "Free trial",
+      body: `${player.first_name}'s free intro call is on the calendar.`,
+    },
+    active: {
+      eyebrow: "Subscription active",
+      body: `${player.first_name}'s lessons are running. One drops every Sunday.`,
+    },
+    past_due: {
+      eyebrow: "Payment hold",
+      body: `${player.first_name}'s lessons are paused while we sort payment.`,
+    },
+    pending_cancel: {
+      eyebrow: "Subscription ending",
+      body: `${player.first_name}'s subscription is winding down${
+        autoConfirmDate ? `. It closes on ${autoConfirmDate} unless you undo.` : "."
+      }`,
+    },
+    ended: {
+      eyebrow: "Coaching wrapped",
+      body:
+        sub?.status === "declined"
+          ? `Tim recommended other paths after the intro call. Your account stays open.`
+          : `${player.first_name}'s coaching has ended. Your account stays open. Restart any time.`,
+    },
+  };
+  const hero = heroByPhase[phase];
+
+  // Which group of cards to render. trial vs active vs paused vs ended.
+  const showQuestSnapshot = phase === "trial";
+  const showCycleSnapshot = phase === "active" || phase === "past_due" || phase === "pending_cancel";
+
+  // The primary action varies by phase. Rendered inside the hero row at
+  // desktop (right column) so it doesn't push the summary cards below
+  // the fold. Falls under the hero on mobile.
+  const primaryAction =
+    phase === "active" || phase === "past_due" || phase === "pending_cancel" ? (
+      <div className={styles.heroActionCard}>
+        <div className={styles.actionsTitle}>
+          {phase === "past_due"
+            ? "Update your card"
+            : phase === "pending_cancel"
+              ? "Manage payment"
+              : "Manage your subscription"}
+        </div>
+        <div className={styles.actionsBody}>
+          {phase === "past_due"
+            ? "Open the secure Stripe portal to replace the failed card."
+            : phase === "pending_cancel"
+              ? "Invoices and saved card live in Stripe. The email's Undo link is what reverts the cancel."
+              : "Update card, see invoices, or cancel anytime."}
+        </div>
+        <ManagePaymentButton />
+      </div>
+    ) : phase === "ended" ? (
+      <div className={styles.heroActionCard}>
+        <div className={styles.actionsTitle}>Pick this back up</div>
+        <div className={styles.actionsBody}>
+          Email Tim at <span className={styles.code}>tim@xplkeyed.com</span> to
+          restart. Account and history stay put.
+        </div>
+      </div>
+    ) : (
+      <div className={styles.heroActionCard}>
+        <div className={styles.actionsTitle}>
+          Player sign in
+        </div>
+        <div className={styles.actionsBody}>
+          {player.first_name}&apos;s sign in link sends to your email. Forward it or
+          hand them the device. One time setup.
+        </div>
+        <SendPlayerLinkButton
+          kidFirstName={player.first_name}
+          parentEmail={parent.email}
+        />
+      </div>
+    );
 
   return (
-    <div className={styles.shell}>
-      <div className={styles.frame}>
-        <header className={styles.topBar}>
-          <div className={styles.brand}>XPL KEYED</div>
-          <SignOutButton />
-        </header>
-
+    <div className={styles.home}>
+      <div className={styles.heroRow}>
         <section className={styles.hero}>
-          <div className={styles.heroEyebrow}>
-            {isActive ? "Parent dashboard. Active." : "Parent dashboard. Trial."}
-          </div>
-          <h1 className={styles.heroTitle}>
-            Welcome, {parent.first_name}.
-          </h1>
-          <p className={styles.heroBody}>
-            {isActive
-              ? `${player.first_name}'s lessons are running. Cycle counter, billing, and messages with Tim are below.`
-              : `${player.first_name}'s free trial is in motion. Here is everything you need before the call.`}
-          </p>
+          <div className={styles.heroEyebrow}>{hero.eyebrow}</div>
+          <h1 className={styles.heroTitle}>Welcome back, {parent.first_name}.</h1>
+          <p className={styles.heroBody}>{hero.body}</p>
         </section>
-
-        {subscription?.status === "active" ? (
-          <section className={styles.activeBanner}>
-            <div className={styles.activeBannerEyebrow}>Subscription active</div>
-            <h2 className={styles.curriculumBannerTitle}>
-              {player.first_name} is in
-            </h2>
-            <p className={styles.cardBody}>
-              Tim starts your first lesson cycle this Sunday. Lessons drop weekly.
-              Manage payment and cancel anytime from your dashboard.
-            </p>
-          </section>
-        ) : pendingCurriculum ? (
-          <section className={styles.curriculumBanner}>
-            <div className={styles.curriculumBannerEyebrow}>Curriculum ready for review</div>
-            <h2 className={styles.curriculumBannerTitle}>
-              Tim drafted {player.first_name}&apos;s 4 week plan
-            </h2>
-            <p className={styles.cardBody}>
-              Open the link below to see what Tim has in mind for {player.first_name}.
-              You can approve and subscribe from there.
-            </p>
-            <a
-              href={`/curriculum/${pendingCurriculum.approval_token}`}
-              className={styles.curriculumBannerCta}
-            >
-              Review the plan
-            </a>
-          </section>
-        ) : null}
-
-        {isActive ? (
-          <>
-            <section className={styles.card}>
-              <div className={styles.cardEyebrow}>This cycle</div>
-              <h2 className={styles.cardTitle}>
-                Lesson {subscription?.cycle_lessons_delivered ?? 0} of 4
-              </h2>
-              <p className={styles.cardBody}>
-                One lesson drops every Sunday. {subscription && subscription.cycle_cancels_used > 0
-                  ? `Cancellations used this cycle: ${subscription.cycle_cancels_used} of 2.`
-                  : "You haven't used any of your 2 cancellations this cycle."}
-              </p>
-              {subscription?.cycle_started_at ? (
-                <p className={styles.subtle}>
-                  Cycle started {formatShortDate(subscription.cycle_started_at)}.
-                </p>
-              ) : null}
-            </section>
-
-            {curriculumWeeks.length === 4 ? (
-              <section className={styles.card}>
-                <div className={styles.cardEyebrow}>{player.first_name}&apos;s 4 week plan</div>
-                <h2 className={styles.cardTitle}>What Tim is working on</h2>
-                {activeCurriculum?.personalization_note ? (
-                  <p className={styles.cardBody}>
-                    <strong>Tim&apos;s note: </strong>{activeCurriculum.personalization_note}
-                  </p>
-                ) : null}
-                <ul className={styles.curriculumList}>
-                  {curriculumWeeks.map((w) => (
-                    <li key={w.week_number} className={styles.curriculumWeek}>
-                      <span className={styles.curriculumWeekNum}>Week {w.week_number}</span>
-                      <span className={styles.curriculumWeekCopy}>
-                        {w.is_vod_review
-                          ? `Review and break down ${player.first_name}'s game clip together.`
-                          : (w.parent_skill_description ?? w.parent_label ?? "Lesson coming")}
-                        <em className={styles.curriculumWeekTerm}>
-                          {" "}(Fortnite term: {w.is_vod_review ? "VOD review" : (w.fortnite_label ?? "lesson")}.)
-                        </em>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-          </>
-        ) : (
-        <>
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Free call scheduled</div>
-          <h2 className={styles.cardTitle}>You are booked</h2>
-          <p className={styles.cardBody}>
-            Your Calendly confirmation email has the date, time, and the link to
-            reschedule or cancel. Look for it from Calendly with subject &quot;New event:
-            30 minute free intro call.&quot;
-          </p>
-          <p className={styles.subtle}>
-            The call happens on Discord, not by phone. Tim will send the invite to{" "}
-            {player.first_name}
-            {player.discord_username ? ` (${player.discord_username})` : ""}{" "}
-            before the call.
-          </p>
-        </section>
-
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Player access</div>
-          <h2 className={styles.cardTitle}>Get {player.first_name} into the player view</h2>
-          <p className={styles.cardBody}>
-            {player.first_name}&apos;s sign in link will be sent to your email, not theirs.
-            Click the button below to send it, then forward the email or hand them the device when you&apos;re ready.
-          </p>
-          <p className={styles.subtle}>
-            You&apos;ll only need to do this once. {player.first_name} will stay signed in for 30 days as long as the browser isn&apos;t reset or cleared.
-          </p>
-          <SendPlayerLinkButton
-            kidFirstName={player.first_name}
-            parentEmail={parent.email}
-          />
-        </section>
-
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Prep checklist</div>
-          <h2 className={styles.cardTitle}>
-            {player.first_name}&apos;s progress
-            <span className={styles.progressPill}>{completedCount} of {QUESTS.length}</span>
-          </h2>
-          <p className={styles.cardBody}>
-            These are the four quests {player.first_name} sees in the player view.{" "}
-            {player.first_name} uploads a recorded clip from a recent Fortnite game and Tim watches it to get ready for the call. {player.first_name} knows what this is. It's called a VOD, short for video on demand, and {player.first_name} sees these all the time.
-          </p>
-          <ul className={styles.questList}>
-            {QUESTS.map((q) => {
-              const done = completedQuestKeys.has(q.key);
-              return (
-                <li key={q.key} className={`${styles.questRow} ${done ? styles.questRowDone : ""}`}>
-                  <div className={styles.questCheck} aria-hidden>
-                    {done ? "✓" : ""}
-                  </div>
-                  <div className={styles.questCopy}>
-                    <div className={styles.questLabel}>{q.label}</div>
-                    <div className={styles.questBlurb}>
-                      {done ? q.doneLabel : q.parentBlurb}
-                    </div>
-                  </div>
-                  <div className={styles.questAction}>
-                    {done ? null : <NudgeButton questKey={q.key} kidFirstName={player.first_name} />}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-        </>
-        )}
-
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Messages</div>
-          <h2 className={styles.cardTitle}>Between {player.first_name} and Tim</h2>
-          <p className={styles.cardBody}>
-            Read only. You see every message {player.first_name} sends to Tim and
-            every reply. Coaching happens here in writing and in the Discord
-            coaching server, never by phone.
-          </p>
-          <MessageThread
-            initialMessages={messages}
-            viewerRole="parent"
-            kidFirstName={player.first_name}
-            endpoint={null}
-          />
-        </section>
-
-        {isActive ? (
-          <section className={styles.card}>
-            <div className={styles.cardEyebrow}>Billing and recordings</div>
-            <h2 className={styles.cardTitle}>Manage your subscription</h2>
-            <p className={styles.cardBody}>
-              Update your card, see past invoices, or cancel the subscription
-              in the Stripe customer portal. Cancel anytime. Your account and
-              messages stay open if you do.
-            </p>
-            <ManagePaymentButton />
-            <div className={styles.controlsGrid}>
-              <div className={styles.controlCard}>
-                <div className={styles.controlTitle}>Call recordings</div>
-                <div className={styles.controlEmpty}>
-                  Tim records every paid call. They show up here after he
-                  uploads them.
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <>
-            <section className={styles.card}>
-              <div className={styles.cardEyebrow}>What to expect</div>
-              <h2 className={styles.cardTitle}>The 30 minute call</h2>
-              <ul className={styles.bullets}>
-                <li>30 minutes on Discord voice. No phone calls, ever.</li>
-                <li>Tim watches the VOD beforehand so the time is spent coaching, not scrolling.</li>
-                <li>No charge unless you decide to subscribe after.</li>
-                <li>If you subscribe, it is $56 for 4 lessons (one per week). Cancel the subscription any time.</li>
-                <li>Cancel a paid lesson more than 24 hours out and the cycle pauses one week, full credit.</li>
-                <li>Up to 2 cancellations per 4 lesson cycle. A 3rd cancel ends the subscription.</li>
-                <li>All Discord coaching happens in a private channel for your family. You are invited as an observer.</li>
-              </ul>
-            </section>
-
-            <section className={styles.card}>
-              <div className={styles.cardEyebrow}>Your controls</div>
-              <h2 className={styles.cardTitle}>Available after conversion</h2>
-              <p className={styles.cardBody}>
-                These panels light up the moment a paid cycle starts. Showing them
-                now so you know where to find them.
-              </p>
-              <div className={styles.controlsGrid}>
-                <div className={styles.controlCard}>
-                  <div className={styles.controlTitle}>Billing</div>
-                  <div className={styles.controlEmpty}>No charges yet.</div>
-                </div>
-                <div className={styles.controlCard}>
-                  <div className={styles.controlTitle}>Call recordings</div>
-                  <div className={styles.controlEmpty}>Tim records every paid call. Trial calls are not recorded.</div>
-                </div>
-              </div>
-              {subscription?.status === "trial" ? (
-                <div className={styles.trailing}>
-                  <button type="button" className={styles.tertiaryBtn} disabled title="Coming soon">
-                    Cancel trial
-                  </button>
-                  <span className={styles.subtle}>Cancel through Calendly for now. Direct cancel lands next phase.</span>
-                </div>
-              ) : null}
-            </section>
-          </>
-        )}
-
-        <section className={styles.contact}>
-          <div className={styles.contactInner}>
-            <div>
-              <div className={styles.contactEyebrow}>Questions before the call?</div>
-              <div className={styles.contactBody}>
-                Have {player.first_name} message Tim in the Messages panel above.
-                Tim sees it on his end and replies there. Everything stays in
-                your dashboard.
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <footer className={styles.footer}>
-          Signed in as {parent.email}. Bookmark this page so you can return any time.
-        </footer>
+        {primaryAction}
       </div>
+
+      {/* Post-payment "active / enrolled" celebration. Renders on the
+          first /portal visit after Stripe success (success-page CTA
+          links here with ?welcome=1). Confident, final language. If
+          Stripe completed the redirect, the parent's card was charged;
+          there is no honest "processing" state to show. The DB may
+          take a beat to catch up, but we show the confident state from
+          the moment they land — that's the whole UX intent. */}
+      {showWelcome && phase === "active" ? (
+        <section className={styles.alertCelebrate}>
+          <div className={styles.alertEyebrowCelebrate}>Enrolled</div>
+          <h2 className={styles.alertTitleLarge}>
+            {player.first_name}&apos;s program is active
+          </h2>
+          <p className={styles.alertBody}>
+            Your subscription is confirmed and your lessons are scheduled.{" "}
+            {week1Delivered
+              ? `${player.first_name}'s first PDF lesson has been delivered today.`
+              : `${player.first_name}'s first PDF lesson drops this Sunday.`}
+            {" "}New lessons arrive every Sunday.
+          </p>
+          <p className={styles.alertBody}>
+            You can:
+          </p>
+          <ul className={styles.alertList}>
+            <li>Reserve upcoming coaching sessions</li>
+            <li>Track progress and lesson history</li>
+            <li>Message me anytime from the dashboard</li>
+          </ul>
+          <div className={styles.alertCtaRow}>
+            <Link href={"/portal/sessions" as never} className={styles.alertCta}>
+              View Sessions
+            </Link>
+            <Link href={"/portal/messages" as never} className={styles.alertCtaSecondary}>
+              Message Me
+            </Link>
+          </div>
+        </section>
+      ) : showWelcome ? (
+        /* Stripe redirect landed before our webhook did — render a thin
+           transitional state while the backend catches up. Client-side
+           poll re-fetches the page every 2 seconds until lifecycle hits
+           ACTIVE, then the enrolled banner above takes over. No
+           "confirming payment" or "refresh" language. */
+        <PaymentProcessingCard kidFirstName={player.first_name} />
+      ) : pendingCurriculum && phase === "trial" ? (
+        <section className={styles.alertCelebrate}>
+          <div className={styles.alertEyebrowCelebrate}>Congratulations</div>
+          <h2 className={styles.alertTitleLarge}>You are in.</h2>
+          <p className={styles.alertBody}>
+            Tim accepted {player.first_name} as a student. Review the 4 week
+            plan he drafted and approve to lock it in.
+          </p>
+          <Link
+            href={`/curriculum/${pendingCurriculum.approval_token}` as never}
+            className={styles.alertCta}
+          >
+            Review the plan
+          </Link>
+        </section>
+      ) : null}
+
+      {phase === "past_due" ? (
+        <section className={styles.alert}>
+          <div className={styles.alertEyebrow}>Payment hold</div>
+          <h2 className={styles.alertTitle}>Update your card to resume lessons</h2>
+          <p className={styles.alertBody}>
+            The cycle is paused. No charge during the hold, no impact on your
+            cancel allowance.
+          </p>
+          <ManagePaymentButton />
+        </section>
+      ) : null}
+
+      {phase === "pending_cancel" ? (
+        <section className={styles.alertWarn}>
+          <div className={styles.alertEyebrow}>Winding down</div>
+          <h2 className={styles.alertTitle}>
+            {autoConfirmDate
+              ? `Closes on ${autoConfirmDate}. Want to keep it?`
+              : "Want to keep the subscription?"}
+          </h2>
+          <p className={styles.alertBody}>
+            We sent you an email with an Undo link. Click it to revert the
+            third cancel, restore your slot, and resume the cycle. No new
+            lessons or charges run until you decide.
+          </p>
+          <p className={styles.alertSubtle}>
+            Or reply to the email and Tim will sort it with you directly.
+          </p>
+        </section>
+      ) : null}
+
+      {phase === "ended" ? (
+        <section className={styles.alertSoft}>
+          <div className={styles.alertEyebrow}>Account is open</div>
+          <h2 className={styles.alertTitle}>You can pick this back up</h2>
+          <p className={styles.alertBody}>
+            Your messages, history, and family record stay here. If you want
+            to restart, email Tim and he will walk you back in.
+          </p>
+        </section>
+      ) : null}
+
+      <section className={styles.summaryGrid}>
+        <Link href={"/portal/sessions" as never} className={styles.summaryCard}>
+          <div className={styles.summaryEyebrow}>Next session</div>
+          <div className={styles.summaryTitle}>
+            {phase === "active"
+              ? "Sunday lesson drop"
+              : phase === "past_due"
+                ? "Paused"
+                : phase === "pending_cancel"
+                  ? "No new sessions"
+                  : phase === "ended"
+                    ? "Nothing scheduled"
+                    : "Free intro call"}
+          </div>
+          <div className={styles.summaryBody}>
+            {phase === "active"
+              ? "Tim ships the slides and voiceover every Sunday. Your kid sees them in the player view."
+              : phase === "past_due"
+                ? "No Sunday drops or live calls run during the payment hold. Update your card to resume."
+                : phase === "pending_cancel"
+                  ? "Nothing new ships during the 7 day undo window. Undo at any time to resume."
+                  : phase === "ended"
+                    ? "No sessions on the books. Your past history is still here when you come back."
+                    : callDateTime
+                      ? `${callDateTime}. The call happens on Discord. Tim sends ${player.first_name} an invite to ${player.discord_username ?? "their Discord"} beforehand. No payment today.`
+                      : "Check your Calendly confirmation for the date and time. The call happens on Discord."}
+          </div>
+          <div className={styles.summaryLink}>View sessions</div>
+        </Link>
+
+        <Link href={"/portal/progress" as never} className={styles.summaryCard}>
+          <div className={styles.summaryEyebrow}>
+            {showCycleSnapshot ? "This cycle" : showQuestSnapshot ? "Trial prep" : "History"}
+          </div>
+          <div className={styles.summaryTitle}>
+            {showCycleSnapshot
+              ? `Lesson ${cycleProgress} of 4`
+              : showQuestSnapshot
+                ? `${completedQuests} of 4 quests done`
+                : "Saved for later"}
+          </div>
+          <div className={styles.summaryBody}>
+            {phase === "active"
+              ? cancelsUsed > 0
+                ? `${cancelsUsed} cancellation${cancelsUsed === 1 ? "" : "s"} used this cycle. ${2 - cancelsUsed} remaining.`
+                : "Both of your 2 cancellations this cycle are still available."
+              : phase === "past_due"
+                ? "Cycle is frozen at this lesson. It will resume from here once payment is updated."
+                : phase === "pending_cancel"
+                  ? "Cycle paused while the undo window is open. Nothing advances until you decide."
+                  : phase === "ended"
+                    ? "Everything from your past sessions stays accessible. Open progress to look back."
+                    : `These are short prep tasks ${player.first_name} does before the call. The more done, the better the first session goes.`}
+          </div>
+          <div className={styles.summaryLink}>View progress</div>
+        </Link>
+
+        <Link href={"/portal/messages" as never} className={styles.summaryCard}>
+          <div className={styles.summaryEyebrow}>Messages</div>
+          <div className={styles.summaryTitle}>
+            {latestMessage
+              ? latestMessage.sender_role === "coach"
+                ? "Tim sent a message"
+                : `${player.first_name} sent a message`
+              : "Nothing yet"}
+          </div>
+          <div className={styles.summaryBody}>
+            {latestMessage
+              ? `"${latestMessage.body.slice(0, 90).trim()}${latestMessage.body.length > 90 ? "..." : ""}"`
+              : `${player.first_name} can message Tim from the player view. You see every message here.`}
+          </div>
+          <div className={styles.summaryLink}>Open messages</div>
+        </Link>
+      </section>
+
+      <SessionPersistenceModal />
     </div>
   );
 }

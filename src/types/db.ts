@@ -199,6 +199,7 @@ export type Database = {
           approved_at: string | null
           created_at: string
           created_by: string
+          cycle_anchor_at: string | null
           id: string
           personalization_note: string | null
           player_id: string
@@ -211,6 +212,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           created_by: string
+          cycle_anchor_at?: string | null
           id?: string
           personalization_note?: string | null
           player_id: string
@@ -223,6 +225,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           created_by?: string
+          cycle_anchor_at?: string | null
           id?: string
           personalization_note?: string | null
           player_id?: string
@@ -786,6 +789,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          coach_seen_at: string | null
           created_at: string
           cycle_cancels_used: number
           cycle_lessons_delivered: number
@@ -798,11 +802,17 @@ export type Database = {
           notified_at_dunning_day6: string | null
           notified_at_third_cancel: string | null
           past_due_started_at: string | null
+          payment_pending_at: string | null
+          payment_reminder_12h_at: string | null
+          payment_reminder_6h_at: string | null
           pending_cancel_auto_confirm_at: string | null
           pending_cancel_reminder_3day_at: string | null
           pending_cancel_reminder_6day_at: string | null
           pending_cancel_started_at: string | null
           player_id: string
+          scheduling_reminder_24h_at: string | null
+          scheduling_reminder_72h_at: string | null
+          scheduling_started_at: string | null
           status: string
           stripe_subscription_id: string | null
           tier: string
@@ -810,8 +820,10 @@ export type Database = {
           trial_call_event_uri: string | null
           updated_at: string
           waiting_on: Database["public"]["Enums"]["waiting_on_t"]
+          welcomed_at: string | null
         }
         Insert: {
+          coach_seen_at?: string | null
           created_at?: string
           cycle_cancels_used?: number
           cycle_lessons_delivered?: number
@@ -824,11 +836,17 @@ export type Database = {
           notified_at_dunning_day6?: string | null
           notified_at_third_cancel?: string | null
           past_due_started_at?: string | null
+          payment_pending_at?: string | null
+          payment_reminder_12h_at?: string | null
+          payment_reminder_6h_at?: string | null
           pending_cancel_auto_confirm_at?: string | null
           pending_cancel_reminder_3day_at?: string | null
           pending_cancel_reminder_6day_at?: string | null
           pending_cancel_started_at?: string | null
           player_id: string
+          scheduling_reminder_24h_at?: string | null
+          scheduling_reminder_72h_at?: string | null
+          scheduling_started_at?: string | null
           status?: string
           stripe_subscription_id?: string | null
           tier: string
@@ -836,8 +854,10 @@ export type Database = {
           trial_call_event_uri?: string | null
           updated_at?: string
           waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
+          welcomed_at?: string | null
         }
         Update: {
+          coach_seen_at?: string | null
           created_at?: string
           cycle_cancels_used?: number
           cycle_lessons_delivered?: number
@@ -850,11 +870,17 @@ export type Database = {
           notified_at_dunning_day6?: string | null
           notified_at_third_cancel?: string | null
           past_due_started_at?: string | null
+          payment_pending_at?: string | null
+          payment_reminder_12h_at?: string | null
+          payment_reminder_6h_at?: string | null
           pending_cancel_auto_confirm_at?: string | null
           pending_cancel_reminder_3day_at?: string | null
           pending_cancel_reminder_6day_at?: string | null
           pending_cancel_started_at?: string | null
           player_id?: string
+          scheduling_reminder_24h_at?: string | null
+          scheduling_reminder_72h_at?: string | null
+          scheduling_started_at?: string | null
           status?: string
           stripe_subscription_id?: string | null
           tier?: string
@@ -862,6 +888,7 @@ export type Database = {
           trial_call_event_uri?: string | null
           updated_at?: string
           waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
+          welcomed_at?: string | null
         }
         Relationships: [
           {
@@ -1082,6 +1109,9 @@ export type Database = {
         | "PENDING_CANCEL"
         | "CANCELED"
         | "WAITLIST"
+        | "ACCEPTED_PENDING_SCHEDULING"
+        | "SCHEDULING_IN_PROGRESS"
+        | "PENDING_PAYMENT"
       waiting_on_t: "TIM" | "PARENT" | "KID" | "SYSTEM" | "DAD"
     }
     CompositeTypes: {
@@ -1222,6 +1252,9 @@ export const Constants = {
         "PENDING_CANCEL",
         "CANCELED",
         "WAITLIST",
+        "ACCEPTED_PENDING_SCHEDULING",
+        "SCHEDULING_IN_PROGRESS",
+        "PENDING_PAYMENT",
       ],
       waiting_on_t: ["TIM", "PARENT", "KID", "SYSTEM", "DAD"],
     },

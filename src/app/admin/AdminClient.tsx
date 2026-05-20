@@ -8,7 +8,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import MessageThread, { type MessageRow } from "@/components/MessageThread";
-import TimDadChannel, { type TimDadMessage } from "@/components/TimDadChannel";
 
 const Q1_LABELS: Record<string, string> = {
   lose_fights: "Loses fights they should win",
@@ -37,7 +36,7 @@ const QUEST_LABELS: Record<string, string> = {
 };
 const QUEST_ORDER = ["signup", "drop_vod", "answer_questions", "join_discord"] as const;
 
-type Player = {
+export type Player = {
   id: string;
   family_id: string;
   first_name: string;
@@ -49,8 +48,8 @@ type Player = {
   hours_per_week: number | null;
   discord_channel_url: string | null;
 };
-type Parent = { family_id: string; first_name: string; email: string };
-type Prep = {
+export type Parent = { family_id: string; first_name: string; email: string };
+export type Prep = {
   q1_choice: string;
   q1_other_text: string | null;
   q2_choice: string;
@@ -58,7 +57,7 @@ type Prep = {
   q3_reflection: string;
 };
 
-type TrialCard = {
+export type TrialCard = {
   subscription_id: string;
   player_id: string;
   player: Player | null;
@@ -70,11 +69,16 @@ type TrialCard = {
   created_at: string;
 };
 
-type ActiveRow = {
+export type ActiveRow = {
   subscription_id: string;
   player_id: string;
   player_first_name: string;
   parent_first_name: string;
+  // Real subscription.status. Includes 'active' (paying, delivering),
+  // 'past_due' (paying, frozen on a card failure), and 'pending_cancel'
+  // (winding down inside the 7 day undo window). canceled / declined
+  // are filtered upstream — they don't appear in this list.
+  status: string;
   cycle_lessons_delivered: number;
   cycle_cancels_used: number;
   messages: MessageRow[];
@@ -118,20 +122,44 @@ type ReturnedStuck = {
   resolved_at: string;
 };
 
+// Per-welcome-task context shipped down from the server so the welcome
+// card can render the 4 booked dates + show the .ics download link
+// without an extra client round-trip.
+type WelcomeContext = {
+  subscription_id: string;
+  player_id: string;
+  slots: Array<{
+    week_number: number;
+    live_call_at: string | null;
+    live_call_event_id: string | null;
+  }>;
+  has_auto_booked: boolean;
+};
+
+// Per-trial-booked-task context (awareness card showing a freshly
+// booked free intro call before the call happens).
+type TrialBookedContext = {
+  subscription_id: string;
+  player_id: string;
+  kid_age: number;
+  parent_first_name: string;
+  parent_email: string;
+  prep_completed: number;
+  total_quests: number;
+  trial_call_at: string | null;
+};
+
 export default function AdminClient({
-  coachName,
   coachMode,
   stats,
   tasks,
-  trialCards,
-  activeRows,
   pipelineCards,
   waitlistEntries,
   returnedStucks,
   doneToday,
-  timDadMessages,
+  welcomeContexts,
+  trialBookedContexts,
 }: {
-  coachName: string;
   coachMode: "focused" | "command";
   stats: {
     payingCount: number;
@@ -141,46 +169,28 @@ export default function AdminClient({
     waitlistOldestDays: number | null;
   };
   tasks: DerivedTask[];
-  trialCards: TrialCard[];
-  activeRows: ActiveRow[];
   pipelineCards: PipelineCard[];
   waitlistEntries: WaitlistEntry[];
   returnedStucks: ReturnedStuck[];
   doneToday: number;
-  timDadMessages: TimDadMessage[];
+  welcomeContexts: WelcomeContext[];
+  trialBookedContexts: TrialBookedContext[];
 }) {
   const router = useRouter();
 
-  async function onSignOut() {
-    try {
-      await fetch("/api/auth/signout", { method: "POST" });
-    } catch { /* fall through */ }
-    (router.replace as (u: string) => void)("/login");
-    router.refresh();
-  }
-
   return (
-    <div className={styles.frame}>
-      <header className={styles.topBar}>
-        <div className={styles.brand}>XPL KEYED ADMIN</div>
-        <div className={styles.topMeta}>
-          <ModeToggle current={coachMode} router={router} />
-          <a href="/admin/lessons" className={styles.signOutBtn}>
-            Lesson library
-          </a>
-          <span className={styles.coachName}>{coachName}</span>
-          <button type="button" onClick={onSignOut} className={styles.signOutBtn}>
-            Sign out
-          </button>
-        </div>
-      </header>
-
+    <div className={styles.homeFrame}>
       <StuckReturnBanner returnedStucks={returnedStucks} />
 
       {coachMode === "command" ? (
         <CommandPipeline pipelineCards={pipelineCards} waitlistEntries={waitlistEntries} stats={stats} />
       ) : (
-        <FocusedHome tasks={tasks} doneToday={doneToday} />
+        <FocusedHome
+          tasks={tasks}
+          doneToday={doneToday}
+          welcomeContexts={welcomeContexts}
+          trialBookedContexts={trialBookedContexts}
+        />
       )}
 
       <section className={styles.statsStrip}>
@@ -202,77 +212,6 @@ export default function AdminClient({
         />
         <Stat label="Revenue MTD" value="$0" tone="muted" hint="Wires up once Stripe webhooks land real charges." />
       </section>
-
-      <section className={styles.block}>
-        <h2 className={styles.blockHeader}>
-          New trials
-          <span className={styles.blockCount}>{trialCards.length}</span>
-        </h2>
-        {trialCards.length === 0 ? (
-          <div className={styles.empty}>
-            No trials in the queue. Free intro calls will land here as families book.
-          </div>
-        ) : (
-          <div className={styles.trialGrid}>
-            {trialCards.map((card) => (
-              <TrialCardView key={card.subscription_id} card={card} router={router} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className={styles.block}>
-        <h2 className={styles.blockHeader}>
-          Active clients
-          <span className={styles.blockCount}>{activeRows.length}</span>
-        </h2>
-        {activeRows.length === 0 ? (
-          <div className={styles.empty}>
-            No active subscriptions yet. The first paid cycle lands here after Stage C conversion.
-          </div>
-        ) : (
-          <ul className={styles.activeList}>
-            {activeRows.map((row) => (
-              <li key={row.subscription_id} id={`client-${row.player_id}`} className={styles.activeRow}>
-                <div className={styles.activeHeader}>
-                  <div className={styles.activeName}>
-                    <span className={styles.activeKid}>{row.player_first_name}</span>
-                    <span className={styles.activeSubtle}>
-                      Parent: {row.parent_first_name}
-                    </span>
-                  </div>
-                  <div className={styles.activeMeta}>
-                    <span className={styles.metaPill}>
-                      Cycle {row.cycle_lessons_delivered}/4
-                    </span>
-                    <span className={styles.metaPill}>
-                      Cancels {row.cycle_cancels_used}/2
-                    </span>
-                  </div>
-                </div>
-                <div className={styles.messagesBlock}>
-                  <div className={styles.fieldLabel}>Messages with {row.player_first_name}</div>
-                  <MessageThread
-                    initialMessages={row.messages}
-                    viewerRole="coach"
-                    kidFirstName={row.player_first_name}
-                    endpoint="/api/admin/message"
-                    playerId={row.player_id}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className={styles.block}>
-        <TimDadChannel initialMessages={timDadMessages} viewerRole="tim" />
-      </section>
-
-      <footer className={styles.footer}>
-        Tim's admin. Stage C and lesson library land next.
-      </footer>
     </div>
   );
 }
@@ -424,6 +363,9 @@ const PIPELINE_COLUMNS: { state: string; label: string }[] = [
   { state: "TRIAL_PREP", label: "Trial prep" },
   { state: "TRIAL_SCHEDULED", label: "Trial scheduled" },
   { state: "TRIAL_DONE", label: "Trial done" },
+  { state: "ACCEPTED_PENDING_SCHEDULING", label: "Accepted" },
+  { state: "SCHEDULING_IN_PROGRESS", label: "Booking" },
+  { state: "PENDING_PAYMENT", label: "Paying" },
   { state: "ACTIVE", label: "Active" },
   { state: "PAST_DUE", label: "Past due" },
   { state: "PENDING_CANCEL", label: "Pending cancel" },
@@ -485,7 +427,7 @@ function CommandPipeline({
                   cards.map((c) => (
                     <a
                       key={c.subscription_id}
-                      href={`#client-${c.player_id}`}
+                      href={`/admin/clients?client=${c.player_id}`}
                       className={`${styles.pipelineCard} ${c.waiting_on === "TIM" ? styles.pipelineCardWaitingTim : ""}`}
                     >
                       <div className={styles.pipelineCardName}>{c.player_first_name}</div>
@@ -553,9 +495,13 @@ function CommandPipeline({
 function FocusedHome({
   tasks,
   doneToday,
+  welcomeContexts,
+  trialBookedContexts,
 }: {
   tasks: DerivedTask[];
   doneToday: number;
+  welcomeContexts: WelcomeContext[];
+  trialBookedContexts: TrialBookedContext[];
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
@@ -588,6 +534,29 @@ function FocusedHome({
   const phrasing = phraseForTask(topTask);
   const ageStr = formatAge(topTask.age_in_state);
   const isMessageThread = topTask.task_type === "message_thread";
+  const isWelcome = topTask.task_type === "new_student_welcome";
+  const welcomeCtx = isWelcome
+    ? welcomeContexts.find(
+        (c) =>
+          c.subscription_id ===
+          (topTask.task_payload?.subscription_id as string | undefined),
+      ) ?? null
+    : null;
+  const isTrialBooked = topTask.task_type === "new_trial_booked";
+  const trialBookedCtx = isTrialBooked
+    ? trialBookedContexts.find(
+        (c) =>
+          c.subscription_id ===
+          (topTask.task_payload?.subscription_id as string | undefined),
+      ) ?? null
+    : null;
+  const isParentScheduling = topTask.task_type === "parent_started_scheduling";
+  const isPendingPayment = topTask.task_type === "pending_payment";
+  const isPastDue = topTask.task_type === "past_due_opened";
+  const isVodDropped = topTask.task_type === "vod_dropped";
+  const isPrepAnswered = topTask.task_type === "prep_answered";
+  const isAwareness =
+    isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered;
 
   async function submitReply(e: React.FormEvent) {
     e.preventDefault();
@@ -617,9 +586,39 @@ function FocusedHome({
   }
 
   return (
-    <section className={styles.focusedHome}>
-      <div className={styles.focusedHomeEyebrow}>Next thing</div>
-      <h2 className={styles.focusedHomeTitle}>{phrasing.title}</h2>
+    <section
+      className={`${styles.focusedHome} ${
+        isWelcome
+          ? styles.focusedHomeWelcome
+          : isPastDue
+            ? styles.focusedHomePastDue
+            : isAwareness
+              ? styles.focusedHomeTrialBooked
+              : ""
+      }`}
+    >
+      <div className={styles.focusedHomeEyebrow}>
+        {isWelcome ? (
+          <span className={styles.newStudentPill}>NEW STUDENT</span>
+        ) : isTrialBooked ? (
+          <span className={styles.newTrialPill}>FREE CALL BOOKED</span>
+        ) : isParentScheduling ? (
+          <span className={styles.newTrialPill}>SCHEDULING</span>
+        ) : isPendingPayment ? (
+          <span className={styles.newTrialPill}>AWAITING PAYMENT</span>
+        ) : isPastDue ? (
+          <span className={styles.pastDuePill}>CARD DECLINED</span>
+        ) : isVodDropped ? (
+          <span className={styles.newTrialPill}>NEW VOD</span>
+        ) : isPrepAnswered ? (
+          <span className={styles.newTrialPill}>PREP IN</span>
+        ) : (
+          "Next thing"
+        )}
+      </div>
+      <h2 className={`${styles.focusedHomeTitle} ${isWelcome || isAwareness || isPastDue ? styles.focusedHomeTitleLarge : ""}`}>
+        {phrasing.title}
+      </h2>
       {phrasing.body ? (
         <p className={styles.focusedHomeBody}>{phrasing.body}</p>
       ) : null}
@@ -631,7 +630,20 @@ function FocusedHome({
         <StuckButton task={topTask} variant="link" />
       </div>
 
-      {isMessageThread && !replySent ? (
+      {isWelcome ? (
+        <WelcomeForm
+          subscriptionId={(topTask.task_payload?.subscription_id as string) ?? ""}
+          playerId={topTask.client_id}
+          kidFirstName={topTask.client_name}
+          ctx={welcomeCtx}
+        />
+      ) : isTrialBooked ? (
+        <TrialBookedCard
+          playerId={topTask.client_id}
+          kidFirstName={topTask.client_name}
+          ctx={trialBookedCtx}
+        />
+      ) : isMessageThread && !replySent ? (
         <form className={styles.inlineReply} onSubmit={submitReply}>
           <textarea
             value={replyBody}
@@ -650,7 +662,7 @@ function FocusedHome({
               {replySubmitting ? "Sending..." : "Send reply"}
             </button>
             <a
-              href={`#client-${topTask.client_id}`}
+              href={`/admin/clients?client=${topTask.client_id}`}
               className={styles.inlineReplySecondary}
             >
               Open thread
@@ -662,8 +674,30 @@ function FocusedHome({
         <div className={styles.inlineReplySent}>
           Replied to {topTask.client_name}. Refreshing the queue...
         </div>
+      ) : isVodDropped ? (
+        <div className={styles.inlineReplyRow}>
+          <a
+            href={`/admin/clients?client=${topTask.client_id}`}
+            className={styles.focusedHomeCta}
+          >
+            Open card
+          </a>
+          {(() => {
+            const url = (topTask.task_payload?.vod_url as string | undefined) ?? null;
+            return url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className={styles.inlineReplySecondary}
+              >
+                Watch clip
+              </a>
+            ) : null;
+          })()}
+        </div>
       ) : (
-        <a href={`#client-${topTask.client_id}`} className={styles.focusedHomeCta}>
+        <a href={`/admin/clients?client=${topTask.client_id}`} className={styles.focusedHomeCta}>
           {phrasing.cta}
         </a>
       )}
@@ -690,7 +724,7 @@ function FocusedHome({
                         {formatAge(t.age_in_state)} · <StuckButton task={t} variant="link" />
                       </span>
                     </div>
-                    <a href={`#client-${t.client_id}`} className={styles.focusedHomeMoreCta}>
+                    <a href={`/admin/clients?client=${t.client_id}`} className={styles.focusedHomeMoreCta}>
                       {p.cta}
                     </a>
                   </li>
@@ -707,6 +741,236 @@ function FocusedHome({
         </div>
       ) : null}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Welcome form — rendered inline inside FocusedHome when the top task
+// is new_student_welcome. Lists the 4 booked dates, offers an .ics
+// download for the auto-book path, takes an optional welcome message
+// + discord channel URL, and confirms via "I welcomed them" → POSTs to
+// /api/admin/welcome which flips waiting_on=SYSTEM and drops the task.
+// ---------------------------------------------------------------------------
+
+function WelcomeForm({
+  subscriptionId,
+  playerId,
+  kidFirstName,
+  ctx,
+}: {
+  subscriptionId: string;
+  playerId: string;
+  kidFirstName: string;
+  ctx: WelcomeContext | null;
+}) {
+  const router = useRouter();
+  const [message, setMessage] = useState("");
+  const [discordUrl, setDiscordUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const slots = ctx?.slots ?? [];
+  const hasAutoBooked = !!ctx?.has_auto_booked;
+  const icsUrl = `/api/admin/clients/${playerId}/sessions.ics`;
+
+  async function onConfirm() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/welcome", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          subscription_id: subscriptionId,
+          welcome_message: message.trim() || undefined,
+          discord_channel_url: discordUrl.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? "Welcome failed. Try again.");
+        setSubmitting(false);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Could not reach the server.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className={styles.welcomeForm}>
+      {slots.length > 0 ? (
+        <div className={styles.welcomeSection}>
+          <div className={styles.welcomeSectionLabel}>Booked sessions</div>
+          <ul className={styles.welcomeSlotList}>
+            {slots.map((s) => (
+              <li key={s.week_number} className={styles.welcomeSlotItem}>
+                <span className={styles.welcomeSlotWeek}>Week {s.week_number}</span>
+                <span className={styles.welcomeSlotTime}>
+                  {s.live_call_at
+                    ? new Intl.DateTimeFormat("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }).format(new Date(s.live_call_at))
+                    : "(no time yet)"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className={styles.welcomeCalendarLine}>
+            {hasAutoBooked ? (
+              <>
+                <span>These are not on your Google Calendar yet.</span>
+                <a
+                  href={icsUrl}
+                  className={styles.welcomeIcsBtn}
+                  download
+                >
+                  Add to Google Calendar (.ics)
+                </a>
+              </>
+            ) : (
+              <span>These are already on your Google Calendar via Calendly.</span>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <div className={styles.welcomeSection}>
+        <label className={styles.welcomeSectionLabel} htmlFor={`welcome-msg-${subscriptionId}`}>
+          Welcome message to {kidFirstName} (optional)
+        </label>
+        <textarea
+          id={`welcome-msg-${subscriptionId}`}
+          className={styles.welcomeTextarea}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          placeholder={`Hey ${kidFirstName}! Pumped to coach you...`}
+        />
+      </div>
+
+      <div className={styles.welcomeSection}>
+        <label className={styles.welcomeSectionLabel} htmlFor={`welcome-discord-${subscriptionId}`}>
+          Discord channel invite (optional)
+        </label>
+        <input
+          id={`welcome-discord-${subscriptionId}`}
+          className={styles.welcomeInput}
+          type="text"
+          value={discordUrl}
+          onChange={(e) => setDiscordUrl(e.target.value)}
+          maxLength={500}
+          placeholder="https://discord.gg/..."
+        />
+      </div>
+
+      {error ? <div className={styles.welcomeError}>{error}</div> : null}
+
+      <div className={styles.welcomeActions}>
+        <button
+          type="button"
+          className={styles.focusedHomeCta}
+          onClick={onConfirm}
+          disabled={submitting}
+        >
+          {submitting ? "Saving..." : "I welcomed them"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TrialBookedCard — awareness card for a freshly booked free call.
+// Surfaces while the call is still upcoming. Auto-drops once the call
+// time + 30min has passed and the trial_decision task takes over.
+// Tim doesn't need to act on this card — Calendly synced his calendar.
+// It just keeps him aware that something's happening.
+// ---------------------------------------------------------------------------
+
+function TrialBookedCard({
+  playerId,
+  kidFirstName,
+  ctx,
+}: {
+  playerId: string;
+  kidFirstName: string;
+  ctx: TrialBookedContext | null;
+}) {
+  if (!ctx) {
+    // No context yet — degrade gracefully with just the CTA.
+    return (
+      <div className={styles.welcomeActions}>
+        <a
+          href={`/admin/clients?client=${playerId}`}
+          className={styles.focusedHomeCta}
+        >
+          Open card
+        </a>
+      </div>
+    );
+  }
+
+  const callTime = ctx.trial_call_at
+    ? new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(ctx.trial_call_at))
+    : "(time pending)";
+
+  return (
+    <div className={styles.welcomeForm}>
+      <div className={styles.welcomeSection}>
+        <div className={styles.welcomeSectionLabel}>Call time</div>
+        <div className={styles.welcomeSlotItem}>
+          <span className={styles.welcomeSlotTime}>{callTime}</span>
+        </div>
+        <div className={styles.welcomeCalendarLine}>
+          <span>Already on your Google Calendar via Calendly.</span>
+        </div>
+      </div>
+
+      <div className={styles.welcomeSection}>
+        <div className={styles.welcomeSectionLabel}>Who</div>
+        <div className={styles.welcomeSlotItem}>
+          <span className={styles.welcomeSlotTime}>
+            {kidFirstName}, age {ctx.kid_age} · parent {ctx.parent_first_name}
+            {ctx.parent_email ? ` (${ctx.parent_email})` : ""}
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.welcomeSection}>
+        <div className={styles.welcomeSectionLabel}>Prep</div>
+        <div className={styles.welcomeSlotItem}>
+          <span className={styles.welcomeSlotTime}>
+            {ctx.prep_completed} of {ctx.total_quests} prep tasks done
+            {ctx.prep_completed === ctx.total_quests
+              ? ". Ready to roll."
+              : ` (the more, the better the first call goes).`}
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.welcomeActions}>
+        <a
+          href={`/admin/clients?client=${playerId}`}
+          className={styles.focusedHomeCta}
+        >
+          Open client card
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -842,6 +1106,74 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         body: "Credit or forfeit. The 24 hour rule decides.",
         cta: "Review",
       };
+    case "new_student_welcome":
+      return {
+        title: `${name} is in.`,
+        body: "First cycle is paid. Welcome them and lock in the calendar.",
+        cta: "Welcome",
+      };
+    case "new_trial_booked":
+      return {
+        title: `${name} just booked a free call.`,
+        body: "Calendly synced the time to your calendar. Prep when you have a minute.",
+        cta: "Open card",
+      };
+    case "parent_started_scheduling": {
+      const payload = (t.task_payload ?? {}) as { slots_booked?: number };
+      const booked = payload.slots_booked ?? 0;
+      return {
+        title: `${name}'s parent is booking lessons.`,
+        body:
+          booked === 0
+            ? "They opened the scheduler. No slots reserved yet."
+            : booked === 4
+              ? "All four slots reserved. Payment is the next step."
+              : `${booked} of 4 slots reserved.`,
+        cta: "Open card",
+      };
+    }
+    case "pending_payment":
+      return {
+        title: `${name}'s lessons are awaiting payment.`,
+        body: "All four slots reserved. Parent is on the Stripe page.",
+        cta: "Open card",
+      };
+    case "past_due_opened": {
+      const payload = (t.task_payload ?? {}) as { past_due_started_at?: string };
+      const since = payload.past_due_started_at;
+      const days = since
+        ? Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 86400000))
+        : 0;
+      return {
+        title: `${name}'s card was declined.`,
+        body:
+          days === 0
+            ? "Stripe is auto retrying. Lessons paused while it sorts out."
+            : `Day ${days}. Stripe is still retrying. Lessons paused.`,
+        cta: "Open card",
+      };
+    }
+    case "vod_dropped": {
+      const payload = (t.task_payload ?? {}) as { vod_url?: string };
+      return {
+        title: `${name} dropped a clip.`,
+        body: payload.vod_url ? "Watch it before the call so you walk in informed." : "Watch it before the call so you walk in informed.",
+        cta: "Open card",
+      };
+    }
+    case "prep_answered": {
+      const payload = (t.task_payload ?? {}) as { q1_choice?: string; q2_choice?: string };
+      const q1 = payload.q1_choice ? Q1_LABELS[payload.q1_choice] ?? payload.q1_choice : null;
+      const q2 = payload.q2_choice ? Q2_LABELS[payload.q2_choice] ?? payload.q2_choice : null;
+      const parts: string[] = [];
+      if (q1) parts.push(`Frustration: ${q1}.`);
+      if (q2) parts.push(`Goal: ${q2}.`);
+      return {
+        title: `${name} answered the prep questions.`,
+        body: parts.length > 0 ? parts.join(" ") : "Read their answers before the call.",
+        cta: "Open card",
+      };
+    }
     default:
       return {
         title: `${name} needs you.`,
@@ -887,7 +1219,7 @@ function Stat({
   );
 }
 
-function TrialCardView({
+export function TrialCardView({
   card,
   router,
 }: {
@@ -898,38 +1230,6 @@ function TrialCardView({
   const parent = card.parent;
   const completed = new Set(card.completed_quest_keys);
   const completedCount = QUEST_ORDER.filter((k) => completed.has(k)).length;
-
-  const [discordUrl, setDiscordUrl] = useState<string>(
-    player?.discord_channel_url ?? "",
-  );
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
-
-  async function saveDiscordUrl(e: React.FormEvent) {
-    e.preventDefault();
-    if (!player) return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/admin/players/${player.id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ discord_channel_url: discordUrl.trim() || null }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? "Save failed. Try again.");
-        setSubmitting(false);
-        return;
-      }
-      setSavedAt(Date.now());
-      router.refresh();
-    } catch {
-      setError("Could not reach the server.");
-    }
-    setSubmitting(false);
-  }
 
   if (!player) {
     return (
@@ -984,7 +1284,7 @@ function TrialCardView({
 
       {player.discord_username ? (
         <div className={styles.metaRow}>
-          <span className={styles.metaLabel}>Kid Discord</span>
+          <span className={styles.metaLabel}>Discord</span>
           <code className={styles.code}>{player.discord_username}</code>
         </div>
       ) : null}
@@ -1026,33 +1326,7 @@ function TrialCardView({
         </div>
       ) : null}
 
-      <form className={styles.discordForm} onSubmit={saveDiscordUrl}>
-        <label className={styles.fieldLabel} htmlFor={`discord-${player.id}`}>
-          Discord channel invite
-        </label>
-        <div className={styles.discordRow}>
-          <input
-            id={`discord-${player.id}`}
-            type="url"
-            inputMode="url"
-            placeholder="https://discord.gg/..."
-            value={discordUrl}
-            onChange={(e) => setDiscordUrl(e.target.value)}
-            className={styles.input}
-          />
-          <button
-            type="submit"
-            className={styles.primaryBtn}
-            disabled={submitting}
-          >
-            {submitting ? "Saving" : savedAt ? "Saved" : "Save"}
-          </button>
-        </div>
-        <div className={styles.hint}>
-          Paste the per-kid channel invite from your server. Parent and player views read this.
-        </div>
-        {error ? <div className={styles.alert}>{error}</div> : null}
-      </form>
+      <StageCPanel playerId={player.id} kidFirstName={player.first_name} router={router} />
 
       <div className={styles.messagesBlock}>
         <div className={styles.fieldLabel}>Messages with {player.first_name}</div>
@@ -1064,8 +1338,6 @@ function TrialCardView({
           playerId={player.id}
         />
       </div>
-
-      <StageCPanel playerId={player.id} kidFirstName={player.first_name} router={router} />
     </article>
   );
 }
@@ -1082,7 +1354,6 @@ type StageCMode =
   | { kind: "confirming_decline" }
   | { kind: "submitting_decline" }
   | { kind: "submitted_decline" }
-  | { kind: "still_deciding" }
   | { kind: "error"; message: string };
 
 type Week = {
@@ -1208,15 +1479,6 @@ function StageCPanel({
       </div>
     );
   }
-  if (mode.kind === "still_deciding") {
-    return (
-      <div className={styles.stageCDone}>
-        <div className={styles.stageCDoneTitle}>Saved for review.</div>
-        <div className={styles.hint}>Come back to this card when you decide.</div>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.stageCBlock}>
       <div className={styles.fieldLabel}>After the trial call</div>
@@ -1237,13 +1499,6 @@ function StageCPanel({
               onClick={() => setMode({ kind: "confirming_decline" })}
             >
               Not the right fit
-            </button>
-            <button
-              type="button"
-              className={styles.tertiaryBtn}
-              onClick={() => setMode({ kind: "still_deciding" })}
-            >
-              Still deciding
             </button>
           </div>
           {mode.kind === "error" ? (

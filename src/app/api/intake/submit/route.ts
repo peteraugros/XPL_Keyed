@@ -131,8 +131,9 @@ export async function POST(req: Request) {
     subject: "Your XPL Keyed dashboard is ready",
     headline: "Welcome to XPL Keyed",
     bodyHtml: `<p>Hi ${escapeHtml(body.parent_first_name)},</p>
-<p>${escapeHtml(body.kid_first_name)}'s free trial is set up. Tap the button to open your parent dashboard. You can review the trial prep, see what Tim watches before the call, and book the call if you have not already.</p>
-<p style="font-size:13px;color:rgba(255,255,255,0.6);">This link signs you in. Keep it private. Questions? Reply to this email.</p>`,
+<p>${escapeHtml(body.kid_first_name)}'s free trial is set up. Tap the button to open your parent dashboard. You can review the prep tasks I ask ${escapeHtml(body.kid_first_name)} to finish before our call.</p>
+<p>Thank you for the opportunity to help your child reach their Fortnite goals!</p>
+<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
     ctaLabel: "Open your dashboard",
   });
   if (!welcomeResult.ok) {

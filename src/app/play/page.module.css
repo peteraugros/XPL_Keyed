@@ -576,3 +576,84 @@
   margin-top: 12px;
   padding: 0 8px;
 }
+
+/* --- HQ wrapper (PlayClient root div) --- */
+.hq {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- Routing tiles out of HQ. Replaces the old big Messages section
+   + locked library card. 3 tiles in a row at tablet+, stacked mobile. */
+.routingRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 560px) {
+  .routingRow {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+}
+.routeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 14px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s;
+  min-height: 100px;
+}
+.routeCard:hover {
+  transform: translateY(-1px);
+  background: var(--bg-3);
+}
+.routeCardEpic {
+  border-left-color: var(--epic);
+}
+.routeCardRare {
+  border-left-color: var(--rare);
+}
+.routeCardLegendary {
+  border-left-color: var(--legendary);
+}
+.routeEyebrow {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.routeTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+.routeBody {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.parentReminder {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 8px 0 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routeCard {
+    transition: none;
+  }
+}

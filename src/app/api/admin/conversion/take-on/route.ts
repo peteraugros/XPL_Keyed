@@ -214,7 +214,11 @@ export async function POST(req: Request) {
   }
 
   // ---- 4. Send conversion email -----------------------------------------
-  const approvalUrl = `${APP_URL}/curriculum/${approvalToken}`;
+  // Email CTA deep-links into /curriculum/<token>/start, which transitions
+  // the lifecycle + signs the parent in + redirects to /portal/sessions in
+  // one click. The /curriculum/<token> overview page still exists but is
+  // not linked from the email — it became a redundant extra step.
+  const approvalUrl = `${APP_URL}/curriculum/${approvalToken}/start`;
   const weeksHtml = body.weeks
     .map((w, i) => {
       const skill = w.is_vod_review
@@ -230,15 +234,23 @@ export async function POST(req: Request) {
     })
     .join("");
 
+  // Inline CTA button — same style as the template's bottom CTA so a
+  // pre-sold parent can tap straight from above the fold without
+  // scrolling past the curriculum + billing terms first.
+  const inlineCta = `<p style="margin:20px 0;text-align:center;"><a href="${approvalUrl}" style="display:inline-block;background:#C7FF3D;color:#0B1538;padding:14px 26px;border-radius:6px;font-weight:600;text-decoration:none;letter-spacing:0.5px;font-size:15px;">Reserve lesson times</a></p>`;
+
   const html = brandedEmailHtml({
-    headline: "Your custom curriculum is ready",
+    headline: `${player.first_name} is in.`,
     bodyHtml: `<p>Hi ${escapeHtml(parent.first_name)},</p>
-<p>${escapeHtml(coach.display_name)} put together a 4 week plan for ${escapeHtml(player.first_name)} after the trial call. Here is what is in it:</p>
-<ul style="padding-left:18px;">${weeksHtml}</ul>
-<p><strong>${escapeHtml(coach.display_name)}'s note:</strong> ${escapeHtml(body.personalization_note)}</p>
+<p>Great session with ${escapeHtml(player.first_name)} today. I want to take them on as a student.</p>
+<p>The next step is on your end: reserve your first 4 weekly coaching sessions. Once those are on the calendar I'll charge the first cycle and ${escapeHtml(player.first_name)}'s portal will light up with everything.</p>
+${inlineCta}
 <p>It is $56 for 4 lessons (one per week). Cancel any time. Up to 2 cancellations per 4 lesson cycle. A 3rd cancel ends the subscription.</p>
-<p>Tap the button to review the plan and approve. Subscription locks in when you do.</p>`,
-    ctaLabel: "Approve plan and subscribe",
+<p><strong>Tim's Note:</strong> ${escapeHtml(body.personalization_note)}</p>
+<p>Here is the 4 week plan I drafted specifically for ${escapeHtml(player.first_name)}:</p>
+<ul style="padding-left:18px;">${weeksHtml}</ul>
+<p style="margin-top:24px;">Talk soon,<br/>${escapeHtml(coach.display_name)}<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+    ctaLabel: "Reserve lesson times",
     ctaHref: approvalUrl,
   });
 
@@ -246,7 +258,7 @@ export async function POST(req: Request) {
     await resend.emails.send({
       from: `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`,
       to: parent.email,
-      subject: `${player.first_name}'s coaching plan is ready`,
+      subject: `Congratulations, you are in`,
       html,
     });
   } catch (err) {

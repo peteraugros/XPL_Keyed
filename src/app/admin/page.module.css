@@ -16,6 +16,20 @@
   gap: 18px;
 }
 
+/* Home-layout frame. Lives inside AdminShell so no outer .shell wrap
+   is needed. Compact gaps. */
+.homeFrame {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.homeHeader {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
 /* Top bar */
 .topBar {
   display: flex;
@@ -286,6 +300,89 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Welcome variant — emotionally distinct from ordinary tasks.
+   Stronger lime border + soft glow + a one-time pulse on first mount.
+   Conversions are rare; this should feel rewarding without theatre. */
+.focusedHomeWelcome {
+  border: 1.5px solid rgba(199, 255, 61, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(199, 255, 61, 0.20),
+    0 0 28px rgba(199, 255, 61, 0.18),
+    0 12px 36px rgba(76, 81, 247, 0.18);
+  animation: welcomePulseOnce 1.4s ease-out 1;
+}
+@keyframes welcomePulseOnce {
+  0%   { box-shadow: 0 0 0 0 rgba(199, 255, 61, 0.45); }
+  60%  { box-shadow: 0 0 0 12px rgba(199, 255, 61, 0); }
+  100% { box-shadow:
+           0 0 0 1px rgba(199, 255, 61, 0.20),
+           0 0 28px rgba(199, 255, 61, 0.18),
+           0 12px 36px rgba(76, 81, 247, 0.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .focusedHomeWelcome {
+    animation: none;
+  }
+}
+
+.newStudentPill {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--bg);
+  background: var(--lime);
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+/* Trial-booked variant — rare-blue accent so it visually differs from
+   the welcome card without sharing all the celebratory weight. Soft
+   blue border + subdued glow, no pulse animation (it's awareness, not
+   an event Tim caused). */
+.focusedHomeTrialBooked {
+  border: 1.5px solid rgba(76, 81, 247, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(76, 81, 247, 0.16),
+    0 0 24px rgba(76, 81, 247, 0.14);
+}
+.newTrialPill {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #ffffff;
+  background: var(--rare);
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+/* Past-due awareness — amber accent. Soft urgency, never red. Stripe
+   is still retrying so Tim doesn't have to act unless it sticks. */
+.focusedHomePastDue {
+  border: 1.5px solid rgba(245, 166, 35, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(245, 166, 35, 0.16),
+    0 0 24px rgba(245, 166, 35, 0.14);
+}
+.pastDuePill {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--bg);
+  background: var(--legendary);
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.focusedHomeTitleLarge {
+  font-size: clamp(28px, 5vw, 38px) !important;
 }
 .focusedHomeEmpty {
   background: var(--bg-2);
@@ -659,11 +756,11 @@
 @media (min-width: 880px) {
   .trialGrid { grid-template-columns: 1fr 1fr; }
 }
+/* TrialCardView is rendered inside /admin/clients's unified master-detail
+   card (no longer in a standalone grid), so its own chrome is dropped.
+   The outer layout card owns the bg + border + radius; this just lays
+   out the trial-card content flush. */
 .trialCard {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -882,6 +979,19 @@
   color: var(--text-dim);
   border: 1px solid var(--border);
 }
+/* Status badge variants on the Active Clients row. Functional rarity
+   per the admin design system: epic red for payment hold, legendary
+   orange for pending cancel. */
+.metaPillEpic {
+  background: rgba(200, 7, 21, 0.12);
+  border-color: rgba(200, 7, 21, 0.5);
+  color: #ff7a85;
+}
+.metaPillLegendary {
+  background: rgba(245, 166, 35, 0.14);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: var(--legendary);
+}
 
 .messagesBlock {
   display: flex;
@@ -1017,4 +1127,104 @@
   font-size: 12px;
   color: var(--text-faint);
   margin-top: 8px;
+}
+
+/* --- Welcome form (rendered inline inside FocusedHome) --- */
+.welcomeForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(199, 255, 61, 0.25);
+}
+.welcomeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.welcomeSectionLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.welcomeSlotList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.welcomeSlotItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.welcomeSlotWeek {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  text-transform: uppercase;
+  min-width: 68px;
+}
+.welcomeSlotTime {
+  color: var(--text);
+}
+.welcomeCalendarLine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.welcomeIcsBtn {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--bg);
+  background: var(--lime);
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.welcomeIcsBtn:hover {
+  filter: brightness(1.05);
+}
+.welcomeTextarea,
+.welcomeInput {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  width: 100%;
+  resize: vertical;
+}
+.welcomeTextarea:focus,
+.welcomeInput:focus {
+  outline: 2px solid var(--lime);
+  outline-offset: 1px;
+}
+.welcomeActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.welcomeError {
+  font-size: 13px;
+  color: var(--epic);
 }

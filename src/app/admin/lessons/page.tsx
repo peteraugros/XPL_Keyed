@@ -80,13 +80,7 @@ export default async function AdminLessonsPage() {
   }).length;
 
   return (
-    <div className={styles.shell}>
-      <div className={styles.frame}>
-        <header className={styles.topBar}>
-          <div className={styles.brand}>XPL KEYED ADMIN</div>
-          <a href="/admin" className={styles.backLink}>Back to admin</a>
-        </header>
-
+    <div className={styles.frame}>
         <section className={styles.heroBlock}>
           <h1 className={styles.heroTitle}>Lesson library</h1>
           <p className={styles.heroBody}>
@@ -158,7 +152,6 @@ export default async function AdminLessonsPage() {
             </ul>
           )}
         </section>
-      </div>
     </div>
   );
 }
