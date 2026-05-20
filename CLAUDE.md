@@ -1120,6 +1120,35 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
 
+- **Money page + Waitlist page + 2 new Focused Home tasks (2026-05-20).** Six pieces landed end-to-end. `npx tsc --noEmit` clean.
+  - **`/admin/money` rebuilt from stub.** Server Component that calls Stripe directly (no caching at 1-10 client scale; 5-min revalidate is the upgrade path if /admin/money render gets slow):
+    - Headline stats grid: Paying / 12, Cycle run rate (paying × $56), This month, Year to date, Past due, Auto renew off.
+    - **Last 6 months revenue bar chart** built from `stripe.paymentIntents.list({created:{gte}, limit:100})` paginated up to 10 pages. Grouped by month in JS, plain CSS bars with lime gradient (no charting library — `chart.module.css` does it). Empty months render flat.
+    - **Past-due families list** — derived from DB (`status='past_due'`), not Stripe. Sorted by days past due; pill escalates color at 7/14 days.
+    - **Cards expiring within 60 days** — `stripe.paymentMethods.list({customer, type:'card'})` per family. Pill flips epic-red within 14 days.
+    - **Last 10 paid charges** — from Stripe, with `metadata.kind` resolving "First cycle" vs "Cycle renewal" labels and `metadata.player_id` resolving kid name.
+    - Catches Stripe API errors gracefully — DB-derived sections still render with a small warning.
+  - **Inbox dropped, Waitlist promoted to nav.** `AdminShell` NAV array swap. The Inbox stub is removed entirely — messages already live inside each client on `/admin/clients`, and the message-arrival surfaces in Focused Home, so a dedicated Inbox page is redundant. Money item also got its SOON chip dropped in the same edit.
+  - **`/admin/waitlist` built out.** Server Component fetches all `waitlist_entries` ordered by created_at. Split into:
+    - **Stats strip**: Waiting / Active offers / Oldest waiting (days) / Removed all time.
+    - **Open queue** with FIFO position numbers (`#1`, `#2`, ...) per locked spec. Each row: parent email + kid first name + age + signup date + freshness check history + status pill (`Waiting`, `Offered. Nh left`, `Offer expiring`, etc.). Per-row **Remove** button with reason field + two-step confirm.
+    - **History section** for closed entries (claimed / converted / expired / removed) with the removed_reason inline.
+  - **`POST /api/admin/waitlist/[id]/remove`** — coach-gated. Marks `status='removed'`, stamps `removed_at + removed_reason`. Used for ghost families, bad contact info, or any FIFO-bypass case. Skip-in-queue intentionally NOT built (strict FIFO per CLAUDE.md spec; if it ever matters, additive endpoint).
+  - **Two new Focused Home task types** (migration `20260520000100_admin_home_action_items.sql`):
+    - **`lesson_authoring_needed` (P75)** — fires when an active client's NEXT pending curriculum_slot (lowest `week_number` with `delivered_at IS NULL`) points at a lesson with empty `slides` JSONB AND the `live_call_at` is within 7 days. Catches the broken-Sunday-delivery bug Stage C take-on (and auto-renew provisioning) creates by writing stub lessons with empty slides. View uses a CTE (`next_stub_slot`) that joins subscriptions → curricula → slots → lessons. P75 sits just below `new_student_welcome` (P70) which makes sense — both are action-required, lesson stubs slightly more urgent.
+    - **`tiktok_daily_reminder` (P25)** — daily awareness card nudging Tim to drop his Fortnite-creator comment. Per CLAUDE.md, the TikTok organic-comment funnel is the platform's primary acquisition channel. Card fires once per UTC day via `NOT EXISTS` against a new `tiktok_comments` table; logging just inserts a row stamped with `logged_at` and a UNIQUE `(coach_id, logged_date)` index dedupes the day. `logged_date` is a `GENERATED ALWAYS AS ((logged_at AT TIME ZONE 'UTC')::date) STORED` column for clean partial-index queries.
+    - **`POST /api/admin/tiktok/log`** — coach-gated. Inserts row; treats unique-violation (Postgres SQLSTATE 23505) as success so Tim tapping twice in the same day still drops the card cleanly.
+  - **AdminClient render branches** added for both new types:
+    - `lesson_authoring_needed`: amber `LESSON STUB` pill + inline CTA row with **Open lesson library** + **Open client card**. Note: `/admin/lessons/<id>/edit` doesn't exist yet, so the primary CTA routes to the list. Real lesson-edit route is the next missing piece if Tim hits this often.
+    - `tiktok_daily_reminder`: rare-blue `FUNNEL` pill. Special-cased meta row (no kid name + no Stuck button since it's not client-scoped). Inline **✓ Commented today** button via new `TikTokLogButton` Client Component that fires `/api/admin/tiktok/log` and `router.refresh()`.
+  - **AI prompt retune** for the parent-translation suggest endpoint shipped in the same window. Original output was reading like a psychology textbook ("Trains spatial planning and sequenced execution while filtering threats..."). Retuned with:
+    - System prompt now has an explicit "WRITE FOR A REGULAR PARENT, NOT A PSYCHOLOGY TEXTBOOK" section.
+    - **Banned vocabulary** list: spatial planning, sequenced execution, executive function, cognition, pattern recognition, decision making (as noun phrase), filtering, processing, parsing, working memory, motor planning, etc.
+    - **Use plain language instead** list: "thinking ahead," "staying calm when things get fast," "noticing what's happening," etc.
+    - Reference examples rewritten in warm parent-friendly tone: Tunneling → "Staying calm when a fight gets fast" / "Helps your kid keep their head when someone's pushing them, and make a plan instead of panicking." (vs the old "Trains spatial planning and multi step execution while reacting to incoming pressure.")
+    - parent_label constraint tightened: "a short phrase a parent would actually say at dinner."
+    - parent_skill_description constraint: 12-22 words, starts with warm verb ("Helps your kid" / "Teaches your kid" / "Builds").
+
 - **AI lesson-authoring assist (2026-05-20).** Two "✨ Suggest" buttons in the `/admin/lessons/new` form let Tim draft parent-facing copy from the Fortnite term + topic. Output lands in editable fields; never auto-saved. `npx tsc --noEmit` clean.
   - **`@anthropic-ai/sdk` installed** (first AI integration in the repo). New env var `ANTHROPIC_API_KEY` documented in `.env.local.example`. Model: `claude-opus-4-7`. Single-turn, 1024 max tokens.
   - **`POST /api/admin/lessons/ai-suggest`** — coach-gated. Discriminated body shape:
