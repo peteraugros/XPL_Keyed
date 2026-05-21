@@ -26,9 +26,11 @@ const NAV: NavItem[] = [
 
 export default function AdminShell({
   coachName,
+  isDad = false,
   children,
 }: {
   coachName: string;
+  isDad?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -91,6 +93,15 @@ export default function AdminShell({
         </nav>
         <div className={styles.sidebarFooter}>
           <div className={styles.sidebarFooterName}>{coachName}</div>
+          {isDad ? (
+            <Link
+              href={"/dad" as never}
+              className={styles.backToDadBtn}
+              onClick={closeDrawer}
+            >
+              ← Back to Dad view
+            </Link>
+          ) : null}
           <button
             type="button"
             onClick={onSignOut}

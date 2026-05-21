@@ -330,3 +330,167 @@
   border-color: rgba(200, 7, 21, 0.55);
   color: var(--epic);
 }
+
+/* --- Phase 2 panels (activity, business, alerts) --- */
+.panelBlock {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.panelHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sectionHeader {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  text-transform: uppercase;
+  margin: 0;
+}
+.subtleOk { font-size: 12px; color: var(--uncommon); }
+.subtleFail { font-size: 12px; color: var(--epic); }
+
+.viewAsTimBtn {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--lime);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 36px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.viewAsTimBtn:hover { filter: brightness(1.1); }
+
+/* Activity strip */
+.activityGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.activityCol {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.activityColLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.activityRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.activityRow:last-child { border-bottom: none; }
+.activityLabel { color: var(--text-dim); }
+.activityValue {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--text);
+}
+
+/* Business glance tile grid */
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.tile {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.tileLabel {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.tileValue {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+.tileHint {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* Operational alerts list */
+.alertList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.alertRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  gap: 12px;
+}
+.alertLabel { font-size: 13px; color: var(--text); }
+.alertPillOk,
+.alertPillStale,
+.alertPillNeutral {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.alertPillOk {
+  background: rgba(49, 146, 54, 0.14);
+  border: 1px solid rgba(49, 146, 54, 0.55);
+  color: var(--uncommon);
+}
+.alertPillStale {
+  background: rgba(245, 166, 35, 0.12);
+  border: 1px solid rgba(245, 166, 35, 0.55);
+  color: var(--legendary);
+}
+.alertPillNeutral {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+}

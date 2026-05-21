@@ -13,5 +13,9 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const { coach } = await requireCoachSession();
-  return <AdminShell coachName={coach.display_name}>{children}</AdminShell>;
+  return (
+    <AdminShell coachName={coach.display_name} isDad={coach.is_dad}>
+      {children}
+    </AdminShell>
+  );
 }

@@ -23,6 +23,7 @@ export type CoachRow = {
   display_name: string;
   auth_user_id: string | null;
   is_active: boolean;
+  is_dad: boolean;
   admin_mode: "focused" | "command";
 };
 type IdLookup = { id: string };
@@ -44,7 +45,7 @@ export const requireCoachSession = cache(async (): Promise<CoachSession> => {
 
   let coachLookup = await supabase
     .from("coaches")
-    .select("id, email, display_name, auth_user_id, is_active, admin_mode")
+    .select("id, email, display_name, auth_user_id, is_active, is_dad, admin_mode")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -55,7 +56,7 @@ export const requireCoachSession = cache(async (): Promise<CoachSession> => {
     const adminClient = createServiceRoleClient();
     const unlinkedLookup = await adminClient
       .from("coaches")
-      .select("id, email, display_name, auth_user_id, is_active, admin_mode")
+      .select("id, email, display_name, auth_user_id, is_active, is_dad, admin_mode")
       .ilike("email", user.email)
       .is("auth_user_id", null)
       .maybeSingle();

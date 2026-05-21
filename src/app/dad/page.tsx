@@ -13,6 +13,7 @@
 
 import { redirect as _redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { stripe } from "@/lib/stripe/server";
 import DadClient from "./DadClient";
 import styles from "./page.module.css";
 
@@ -240,6 +241,140 @@ export default async function DadPage() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Phase 2: Tim activity, business glance, operational alerts.
+  // ---------------------------------------------------------------------------
+  const now = new Date();
+  const startOfTodayIso = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).toISOString();
+  const sevenDaysAgoIso = new Date(now.getTime() - 7 * 86_400_000).toISOString();
+  const twentyFourHoursAgoIso = new Date(now.getTime() - 86_400_000).toISOString();
+
+  // Tim activity — counts of coach actions in two windows.
+  // Returns are .count via head: true (Supabase returns the count without rows).
+  async function countSince(
+    table: "messages" | "task_completions" | "curriculum_slots" | "coach_cancels",
+    column: string,
+    sinceIso: string,
+    extraFilter?: { col: string; val: string },
+  ): Promise<number> {
+    let q = supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .gte(column, sinceIso);
+    if (extraFilter) {
+      q = q.eq(extraFilter.col, extraFilter.val);
+    }
+    const r = await q;
+    return r.count ?? 0;
+  }
+
+  const [
+    msgsToday,
+    msgsWeek,
+    tasksToday,
+    tasksWeek,
+    callsToday,
+    callsWeek,
+    noShowsToday,
+    noShowsWeek,
+    coachCancelsToday,
+    coachCancelsWeek,
+  ] = await Promise.all([
+    countSince("messages", "created_at", startOfTodayIso, { col: "sender_role", val: "coach" }),
+    countSince("messages", "created_at", sevenDaysAgoIso, { col: "sender_role", val: "coach" }),
+    countSince("task_completions", "completed_at", startOfTodayIso),
+    countSince("task_completions", "completed_at", sevenDaysAgoIso),
+    countSince("curriculum_slots", "live_call_completed_at", startOfTodayIso),
+    countSince("curriculum_slots", "live_call_completed_at", sevenDaysAgoIso),
+    countSince("curriculum_slots", "no_show_at", startOfTodayIso),
+    countSince("curriculum_slots", "no_show_at", sevenDaysAgoIso),
+    countSince("coach_cancels", "created_at", startOfTodayIso),
+    countSince("coach_cancels", "created_at", sevenDaysAgoIso),
+  ]);
+
+  // Business glance — paying clients + revenue + Stripe balance + next payout.
+  const payingLookup = await supabase
+    .from("subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .eq("tier", "monthly");
+  const payingCount = payingLookup.count ?? 0;
+  const cycleMrrCents = payingCount * 5600;
+
+  // Stripe slice. Wrapped in try/catch — local dev without Stripe set or
+  // a Stripe-side outage shouldn't crash /dad.
+  let last7DaysRevenueCents = 0;
+  let stripeBalanceCents: number | null = null;
+  let nextPayoutCents: number | null = null;
+  let nextPayoutDateIso: string | null = null;
+  let stripeError: string | null = null;
+  try {
+    const since7Sec = Math.floor((now.getTime() - 7 * 86_400_000) / 1000);
+    let starting: string | undefined;
+    for (let pages = 0; pages < 5; pages++) {
+      const resp = await stripe.paymentIntents.list({
+        created: { gte: since7Sec },
+        limit: 100,
+        ...(starting ? { starting_after: starting } : {}),
+      });
+      for (const pi of resp.data) {
+        if (pi.status === "succeeded") last7DaysRevenueCents += pi.amount;
+      }
+      if (!resp.has_more || resp.data.length === 0) break;
+      starting = resp.data[resp.data.length - 1]?.id;
+    }
+    const balance = await stripe.balance.retrieve();
+    stripeBalanceCents = balance.available.reduce((acc, b) => acc + b.amount, 0);
+    const payouts = await stripe.payouts.list({ limit: 1, status: "pending" });
+    const nextPayout = payouts.data[0];
+    if (nextPayout) {
+      nextPayoutCents = nextPayout.amount;
+      nextPayoutDateIso = new Date(nextPayout.arrival_date * 1000).toISOString();
+    }
+  } catch (err) {
+    stripeError = (err as Error).message ?? "stripe_error";
+    console.error("[dad] stripe error", err);
+  }
+
+  // Operational alerts — notification_log aggregates.
+  // (a) 24h fail count + total count
+  // (b) Last successful send per trigger (catches dead crons)
+  const failed24Lookup = await supabase
+    .from("notification_log")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "failed")
+    .gte("created_at", twentyFourHoursAgoIso);
+  const failed24Count = failed24Lookup.count ?? 0;
+
+  const sent24Lookup = await supabase
+    .from("notification_log")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "sent")
+    .gte("created_at", twentyFourHoursAgoIso);
+  const sent24Count = sent24Lookup.count ?? 0;
+
+  // Recent runs per trigger. We grab the last 500 sent rows and reduce
+  // to the max per trigger in JS. Avoids needing a DISTINCT ON view.
+  const recentRunsLookup = await supabase
+    .from("notification_log")
+    .select("trigger, sent_at")
+    .eq("status", "sent")
+    .not("sent_at", "is", null)
+    .order("sent_at", { ascending: false })
+    .limit(500);
+  const recentRuns = (recentRunsLookup.data ?? []) as Array<{
+    trigger: string;
+    sent_at: string;
+  }>;
+  const lastRunByTrigger = new Map<string, string>();
+  for (const r of recentRuns) {
+    if (!lastRunByTrigger.has(r.trigger)) lastRunByTrigger.set(r.trigger, r.sent_at);
+  }
+
   // Tim ↔ Dad channel — operator-to-operator 1:1 thread, shared with /admin.
   const timDadLookup = await supabase
     .from("tim_dad_messages")
@@ -274,6 +409,33 @@ export default async function DadPage() {
     },
   }));
 
+  const activity = {
+    messages_replied: { today: msgsToday, week: msgsWeek },
+    tasks_completed: { today: tasksToday, week: tasksWeek },
+    calls_done: { today: callsToday, week: callsWeek },
+    no_shows: { today: noShowsToday, week: noShowsWeek },
+    coach_cancels: { today: coachCancelsToday, week: coachCancelsWeek },
+  };
+
+  const business = {
+    paying_clients: payingCount,
+    cycle_mrr_cents: cycleMrrCents,
+    last_7d_revenue_cents: last7DaysRevenueCents,
+    stripe_balance_cents: stripeBalanceCents,
+    next_payout_cents: nextPayoutCents,
+    next_payout_date_iso: nextPayoutDateIso,
+    stripe_error: stripeError,
+  };
+
+  const opAlerts = {
+    sent_24h: sent24Count,
+    failed_24h: failed24Count,
+    last_run_by_trigger: Array.from(lastRunByTrigger.entries()).map(([trigger, sent_at]) => ({
+      trigger,
+      sent_at,
+    })),
+  };
+
   return (
     <div className={styles.shell}>
       <DadClient
@@ -281,6 +443,9 @@ export default async function DadPage() {
         queue={queue}
         timDadMessages={timDadMessages}
         notifications={notifications}
+        activity={activity}
+        business={business}
+        opAlerts={opAlerts}
       />
     </div>
   );
