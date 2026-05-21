@@ -56,7 +56,7 @@ This file is loaded into any Claude session working in this directory. It captur
 - **Calendly** — booking, webhook → DB sync
 - **Resend** — transactional email
 - **Discord** — coaching server with one private channel per kid; outbound notifications via the XPL Keyed Bot (Discord REST API, no persistent gateway)
-- **Vercel** — hosting
+- **Railway** — hosting (chosen over Vercel because Peter already pays for Railway, and Vercel Hobby tier is non-commercial use only per ToS while Pro is $20/mo). Next.js 15 builds via Railway's Nixpacks auto-detection (`npm run build` + `npm start`); no `railway.json` or `nixpacks.toml` required. `middleware.ts` runs as Node (not edge); no 4.5MB route-handler body limit so lesson-asset uploads work without the signed-URL workaround Vercel would force.
 
 **Scale target:** 1–10 active clients in the first 6 months. MVP can be simple; manual fallbacks OK.
 
@@ -749,6 +749,49 @@ This section is the running source of truth for what's on Peter's plate. Update 
 
 #### ✅ Done
 
+- **Stripe live activation + Railway deploy + DNS (2026-05-21, deploy steps 6/8/9 mostly done).** App is serving on Railway behind the production domain; just waiting on Let's Encrypt TLS to land. Two webhook re-registrations (Stripe + Calendly) are the remaining cross-step work, both blocked on TLS being active.
+  - **Stripe live mode activated.** Account: **XPL_Keyed** (separate from Day & Knight in Peter's Stripe login). Business type: **Sole proprietorship**. Statement descriptor: **`XPL KEYED`** (22-char cap, all caps; appears on parent credit card statements). Shortened descriptor skipped. Tax category: General → Services. Stripe Tax skipped (free until first registration; not relevant for US-only single-state pre-revenue). Climate contributions skipped.
+    - **Bank for payouts: Peter's PERSONAL account, placeholder.** Decision: use personal now to unblock deploy; swap to a dedicated business bank (Mercury or Relay, both ~1hr online onboarding, free) before Tim takes a real customer. Swap procedure = ~5min admin task in Stripe dashboard + 1-2 day micro-deposit verification. No code/webhook changes; Stripe account-level `acct_xxx` ID stays the same, only the external destination changes. Tax 1099-K is account-level, so swapping banks doesn't fragment reporting.
+    - **Smart Retries left ON (8 attempts over 2 weeks).** Vestigial for our PaymentIntent-based architecture — those settings apply to Stripe **Subscription** invoices, which our code never creates. Harmless to leave at default.
+    - **Customer-facing dunning emails: OFF.** Our branded D3/D6 emails from `cron-dunning-parent-reminders` own that voice. Bank-debit-failed: OFF (we don't accept bank debits). **Card-expiration emails: ON** — Stripe's 30/15/7-day expiry warnings stay; we don't replicate that flow.
+    - **Live API keys captured** (pk_live + sk_live) and saved to Peter's password manager. `STRIPE_SECRET_KEY` added to Supabase Edge Function secrets via dashboard UI.
+    - **Still pending under step 6**: create webhook endpoint at `https://xplkeyed.com/api/stripe-webhook` subscribed to `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `invoice.paid`, `invoice.payment_failed`. Capture the resulting `whsec_...` and update `STRIPE_WEBHOOK_SECRET` in **both** Railway env vars AND Supabase Edge Function secrets. Blocked on TLS being active.
+  - **Railway project created.** Auto-named **"astonishing-ambition"** (Railway's whimsical default; never renamed). Single service: **`XPL_Keyed`**. Region: `us-west1`. Deploy source: GitHub repo `peteraugros/XPL_Keyed`, `main` branch, auto-deploy on push. Nixpacks auto-detected Node 20 (`.nvmrc` honored) + npm package manager. Build: `npm ci → npm run build → npm run start`. No `railway.json` or `nixpacks.toml` created — auto-detection works.
+    - **Build #1 FAILED** during "Collecting page data": `Missing API key. Pass it to the constructor 'new Resend("re_123")'`. Root cause: env vars not set yet on first deploy. The Resend SDK throws at module load when `RESEND_API_KEY` is undefined; Next.js 15 `next build` instantiates route modules during the "Collect page data" step to do tree-shaking/analysis, which triggered the throw. **Flagged as a code-side improvement for later:** lazy-init the Resend client (`getResend()` instead of module-level `new Resend(...)`) so a deploy without env vars fails at runtime, not build time. Not blocking now since env vars are set.
+    - **Build #2 FAILED** during static prerender: `useSearchParams() should be wrapped in a suspense boundary at page "/intake"`. Root cause: `/intake/page.tsx` was a single Client Component calling `useSearchParams()` directly; Next.js 15 requires a `<Suspense>` boundary for prerender to work. The `/login` page already had this pattern; `/intake` didn't. **Fix shipped in commit `21c3c8a`**: extracted `IntakePageInner`, made default export a thin `<Suspense fallback={null}>` wrapper. Same pattern as `/login`. Also surveyed for other `useSearchParams` usages — `src/app/admin/clients/ClientsClient.tsx` has one, but its parent `page.tsx` is a Server Component with async DB queries (forces dynamic rendering at build time), so no Suspense wrap needed there.
+    - **Build #3 SUCCEEDED.** App live on the Railway-generated `*.up.railway.app` URL.
+  - **Railway env vars (17 total)** set via the "Raw editor" bulk-paste tab in **Variables**:
+    - 14 from the spec list (Supabase prod URL/anon/service_role, Stripe pk_live/sk_live, Resend, VAPID, App URL, Calendly PAT+secret, Anthropic).
+    - **+1 missed by the spec**: `CALENDLY_PAID_LESSON_EVENT_TYPE_URI` (in `.env.local` from the reschedule MVP work, used by the Calendly webhook handler to discriminate trial vs paid events). Future spec cleanup: add this to the 🔑 Env vars status table.
+    - **+3 inert**: `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` — Peter copied from `.env.local` during the bulk edit; no code reads them (bot architecture retired per `feedback_no_discord_dms.md`). Harmless dead weight; remove or leave at will.
+    - **Two intentional placeholders** (to be replaced after Stripe webhook endpoint exists): `STRIPE_WEBHOOK_SECRET=whsec_placeholder_will_update_after_webhook_setup` and `STRIPE_PORTAL_URL=https://billing.stripe.com/p/login/placeholder`. `STRIPE_PORTAL_URL` is a legacy env var — the code creates portal sessions dynamically via `stripe.billingPortal.sessions.create`, so the placeholder is never read. The webhook secret placeholder lets build succeed; runtime signature verification will fail until the real secret is set, but no webhooks are firing in prod yet.
+  - **DNS pointed at Railway from registrar.** CNAME propagated globally per Peter's confirmation. **TLS provisioning in progress** at write time — Railway uses Let's Encrypt; usually 2-30 min after DNS resolves. Once Railway shows the custom domain as "Active" with a green check, `https://xplkeyed.com` resolves cleanly and TLS-dependent steps unblock.
+  - **Resend domain verification confirmed** for production `xplkeyed.com`. Same DKIM + SPF + DMARC records from the 2026-05-17 dev setup carry over; no new records needed. Domain shows Verified in Resend dashboard.
+  - **MX records for `tim@xplkeyed.com`: still not set up.** Locked decision (2026-05-17) is to route all parent contact through in-app messaging; MX/forwarding is no longer load-bearing. Stripe + Calendly + Resend outbound work fine without inbound MX.
+  - **Remaining cross-step work, ordered**: (1) wait for TLS to go Active; (2) Stripe webhook endpoint + `STRIPE_WEBHOOK_SECRET` rotation through Railway + Supabase; (3) Calendly webhook re-registration (delete ngrok subscription, recreate against `https://xplkeyed.com/api/calendly-webhook` reusing existing `CALENDLY_WEBHOOK_SECRET` per the 2026-05-17 Done entry); (4) browser smoke test of `/`, `/login`, `/intake`, `/admin` (with Tim's coach-password login or magic link); (5) optional first end-to-end Stripe test charge (real card → refund).
+  - **Sign-in-as-Tim caveat for prod smoke test**: coach magic-link emails go to `tim@xplkeyed.com` (production seed value), which has no inbox. For smoke-testing Tim's `/admin` access against prod, either (a) fix MX/forwarding first, (b) temporarily `UPDATE coaches SET email='peteraugros@gmail.com' WHERE display_name='Tim';` against prod and revert before launch, or (c) use the secret coach password login at `/login?coach=1` (single-click the brand text to reveal the password form — see `decision-secret-coach-login` history). Option (c) avoids touching prod data.
+
+- **Live Supabase project provisioned (2026-05-21, deploy step 5 part 1).** Production Supabase project stood up; everything except `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (deferred until Stripe activation) is wired.
+  - **Project ref: `fmsekesjdkjpvvleefpu`.** Region: `us-west-2` (Oregon). Plan: **Free tier** (org-level). Decision context: Pro is $25/mo and removes (a) 7-day inactivity auto-pause, (b) the 1 GB storage cap. At pre-revenue scale neither is load-bearing — pg_cron jobs keep the DB warm so auto-pause won't trigger, lesson-asset storage is ~0 GB until Tim actually authors content, and Stripe/Calendly retry failed webhooks automatically if a wake-up delay ever happens. Upgrade trigger conditions: (a) first paying customer (revenue covers it), (b) storage approaches 800 MB, (c) auto-pause causes a real prod incident. One-click upgrade, no migration.
+  - **API URL: `https://fmsekesjdkjpvvleefpu.supabase.co`.** Anon + service_role legacy JWTs grabbed from Settings → API → "Legacy anon, service_role API keys" tab (NOT the new `sb_publishable_*` / `sb_secret_*` keys — codebase is built against the legacy JWT format per the local-dev Done entry). Saved to Peter's password manager; **not yet pushed to Railway env** (will happen during Railway setup, deploy step 9).
+  - **CLI now linked to prod.** `supabase link --project-ref fmsekesjdkjpvvleefpu` completed cleanly. After today, the local CLI's `supabase db push` targets prod by default. Other CLI commands (`supabase start`, `supabase db reset`, `supabase status`) still target the local Docker stack. If extra safety is wanted before next dev session: `supabase unlink` to break the link; re-link with the same `--project-ref` command when needed.
+  - **All 36 migrations applied via `supabase db push`.** Output had harmless NOTICEs (DROP IF EXISTS noting nothing was there to drop on a fresh DB; PGCRYPTO already exists since Supabase pre-installs it). Final list at deploy time: `20260517000000_initial_schema.sql` through `20260520000500_coach_username.sql`. Coach seed (`20260517000200_seed_dev.sql`) inserted Tim's row with `email='tim@xplkeyed.com'` — that's the right value for prod (don't apply the local-dev `UPDATE coaches SET email='peteraugros@gmail.com'` override in 🔧 Setup item 1b; that's local-only).
+  - **PG version mismatch noted, deferred.** Local Docker runs Postgres 15 (older `supabase/config.toml` default); cloud project provisioned with Postgres 17. Migrations use standard SQL that works on both. If a future migration uses PG17-specific syntax (window functions, MERGE features, new JSON ops), update `supabase/config.toml` to `major_version = 17` and `npm run db:reset` to recreate local on PG17. Not blocking now.
+  - **Types regenerated** via `npm run gen:types`. Script targets `--local` (uses local Docker), but since local + prod schemas match, the output is correct for prod use. `src/types/db.ts` at 1322 lines.
+  - **4 Edge Function secrets set via dashboard UI** (Settings → Edge Functions → Secrets, bulk save):
+    - `RESEND_API_KEY` (from `.env.local`)
+    - `RESEND_FROM_EMAIL = "XPL Keyed <tim@xplkeyed.com>"`
+    - `CALENDLY_PAT` (from `.env.local`)
+    - `NEXT_PUBLIC_APP_URL = "https://xplkeyed.com"`
+    - **Deferred** to deploy step 6 (Stripe activation): `STRIPE_SECRET_KEY` (live, not sandbox).
+    - **Deferred** to deploy step 6 (Stripe webhook registration): `STRIPE_WEBHOOK_SECRET` (live).
+  - **`app_config` rows inserted via SQL Editor** so `cron_fire()` can dispatch Edge Function calls:
+    - `edge_base_url = "https://fmsekesjdkjpvvleefpu.functions.supabase.co"` (50 chars)
+    - `edge_service_key = <legacy service_role JWT>` (218 chars)
+    - **Operator footgun caught during setup:** the original INSERT template in CLAUDE.md's "⚙️ Post-deploy DB config" section had a `<service-role-jwt>` placeholder that Peter pasted literally on his first attempt. The query succeeded but stored the placeholder string instead of the real JWT. Fix was an UPDATE: `UPDATE app_config SET value = '<real_jwt>' WHERE key = 'edge_service_key';`. Verification query — `SELECT key, length(value) FROM app_config;` — should show ~200+ chars for `edge_service_key`. Next session: consider tightening that section's instructions to call out the placeholder substitution explicitly.
+  - **Remaining work under deploy step 5:** none until Stripe activation (deploy step 6). After Stripe live: come back to Edge Function secrets and add `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` from the dashboard UI.
+  - **Cron eligibility:** with the `app_config` rows now populated, `cron_fire()` will start dispatching every cron job at its scheduled UTC time. The crons will run against prod the moment they hit their schedule — there's no active subscription data yet, so every job will no-op cleanly (waitlist freshness loops through zero rows, dunning loops through zero past-due rows, etc.). No spam, no failures. Confirmed posture: crons are safe to run on a fresh DB.
+
 - **CLAUDE.md reconcile pass (2026-05-20).** Brought the canonical Locked Decisions section in line with built reality after an audit caught multiple contradictions between the top-of-doc spec and what's actually shipped. Five concrete edits:
   - **Stage C section rewritten.** Was: "Stripe subscription with manually-advanced cycle" + "Or metered billing with a custom job." Is now: "**One-time PaymentIntents against a saved card. NO Stripe Subscription object.**" Documents the locked first-cycle flow (Stripe Checkout `mode='payment'` + `setup_future_usage='off_session'`) and cycle-2+ flow (`cron-auto-renew-detection` fires `paymentIntents.create({customer, payment_method, off_session:true, confirm:true})`). Explains *why* this beats Stripe Subscriptions for our delivery-driven (not calendar-driven) billing rhythm. Documents the `renewal_pi_id` idempotency mechanism.
   - **Cancellation section rewritten.** Was: "2 credits per 4-lesson cycle, 3rd cancel ends the subscription with type-to-confirm + 7-day pending window" using `cycle_cancels_used`. Is now: **"2 skips per cycle, 3rd skip triggers `auto_renew_enabled=FALSE`"** with grace-recovery (clean cycle restores TRUE silently) and no immediate-end-subscription path. Documents state A (>=24hr free reschedule) vs state B (<24hr forfeit), the 168hr same-week threshold, coach-cancel reasons, the locked backend state shape, and the "no Discord DM, in-app only" notification posture.
@@ -783,7 +826,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
   - State: `active`. Events: `invitee.created` + `invitee.canceled`. Scope: `user`.
   - **Signing key was created by us, not Calendly.** Calendly's API takes `signing_key` as a **request param** (not a response field) — we generated a random 32-byte hex string via `openssl rand -hex 32`, passed it in the POST body, and stored the same value in `.env.local` as `CALENDLY_WEBHOOK_SECRET`. Future Claude/Peter: do NOT re-generate by deleting and recreating without preserving the key — you'll break local sig verification. To rotate, PATCH the subscription (or delete + recreate) AND update `CALENDLY_WEBHOOK_SECRET` to the new value in lockstep.
   - **Callback URL is ngrok (ephemeral).** Current value: `https://difficult-wand-sixties.ngrok-free.dev/api/calendly-webhook`. ngrok free tier rotates the subdomain on every restart, so this URL will break the next time the tunnel comes down. The signing key is durable; only the URL needs to change. To rotate: start a new ngrok tunnel, PATCH the subscription's `callback_url` (Calendly does not support PATCH directly on `webhook_subscriptions` — delete + recreate with the same `signing_key` is the official path).
-  - **Production deploy plan:** when Vercel + production Supabase are set up (queued under 🚢 Deployment), delete the ngrok-pointed subscription and recreate against the Vercel URL, reusing the same `CALENDLY_WEBHOOK_SECRET` so existing handler code keeps working.
+  - **Production deploy plan:** when Railway + production Supabase are set up (queued under 🚢 Deployment), delete the ngrok-pointed subscription and recreate against the Railway URL (or `xplkeyed.com` once DNS lands), reusing the same `CALENDLY_WEBHOOK_SECRET` so existing handler code keeps working.
   - **E2E validation done:** hand-signed `invitee.canceled` payload through ngrok → handler verified signature (200 OK), dispatched to canceled handler, gracefully no-op'd on the missing DB row (no `curriculum_slots` data exists yet). Signature verification math is correct.
 
 - **Calendly account configured (2026-05-17).**
@@ -1089,7 +1132,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
     3. **Parent talking points** — 5 categorized textareas with per-category hints (informed_observer, co_conspirator, cultural_literacy, good_question, strategic_note). All required per Hard rule "strategic moat."
   - **Nav link to lesson library** added to the `/admin` top bar (`AdminClient.tsx`).
   - **Open follow-ups:**
-    1. **Vercel 4.5MB body limit** — the multipart upload path works on local dev but Vercel route handlers cap at 4.5MB. With ~5–15 slides at ~500KB-2MB each, a typical lesson will exceed this. **Production fix:** swap to client-side direct upload via Supabase signed URLs (server hands out one per file; browser uploads directly; final POST just commits the metadata + paths). Not blocking local testing.
+    1. ~~**Vercel 4.5MB body limit**~~ — no longer applies. Deploy host swapped to Railway (Stack section), which has no route-handler body limit. The original multipart upload path works in production as-is. If we ever migrate back to a serverless host, this becomes a real follow-up again: swap to client-side direct upload via Supabase signed URLs.
     2. **Edit existing lesson.** Today the form is create-only. To replace a stub lesson's content, Tim would author a new lesson and Stage C drafter would re-pick. Real edit (re-upload slides for an existing lesson) is a follow-up — needs UPDATE in the route + load-and-prefill in the form.
     3. **Curriculum drafter ↔ lesson library integration.** Today the Stage C drafter creates stub lessons inline (one per non-VOD week). The intended flow is: drafter shows a picker of published lessons + an "Author new" link. Smaller cosmetic refactor; mainly UI work.
     4. **Storage cleanup.** Deleting a lesson row doesn't currently delete the associated files in storage. Low priority at scale; lessons are kept for posterity anyway.
@@ -1563,30 +1606,15 @@ This section is the running source of truth for what's on Peter's plate. Update 
 
 #### 🚢 Deployment (when MVP is ready to ship)
 
-5. **Live Supabase project** at supabase.com.
-   - Copy URL + anon + service_role keys into Vercel project env. ALL env vars from `.env.local` re-set in Vercel (the list in 🔑 Env vars status below).
-   - Apply migrations against the live project: `supabase link --project-ref <ref> && supabase db push`.
-   - Regenerate types: `npm run gen:types` (so the local repo's `src/types/db.ts` reflects prod schema; no behavior change, just consistency).
-   - **Supabase Edge Function secrets:** the same env vars need to be set as Supabase project secrets via `supabase secrets set` so cron Edge Functions can read them at runtime. Specifically: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `STRIPE_SECRET_KEY`, `CALENDLY_PAT`, `NEXT_PUBLIC_APP_URL` (set to `https://xplkeyed.com`). The Supabase URL + service role key are automatic.
-6. **Live Stripe account.** Currently only the sandbox is set up.
-   - Activate the live account (Stripe identity verification, business details, tax form).
-   - Create new webhook endpoint pointing at `https://xplkeyed.com/api/stripe-webhook`. Subscribe to: `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `invoice.paid` (legacy fallback, retained from the pre-PaymentIntent architecture), `invoice.payment_failed` (same).
-   - Set new prod `STRIPE_WEBHOOK_SECRET` in Vercel + Supabase secrets (different from sandbox).
-   - Disable Stripe's built-in dunning emails (we own that voice). Leave the expiring-card emails on.
+5. ~~**Live Supabase project** at supabase.com.~~ **MOSTLY DONE 2026-05-21** (project ref `fmsekesjdkjpvvleefpu`, region `us-west-2`, Free tier). See the Done entry "Live Supabase project provisioned (2026-05-21)" above for full details. **Still to come back to once Stripe activation lands (step 6):** add `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` Edge Function secrets via the same dashboard path (Settings → Edge Functions → Secrets).
+6. ~~**Live Stripe account.**~~ **MOSTLY DONE 2026-05-21** (see Done entry "Stripe live activation + Railway deploy + DNS"). ✅ Account activated, live keys captured, `STRIPE_SECRET_KEY` added to Supabase Edge Function secrets, Stripe's customer dunning emails disabled, expiring-card emails left ON. **Still pending (blocked on TLS):** webhook endpoint creation at `https://xplkeyed.com/api/stripe-webhook` (subscribe to `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `invoice.paid`, `invoice.payment_failed`), then capture `whsec_...` and rotate `STRIPE_WEBHOOK_SECRET` placeholder in BOTH Railway env vars + Supabase Edge Function secrets.
 7. **Calendly webhook re-registration.** The dev webhook subscription points at an ephemeral ngrok tunnel. For production:
    - Delete the ngrok-pointed subscription via Calendly API.
    - POST a new subscription against `https://xplkeyed.com/api/calendly-webhook` reusing the same `CALENDLY_WEBHOOK_SECRET` (so existing handler code keeps working with no env-var change).
    - Confirm `invitee.created` + `invitee.canceled` events are subscribed; scope `user`.
-8. **Domain + DNS at xplkeyed.com.**
-   - Add Vercel-provided A/CNAME records at the registrar.
-   - Confirm `tim@xplkeyed.com` MX/forwarding: cheapest is registrar-side forwarding to peteraugros@gmail.com; Google Workspace ($6/mo) is the "real inbox" option. Magic-link emails work without inbound mail, but parent replies to confirmation emails will bounce until forwarding is set up. (Per locked decision, in-app messaging is the long-term contact channel; MX is no longer load-bearing but still useful for stray replies.)
-   - Resend domain verification (DKIM + SPF + DMARC records). Already done for dev; confirm same setup on the live xplkeyed.com.
-9. **Vercel deploy.**
-   - Deploy to `xplkeyed.com` (domain already owned).
-   - Production build smoke test: hit `/`, `/login`, `/admin` (with magic-link sign-in), `/portal`, `/play`, `/intake`. Confirm no 500s.
-   - Stripe end-to-end test in live mode: book a real intake → take on → approve plan → pay with a real card (then refund yourself).
-   - Calendly webhook smoke: cancel a test booking via Calendly's UI, confirm `cancellation_events` row lands in prod.
-10. **Rollback plan.** Vercel keeps previous deployments; one-click revert to the last green deploy. Supabase migrations are forward-only — for a bad migration the recovery is a remediation migration (don't rely on rollback). Stripe webhook events are replayable from the Stripe dashboard if a deploy was missing a handler.
+8. ~~**Domain + DNS at xplkeyed.com.**~~ **MOSTLY DONE 2026-05-21** (see Done entry). ✅ CNAME pointed at Railway, propagated globally. ✅ Resend domain verification confirmed Verified for xplkeyed.com (no new records needed). ⏳ TLS provisioning in progress. ❌ MX/forwarding for `tim@xplkeyed.com` still not set up — per locked decision (in-app messaging is the contact channel), not load-bearing for launch but still useful for stray replies. Google Workspace ($6/mo) or registrar-side forwarding when ready.
+9. ~~**Railway deploy.**~~ **MOSTLY DONE 2026-05-21** (see Done entry). ✅ Railway project "astonishing-ambition" created with single service `XPL_Keyed`, linked to `peteraugros/XPL_Keyed` main branch, auto-deploy enabled. ✅ All 17 env vars set in Railway via Raw editor bulk-paste. ✅ Build #3 succeeded after fixing Resend module-load throw (env vars set) + `/intake` Suspense wrap (commit `21c3c8a`). ✅ Custom domain `xplkeyed.com` attached. ⏳ Production smoke test of `/`, `/login`, `/intake`, `/admin`, `/portal`, `/play` waiting on TLS. ⏳ End-to-end Stripe charge waiting on Stripe webhook setup. ⏳ Calendly webhook smoke waiting on step 7 re-registration.
+10. **Rollback plan.** Railway keeps every deployment in the project history; revert via the Railway dashboard → Deployments tab → click a prior green deploy → Redeploy. Atomic and instant (no rebuild; the prior image is cached). Supabase migrations are forward-only — for a bad migration the recovery is a remediation migration (don't rely on rollback). Stripe webhook events are replayable from the Stripe dashboard if a deploy was missing a handler.
 
 #### 🔑 Env vars status
 
@@ -1596,7 +1624,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
 - ✅ `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PORTAL_URL` (sandbox)
 - ✅ `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 - ✅ `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
-- ✅ `NEXT_PUBLIC_APP_URL=http://localhost:3000` (swap to `https://xplkeyed.com` in Vercel for prod)
+- ✅ `NEXT_PUBLIC_APP_URL=http://localhost:3000` (swap to `https://xplkeyed.com` in Railway for prod)
 - ✅ `CALENDLY_PAT` (Standard plan, scopes: Scheduling + Webhooks, token name "XPL Keyed dev")
 - ✅ `CALENDLY_WEBHOOK_SECRET` (64-char hex, generated locally via `openssl rand -hex 32` and passed to Calendly as a request param when creating the subscription — see Done entry for full context). Durable across ngrok URL changes; only rotate if security demands it.
 - 🚫 `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` — **reserved but not used.** Bot architecture retired per `feedback_no_discord_dms.md`. Leave in `.env.local.example` for future operator-pair pattern; do not populate.
@@ -1604,13 +1632,17 @@ This section is the running source of truth for what's on Peter's plate. Update 
 
 #### ⚙️ Post-deploy DB config (when the live Supabase project exists)
 
-Run once against the live db, after `supabase db push`:
+✅ **DONE 2026-05-21** for the live Supabase project (`fmsekesjdkjpvvleefpu`). See the Done entry "Live Supabase project provisioned (2026-05-21)" for context, including the operator footgun where the SQL placeholder gets pasted literally if you're not paying attention.
+
+For reference / future ops (do NOT re-run against the same project — `app_config_pkey` will reject duplicate keys):
 
 ```sql
 INSERT INTO app_config (key, value) VALUES
   ('edge_base_url',    'https://<your-project>.functions.supabase.co'),
-  ('edge_service_key', '<service-role-jwt>');
+  ('edge_service_key', '<service-role-jwt>'); -- paste the actual long eyJ... JWT here, not the literal placeholder text
 ```
+
+To update (e.g. after rotating the service_role key), use `UPDATE app_config SET value = '<new>' WHERE key = '<key>';`.
 
 Without these rows, `cron_fire()` logs a NOTICE and bails (intentional, no cron spam pre-deploy).
 
