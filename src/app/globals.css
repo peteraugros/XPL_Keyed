@@ -374,8 +374,13 @@ body.menu-open .mobile-menu a:nth-child(4) { transition-delay: 0.26s; }
   position: absolute;
   bottom: 100%;
   right: clamp(0px, 3vw, 50px);
-  width: clamp(370px, 50vw, 640px);
-  height: auto;
+  /* Height-driven sizing so a tall/slim figure stays inside the
+     hero's visible bounds. Width auto-derives from the aspect ratio.
+     55vh keeps him filling the empty right-column space without
+     crashing into the title text or extending past the viewport. */
+  height: clamp(280px, 55vh, 560px);
+  width: auto;
+  max-width: 35vw;
   transform: translateY(-120vh) scale(0.6);
   opacity: 0;
   pointer-events: none;

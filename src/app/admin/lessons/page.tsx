@@ -145,6 +145,10 @@ export default async function AdminLessonsPage() {
                         day: "numeric",
                         year: "numeric",
                       })}
+                      {" · "}
+                      <a href={`/admin/lessons/${l.id}/edit`} className={styles.lessonEditLink}>
+                        Edit
+                      </a>
                     </div>
                   </li>
                 );

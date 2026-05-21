@@ -63,7 +63,7 @@ export default function HomePage() {
               <span className="line-2">Unreal Rank.</span>
             </h1>
             <p className="hero-sub">
-              Personalized async coaching from{" "}
+              Personalized coaching from{" "}
               <span className="keyed">XPL Keyed</span>, an Unreal ranked tournament player with{" "}
               <span className="js-years-since-c2s2">6</span> years of competitive experience since Chapter 2 Season 2.
             </p>
@@ -263,7 +263,7 @@ export default function HomePage() {
               <div className="section-title-wrap reveal">
                 <h3 className="section-title">Screen time<br />with structure.</h3>
               </div>
-              <p>Lessons are studied like school material. Your kid reviews a PowerPoint with a voiceover, takes notes, and gets quizzed on it. Sessions are short (30 minutes), scheduled, and async first. No late night calls. No surprise charges.</p>
+              <p>Lessons are studied like school material. Your kid reviews a PowerPoint with a voiceover, takes notes, and gets quizzed on it. Sessions are short (30 minutes) and scheduled in advance. No late night calls. No surprise charges.</p>
             </div>
             <div className="audience-block reveal">
               <div className="section-eyebrow">For Players</div>

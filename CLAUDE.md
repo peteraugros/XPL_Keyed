@@ -672,11 +672,11 @@ The scaffold lands here. Don't reconstruct from memory — read the files, then 
 
 Wired-but-invisible + specced-but-unbuilt items surfaced by the 2026-05-20 audit, plus a couple of new asks. None block production for Tim's n=1 instance; each closes a real UX or operator gap.
 
-1. **Tim secret password login.** ✅ Built 2026-05-20. Triple-tap the brand on `/login` to reveal username + password form. See "Done" entry for setup SQL.
+1. **Tim secret password login.** ✅ Built 2026-05-20. **Single-click** the "XPL KEYED" brand on `/login` to reveal username + password form. (Originally specced as triple-tap; simplified after the timing-based detection proved unreliable on the live install.) URL bypass `?coach=1` also works. Both surfaces show the form even when a session exists, so Tim can switch accounts without signing out first. See "Done" entry for setup SQL.
 2. **`notification_log` table wiring.** ✅ Built 2026-05-20. Node-side `sendBrandedEmail()` wrapper writes every Resend send + status to the table. All 14 Node-side call sites migrated. Dad admin shows last 50 rows. **Deno Edge Functions still bypass** — see item #12.
-3. **Read receipts on messages.** Schema has `messages.read_by_recipient_at` + `read_by_parent_at` columns; never set. Wire `MessageThread` to mark-as-read on mount (per-viewer). Unlocks "unread from Tim" badge for kid + parent. ~30 min.
-4. **Lesson edit route at `/admin/lessons/<id>/edit`.** Today Tim can author NEW lessons (`/admin/lessons/new`) but stub lessons created by Stage C take-on / auto-renew are uneditable in place. He has to author a fresh lesson + swap it in. ~45 min for a route that loads existing lesson data into the existing LessonForm + a PATCH endpoint.
-5. **Live trial-call countdown + "Join Discord call" CTA on `/play`.** Spec calls for a 15-min-before-call live button. Today it's a static disabled button. Blocked on storing `subscriptions.trial_call_at` from intake (already wired by Calendly webhook). Just needs a small client component that re-enables the button based on the time. ~30 min.
+3. **Read receipts on messages.** ✅ Built 2026-05-20. `POST /api/messages/mark-read` stamps `read_by_parent_at` or `read_by_recipient_at` on `MessageThread` mount. Data is there for any future "unread" badge UI; surfacing it is a small follow-up.
+4. **Lesson edit route at `/admin/lessons/<id>/edit`.** ✅ Built 2026-05-20. `PATCH /api/admin/lessons/[id]` covers all metadata + per-slide speaker notes + parent talking points. Edit link on each row of `/admin/lessons`. Media re-upload deferred — Tim re-authors via `/admin/lessons/new` for new images/audio.
+5. **Live trial-call countdown + "Join Discord call" CTA on `/play`.** ✅ Built 2026-05-20. `TrialCallCard` shows a live countdown until 15 min before call time, then flips to a green join button pointing at `players.discord_channel_url`. Hides after the call ends + 2 hours.
 6. **Multi-kid login UX on `/login`.** Schema supports multi-kid families day one but `/login` assumes one kid per family. When a family adds kid #2, no UI to pick which kid the player magic-link signs in as. Need a second screen after email entry that lists the family's kids. ~60 min.
 7. **Intake form polish.** Confetti on level transitions, "+25 XP" floats, level-up sound (muted default), animated "Achievement Unlocked" reveal. Spec calls for all of it; only the XP bar exists. ~90 min.
 8. **Dad admin Phase 2.** Operational alerts (Stripe/Calendly/Resend health), "Tim today / this week" activity summaries, business glance with Stripe balance, "View as Tim" read-only mirror. Phase 1 (Stuck queue + resolution) is live. Each piece is ~30 min; full Phase 2 is ~3 hours.
@@ -1138,6 +1138,54 @@ This section is the running source of truth for what's on Peter's plate. Update 
     - Coach attribution defaults to the oldest active coach (single-coach MVP). Multi-coach attribution lands later via session var or `auth.uid()` lookup.
   - **"✦ X done today" streak** rendered at the bottom of FocusedHome (both empty state + main state). Lime, italic, quiet — never aggressive per spec section 3 ("calm urgency, not panic urgency"). Anchors on server midnight.
   - **Verified trigger fires:** one `UPDATE messages SET waiting_on='KID' WHERE waiting_on='TIM'` writes exactly one `task_completions` row.
+
+- **Read receipts + lesson edit + trial-call countdown + secret-reveal fix (2026-05-20).** Three TODO items (#3, #4, #5) plus a coda fix on the secret coach-login mechanism + a marketing-copy tidy. `npx tsc --noEmit` clean.
+
+  **TODO #3 — Read receipts on messages.**
+  - **`POST /api/messages/mark-read`** — Zod-validated `{ player_id, viewer_role: 'recipient' | 'parent' }`. Auth gate via service-role: looks up the viewer's parent/player/coach rows in parallel and verifies ownership of the target player's family before any UPDATE.
+    - `viewer_role='parent'` → stamps `read_by_parent_at` on every unread message in the player's thread.
+    - `viewer_role='recipient'` → stamps `read_by_recipient_at` on every message NOT sent by the viewer (i.e., kid reads coach messages, coach reads kid messages). Excludes the viewer's own messages via `.neq('sender_role', viewerRoleAsSender)`.
+  - **`MessageThread` Client Component** now fires the mark-read POST on mount via a fire-and-forget `useEffect`. Re-fires when `playerId` or `viewerRole` change. Doesn't block UI on failure.
+  - `MessageRow` type extended with `read_by_recipient_at` + `read_by_parent_at` fields so any future "unread" badge has the data.
+  - `playerId` prop threaded through the two callers that were missing it: `/play/squad/page.tsx` + `/portal/messages/page.tsx`. Admin paths already passed it.
+
+  **TODO #4 — Lesson edit route.**
+  - **`PATCH /api/admin/lessons/[id]`** — coach-gated. Strict Zod-validated body covers all metadata fields + `slide_notes: string[]` (one per slide, indexed) + `parent_talking_points: {category, text}[]`. **Preserves existing slide `image_url` + `audio_url`** by reading the lesson's current `slides` JSONB and only overwriting `speaker_notes` per position. No media-side mutations.
+  - **`/admin/lessons/[id]/edit`** — Server Component that loads the lesson, hands off to `LessonEditForm`. Renders 404 if no lesson matches.
+  - **`LessonEditForm`** — text-only edit surface, reuses the existing `form.module.css`. All metadata fields editable. Each slide shows its number + a "View image" link to the existing storage URL + an editable `speaker_notes` textarea. All 5 parent-talking-point categories editable. Submits JSON PATCH; on success router.refresh + green "Saved." indicator.
+  - **Edit link** added to each row on `/admin/lessons` library list, lime hover.
+  - **Out of scope (by design):** changing slide images, adding/removing slides, changing audio. Tim re-authors via `/admin/lessons/new` for new media.
+
+  **TODO #5 — Trial-call countdown + Join CTA on `/play`.**
+  - `subscriptions.trial_call_at` + `players.discord_channel_url` fetched on `/play` and passed to `PlayClient` as new props.
+  - **`TrialCallCard`** Client Component renders between the hero and the rest of the page, but ONLY when:
+    1. A trial call is on the books (`trialCallAt` is set)
+    2. Subscription is not yet active or ended (kid is mid-trial)
+    3. Call ended < 2 hours ago (anything older = hide entirely)
+  - **Live countdown** via `setInterval(1s)`. Format adapts: `3d 4h` → `2h 15m` → `12m 34s` → `5s`.
+  - **15 min before call**: the gray "Opens 15 min before" disabled button flips to a lime **Join Discord call** button that opens `players.discord_channel_url` in a new tab (or falls back to `xplkeyed.com` if Tim hasn't pasted a channel URL yet).
+  - After call start: button reads "Call is live now" and stays joinable until the 2hr cutoff.
+  - Amber-gradient card style, distinct from the regular kid-portal cards.
+
+  **Coda fix — secret coach-login mechanism simplification.**
+  - Original spec was **triple-tap the brand** on `/login` within 1.5 seconds. Built it; didn't work on Peter's install. Tried widening to 2.5s, switching from `onClick` to `onPointerDown`, adding a backup "type tim" keyboard sequence. None reliably fired.
+  - Root cause: the auto-redirect at the top of `/login/page.tsx` was bouncing signed-in users to their dashboard BEFORE the form ever mounted. Form never rendered → triggers never registered.
+  - Fix landed in two parts:
+    1. **Auto-redirect skipped when `?coach=1` is in the URL.** Server-side check now: `if (user && !initialCoachPanel) { ...redirect tree... }`. Lets Tim hit `/login?coach=1` and see the form even when his session is active (e.g. switching from magic-link auth to password auth without signing out).
+    2. **Simplified the secret to a SINGLE click on the brand.** No tap counter, no timing window, no keyboard sequence. `onClick={() => setSecretRevealed(true)}`. Cursor stays default + no visual hint, so the "secret" feel is preserved (a normal visitor sees the brand as a logo, not a button). One click → coach panel replaces magic-link form.
+  - Diagnostic in the middle of this: the click event was reaching the handler all along, but the form wasn't mounting because of the auto-redirect, so no handler was attached to listen. Fixing the redirect + simplifying both went in the same commit.
+
+  **Marketing copy tidy.**
+  - `/` hero subhead: "Personalized async coaching from XPL Keyed..." → "Personalized coaching from XPL Keyed..." (drops "async").
+  - `/` parent-upsell paragraph: "Sessions are short (30 minutes), scheduled, and async first..." → "Sessions are short (30 minutes) and scheduled in advance...".
+  - Peter's read: "async" is jargon parents don't track; "scheduled in advance" lands better.
+
+  **Marketing hero soldier (earlier in the same session):**
+  - Replaced original Dreamstime soldier silhouette with a Fortnite-style character silhouette (Tim's call: the original read too "Call of Duty"). Reprocessed via sharp: row-scan to find figure bottom edge, crop below feet, binary threshold (>200 avg → transparent; else → solid black), auto-trim transparent edges.
+  - Asset at `public/images/hero-silhouette.png`. Filename changed mid-session to bust browser cache after a stuck Chrome image cache.
+  - Sized via height-driven CSS so a tall/slim figure stays inside the hero's visible bounds: `height: clamp(280px, 55vh, 560px); width: auto; max-width: 35vw;`. Width auto-derives from aspect ratio (~93:212).
+  - Position: `bottom: 100%; right: clamp(0px, 3vw, 50px)` — sits up against the rarity bars on the right, lands feet-AT-top of the stats row.
+  - Animation: drop-from-above + squash + recoil + settle keyframes triggered by `.hero:has(.rarity-bars:hover)`. Mobile hidden, `prefers-reduced-motion` respected.
 
 - **Marketing hero soldier silhouette + notification_log audit wiring (2026-05-20).** Two pieces in one session. `npx tsc --noEmit` clean.
 

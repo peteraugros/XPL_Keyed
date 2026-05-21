@@ -26,6 +26,8 @@ export type MessageRow = {
   sender_role: "coach" | "player" | "bot";
   body: string;
   created_at: string;
+  read_by_recipient_at?: string | null;
+  read_by_parent_at?: string | null;
 };
 
 export type ViewerRole = "player" | "parent" | "coach";
@@ -60,6 +62,22 @@ export default function MessageThread({
     // Auto-scroll to the latest message on mount + when new ones arrive.
     listEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [messages]);
+
+  // Mark-as-read on mount. We need playerId for the endpoint; if it
+  // isn't passed (older callers), we no-op silently. Fire-and-forget;
+  // failure doesn't block the UI.
+  useEffect(() => {
+    if (!playerId) return;
+    const viewerRoleParam = viewerRole === "parent" ? "parent" : "recipient";
+    void fetch("/api/messages/mark-read", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ player_id: playerId, viewer_role: viewerRoleParam }),
+    }).catch(() => null);
+    // Run once per (playerId, viewerRole) combination — re-fires if the
+    // thread is swapped to a different player while the component is
+    // mounted.
+  }, [playerId, viewerRole]);
 
   function labelFor(senderRole: MessageRow["sender_role"]): string {
     if (senderRole === "bot") return "XPL Keyed";

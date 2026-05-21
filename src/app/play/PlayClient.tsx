@@ -14,7 +14,7 @@
 // floats animating off the row, level-up sound. The XP bar transitions
 // already respect prefers-reduced-motion via the CSS.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -72,6 +72,8 @@ export default function PlayClient({
   subscriptionStatus,
   cycleLessonsDelivered,
   curriculumWeeks,
+  trialCallAt,
+  discordChannelUrl,
 }: {
   playerFirstName: string;
   fortniteUsername: string | null;
@@ -81,6 +83,8 @@ export default function PlayClient({
   cycleLessonsDelivered: number;
   curriculumWeeks: CurriculumWeek[];
   initialPrep: PrepState;
+  trialCallAt: string | null;
+  discordChannelUrl: string | null;
 }) {
   const router = useRouter();
 
@@ -255,6 +259,13 @@ export default function PlayClient({
           </div>
         ) : null}
       </section>
+
+      {trialCallAt && !isActive && !isEnded ? (
+        <TrialCallCard
+          trialCallAt={trialCallAt}
+          discordChannelUrl={discordChannelUrl}
+        />
+      ) : null}
 
       {isActive ? (
         <>
@@ -587,4 +598,96 @@ export default function PlayClient({
 
 function labelFor(options: Option[], slug: string): string {
   return options.find((o) => o.slug === slug)?.label ?? slug;
+}
+
+// ---------------------------------------------------------------------------
+// TrialCallCard — live countdown to the kid's free intro call.
+// Renders nothing if the call has already happened (>2hr past).
+// Shows a countdown until 15 min before. Then enables the "Join Discord
+// call" button, deep-linking to the kid's private channel URL if Tim
+// has pasted one; otherwise points at xplkeyed.com (a fallback that
+// won't help, but Tim should always paste the channel URL before the
+// call).
+// ---------------------------------------------------------------------------
+function TrialCallCard({
+  trialCallAt,
+  discordChannelUrl,
+}: {
+  trialCallAt: string;
+  discordChannelUrl: string | null;
+}) {
+  const callMs = new Date(trialCallAt).getTime();
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const msUntilCall = callMs - now;
+  const minutesUntil = Math.floor(msUntilCall / 60_000);
+
+  // Hide if call ended 2+ hours ago.
+  if (msUntilCall < -2 * 60 * 60 * 1000) return null;
+
+  // Within 15 minutes (or after start, before the 2hr cutoff): enable the
+  // join button.
+  const joinable = msUntilCall <= 15 * 60 * 1000;
+  const callEnded = msUntilCall < 0;
+
+  // Format the countdown human-readably.
+  function fmt(ms: number): string {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(total / 86_400);
+    const hours = Math.floor((total % 86_400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  }
+
+  const callTimeLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(trialCallAt));
+
+  return (
+    <section className={styles.trialCallCard}>
+      <div className={styles.trialCallEyebrow}>Free call with Tim</div>
+      <div className={styles.trialCallTitle}>{callTimeLabel}</div>
+      {!callEnded ? (
+        <div className={styles.trialCallCountdown}>
+          {joinable ? "Starts soon" : `In ${fmt(msUntilCall)}`}
+        </div>
+      ) : (
+        <div className={styles.trialCallCountdown}>Call is live now</div>
+      )}
+      {joinable ? (
+        <a
+          href={discordChannelUrl ?? "https://xplkeyed.com"}
+          target="_blank"
+          rel="noreferrer noopener"
+          className={styles.trialCallJoinBtn}
+        >
+          Join Discord call
+        </a>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className={styles.trialCallJoinBtnDisabled}
+        >
+          Opens 15 min before
+        </button>
+      )}
+      <p className={styles.trialCallNote}>
+        The call happens on Discord, in the private channel Tim invited you to.
+      </p>
+    </section>
+  );
 }

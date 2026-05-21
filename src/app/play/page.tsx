@@ -40,7 +40,9 @@ export default async function PlayHQ() {
       .maybeSingle(),
     supabase
       .from("subscriptions")
-      .select("status, cycle_lessons_delivered, cycle_started_at")
+      .select(
+        "status, cycle_lessons_delivered, cycle_started_at, trial_call_at",
+      )
       .eq("player_id", player.id)
       .maybeSingle(),
     supabase
@@ -58,8 +60,23 @@ export default async function PlayHQ() {
   const vod = vodLookup.data as VodLookup | null;
   const prep = prepLookup.data as PrepLookup | null;
   const subscription = subscriptionLookup.data as
-    | { status: string; cycle_lessons_delivered: number; cycle_started_at: string | null }
+    | {
+        status: string;
+        cycle_lessons_delivered: number;
+        cycle_started_at: string | null;
+        trial_call_at: string | null;
+      }
     | null;
+
+  // Pull the kid's private Discord channel URL so the trial-call CTA
+  // can deep-link there once the call window opens.
+  const playerExtra = await supabase
+    .from("players")
+    .select("discord_channel_url")
+    .eq("id", player.id)
+    .maybeSingle();
+  const discordChannelUrl =
+    (playerExtra.data as { discord_channel_url: string | null } | null)?.discord_channel_url ?? null;
   const activeCurriculum = activeCurriculumLookup.data as { id: string } | null;
 
   // Fetch curriculum weeks for the kid (kid-facing labels).
@@ -105,6 +122,8 @@ export default async function PlayHQ() {
       subscriptionStatus={subscription?.status ?? "trial"}
       cycleLessonsDelivered={subscription?.cycle_lessons_delivered ?? 0}
       curriculumWeeks={curriculumWeeks}
+      trialCallAt={subscription?.trial_call_at ?? null}
+      discordChannelUrl={discordChannelUrl}
       initialPrep={
         prep
           ? {

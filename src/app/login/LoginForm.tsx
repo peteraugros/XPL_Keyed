@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import styles from "./page.module.css";
 
 export type Role = "parent" | "player" | "coach";
@@ -32,23 +32,18 @@ export default function LoginForm({
   const [stage, setStage] = useState<Stage>("form");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Hidden coach password panel. Reveal mechanism: triple-tap the brand
-  // mark within 1.5 seconds. No visual hint that it exists — Tim knows
-  // the trick.
+  // Hidden coach password panel. Reveal mechanism: SINGLE click on the
+  // brand mark at the top of the card. No visual hint that the brand
+  // is clickable — Tim knows. Reliable across mouse/touch/keyboard,
+  // no timing window to miss. URL bypass ?coach=1 also works.
   const [secretRevealed, setSecretRevealed] = useState(initialCoachPanel === true);
   const [secretUsername, setSecretUsername] = useState("");
   const [secretPassword, setSecretPassword] = useState("");
   const [secretSubmitting, setSecretSubmitting] = useState(false);
   const [secretError, setSecretError] = useState<string | null>(null);
-  const tapTimesRef = useRef<number[]>([]);
 
   function onBrandTap() {
-    const now = Date.now();
-    tapTimesRef.current = [...tapTimesRef.current.filter((t) => now - t < 2500), now];
-    if (tapTimesRef.current.length >= 3) {
-      setSecretRevealed(true);
-      tapTimesRef.current = [];
-    }
+    setSecretRevealed(true);
   }
 
   async function onSecretSubmit(e: React.FormEvent) {

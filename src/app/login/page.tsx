@@ -41,14 +41,24 @@ export default async function LoginPage({
   const roleParam = (Array.isArray(params.role) ? params.role[0] : params.role) ?? null;
   const errorParam = (Array.isArray(params.error) ? params.error[0] : params.error) ?? null;
   const nextParam = (Array.isArray(params.next) ? params.next[0] : params.next) ?? null;
+  const coachParam =
+    (Array.isArray(params.coach) ? params.coach[0] : params.coach) ?? null;
+  const initialCoachPanel = coachParam === "1";
 
   // Check session BEFORE rendering the form so a returning user with a
   // valid cookie jumps straight to their dashboard.
+  //
+  // EXCEPT when ?coach=1 is in the URL or any kind of explicit form
+  // intent is signaled. Tim's secret-login panel needs the form to
+  // mount even when he's already signed in (switch accounts / try
+  // password instead of magic link). Skipping the redirect here means
+  // the form renders and the triple-tap / "tim" keyboard / ?coach=1
+  // mechanisms all work.
   const supabase = await createClient();
   const userResult = await supabase.auth.getUser();
   const user = userResult.data.user;
 
-  if (user) {
+  if (user && !initialCoachPanel) {
     const [parentRow, playerRow, coachRow] = await Promise.all([
       supabase.from("parents").select("id").eq("auth_user_id", user.id).maybeSingle(),
       supabase.from("players").select("id").eq("auth_user_id", user.id).maybeSingle(),
@@ -66,13 +76,6 @@ export default async function LoginPage({
     roleParam === "coach" || roleParam === "player" || roleParam === "parent"
       ? roleParam
       : "parent";
-
-  // ?coach=1 bypasses the triple-tap and renders the password panel
-  // immediately. Quiet escape hatch for when HMR is stuck or the
-  // tap-target isn't responsive.
-  const coachParam =
-    (Array.isArray(params.coach) ? params.coach[0] : params.coach) ?? null;
-  const initialCoachPanel = coachParam === "1";
 
   return (
     <LoginForm

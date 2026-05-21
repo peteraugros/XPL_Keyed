@@ -50,6 +50,7 @@ export default async function MessagesPage() {
           viewerRole="parent"
           kidFirstName={player.first_name}
           endpoint={null}
+          playerId={player.id}
         />
       </section>
     </div>

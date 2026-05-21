@@ -43,6 +43,7 @@ export default async function SquadPage() {
         viewerRole="player"
         kidFirstName={player.first_name}
         endpoint="/api/play/message"
+        playerId={player.id}
       />
     </div>
   );
