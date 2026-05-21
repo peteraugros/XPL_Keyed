@@ -32,6 +32,10 @@ const BodySchema = z.object({
   email: z.string().trim().email().max(254),
   role: z.enum(["parent", "player", "coach"]),
   next: z.string().max(512).optional(),
+  // Optional. Multi-kid families pass the kid's first name so we target
+  // the right player. Single-kid families can omit (we fall back to the
+  // family's oldest player). Case-insensitive match.
+  player_first_name: z.string().trim().min(1).max(80).optional(),
 });
 
 export async function POST(req: Request) {
@@ -52,7 +56,10 @@ export async function POST(req: Request) {
     body.role === "parent"
       ? await sendParentMagicLink(supabase, body.email, { next })
       : body.role === "player"
-        ? await sendPlayerMagicLink(supabase, body.email, { next })
+        ? await sendPlayerMagicLink(supabase, body.email, {
+            next,
+            playerFirstName: body.player_first_name,
+          })
         : await sendCoachMagicLink(supabase, body.email, { next });
 
   // No-enumeration: missing parent or missing player both look like success.

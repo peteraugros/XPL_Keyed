@@ -29,6 +29,7 @@ export default function LoginForm({
 }) {
   const [role, setRole] = useState<Role>(initialRole);
   const [email, setEmail] = useState("");
+  const [playerFirstName, setPlayerFirstName] = useState("");
   const [stage, setStage] = useState<Stage>("form");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -92,10 +93,18 @@ export default function LoginForm({
     setErrorMessage(null);
     setStage("submitting");
     try {
+      const trimmedKid = playerFirstName.trim();
       const res = await fetch("/api/auth/send-magic-link", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), role, next: next ?? undefined }),
+        body: JSON.stringify({
+          email: email.trim(),
+          role,
+          next: next ?? undefined,
+          ...(role === "player" && trimmedKid
+            ? { player_first_name: trimmedKid }
+            : {}),
+        }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -196,7 +205,7 @@ export default function LoginForm({
               {role === "parent"
                 ? "We sent a sign in link to your email. It is good for one hour."
                 : role === "player"
-                  ? "We sent the sign in link to the parent email on file. It is good for one hour."
+                  ? `We sent ${playerFirstName.trim() ? `${playerFirstName.trim()}'s` : "the"} sign in link to the parent email on file. It is good for one hour.`
                   : "We sent a sign in link to your coach email. It is good for one hour."}
             </p>
             <p className={styles.subtle}>
@@ -281,15 +290,35 @@ export default function LoginForm({
               }
             />
             {role === "player" ? (
-              <p className={styles.subtle}>
-                The sign in link goes to your parent. They can hand you the device or forward the email.
-              </p>
+              <>
+                <label className={styles.label} htmlFor="player-first-name">
+                  Player first name
+                </label>
+                <input
+                  id="player-first-name"
+                  type="text"
+                  autoComplete="given-name"
+                  className={styles.input}
+                  value={playerFirstName}
+                  onChange={(e) => setPlayerFirstName(e.target.value)}
+                  placeholder="Jake"
+                  spellCheck={false}
+                  autoCapitalize="words"
+                />
+                <p className={styles.subtle}>
+                  Who is signing in? The link goes to your parent's email. They can hand you the device or forward the email.
+                </p>
+              </>
             ) : null}
 
             <button
               type="submit"
               className={styles.primaryBtn}
-              disabled={stage === "submitting" || !email.trim()}
+              disabled={
+                stage === "submitting" ||
+                !email.trim() ||
+                (role === "player" && !playerFirstName.trim())
+              }
             >
               {stage === "submitting" ? "Sending..." : "Email me the link"}
             </button>

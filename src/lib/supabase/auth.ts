@@ -125,14 +125,14 @@ export async function sendCoachMagicLink(
 export async function sendPlayerMagicLink(
   supabase: ServiceRoleClient,
   parentEmail: string,
-  opts: { next?: string } = {},
+  opts: { next?: string; playerFirstName?: string } = {},
 ): Promise<MagicLinkResult> {
   const next = safeNextPath(opts.next) ?? "/play";
 
   // Resolve parent.email -> family_id -> player.auth_user_id.
-  // MVP families have exactly one player; the schema supports multi-kid, so
-  // we explicitly pick the oldest player by created_at to keep this stable
-  // until the multi-kid login UX is built.
+  // Multi-kid: if playerFirstName is provided, case-insensitive match
+  // within the family; ties broken by oldest. If omitted, falls back
+  // to the family's oldest player (single-kid families are this case).
   const parentRow = await supabase
     .from("parents")
     .select("family_id, email")
@@ -145,13 +145,17 @@ export async function sendPlayerMagicLink(
   }
   if (!parentRow.data) return { ok: false, code: "not_found" };
 
-  const playerRow = await supabase
+  let playersQuery = supabase
     .from("players")
     .select("first_name, auth_user_id")
     .eq("family_id", parentRow.data.family_id)
     .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  const nameFilter = opts.playerFirstName?.trim();
+  if (nameFilter) {
+    playersQuery = playersQuery.ilike("first_name", nameFilter);
+  }
+  const playerRow = await playersQuery.maybeSingle();
 
   if (playerRow.error) {
     console.error("[auth] player lookup failed", playerRow.error);
