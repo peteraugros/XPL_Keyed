@@ -2,6 +2,23 @@
 
 This file is loaded into any Claude session working in this directory. It captures everything we've decided in the design conversation so far. Read it end-to-end before suggesting changes — many decisions are deliberate and have a "why" behind them.
 
+## Table of contents
+
+**Spec (read first, locked decisions):**
+- [What this is](#what-this-is) · [Roles](#roles) · [Current state](#current-state) · [Stack (target)](#stack-target)
+- [Hard rules (do not violate)](#hard-rules-do-not-violate)
+- **Locked product decisions:** [Account & trust](#account--trust-model) · [Multi-kid](#multi-kid-families) · [Capacity & waitlist](#capacity--waitlist) · [Intake (Stage A)](#intake--stage-a-booking-the-free-call) · [Trial portal kid view](#post-booking-portal-trial-state--kid-view) · [Stage B prep](#stage-b-prep-quest-content) · [Trial portal parent view](#post-booking-portal-trial-state--parent-view) · [Admin trial window](#tims-admin-during-the-trial-window) · [Stage C conversion](#stage-c--the-conversion-moment-post-free-call) · [Cancellation: skip model](#cancellation-policy-skips--reschedules-unified-model) · [Lifecycle states](#lifecycle-states-locked) · [Coach cancellations](#coach-cancellations-tims-side) · [Dunning](#dunning--failed-payment) · [Parent comms](#parent-communication-every-email-tim-sends) · [Notifications](#notifications-tims-side) · [Lesson library schema](#lesson-library-schema) · [Design system & PWA](#design-system--pwa)
+- [Long-term thesis (operator-pair, acquirer pitch)](#long-term-thesis-build-prove-sell) · [Pressure tests](#pressure-tests-before-operator-2)
+
+**What's true right now:**
+- [What's NOT built (known gaps)](#whats-not-built-known-gaps-in-built-reality) — read this BEFORE assuming a feature works
+- [Project layout](#project-layout) — file map + every shipped surface
+- [Next session pickup](#next-session-pickup) — open TODOs, setup blockers, deployment plan
+
+**Reference:**
+- [Admin spec set](#admin-spec-set-the-canonical-four) — the four-doc spec for the rebuilt admin (Focused / Command / modes / backend)
+- [Memory files](#memory-files-user-level-auto-loaded-across-sessions)
+
 ---
 
 ## What this is
@@ -216,31 +233,58 @@ Sections:
   2. Not the right fit — sends kind decline + recommends free creators (e.g. Mero, Reet, Pandvil)
   3. Still deciding — talk to parent first
 - **"Take Jake on" requires Tim to draft a 4-week curriculum** (picks 4 lesson topics, optional VOD checkbox per week) + write a 2-sentence personalized note. **Why:** the conversion email becomes "here's the 4-week plan I have in mind for Jake — subscribe to lock it in," not just "subscribe please." Personalizes the pitch + satisfies curriculum approval upfront.
-- **Parent's conversion email** uses the parent-translation rule: each week shows the real-world skill it builds with the Fortnite term in italicized parens. Single CTA: "Approve plan & subscribe." Cancellation policy stated plainly.
-- **Conversion screen** uses Stripe Elements embedded inline. Two tiers: MONTHLY $56 (default selected, "Recommended") and SINGLE LESSON $14.
-- **Billing cycle for monthly tier is every 4 lessons, NOT every 30 days.** Parent pays $56, gets 4 lessons delivered (one per Sunday), then billed again. If a week is skipped (illness, vacation), cycle pauses. Matches the "$56 for 4 lessons" mental model on the marketing site and avoids the "I paid for 4 weeks but only got 2 lessons due to spring break" complaint. Slightly more complex Stripe implementation — use a subscription with manually-advanced cycle (deliver lesson → increment counter → at counter=4, charge next $56 and reset). Or metered billing with a custom job.
+- **Parent's conversion email** uses the parent-translation rule: each week shows the real-world skill it builds with the Fortnite term in italicized parens. Single CTA: "Approve plan & subscribe" → `/curriculum/[token]` landing page → Stripe Checkout. Cancellation policy stated plainly.
+- **Conversion screen** at `/curriculum/[token]` renders the 4 weeks + Tim's personalization note + billing terms, single "Approve plan and subscribe" button → Stripe-hosted Checkout in `payment` mode (one-time $56). Tier is fixed at MONTHLY $56 (no SINGLE LESSON $14 path in MVP). Hosted Checkout chosen over embedded Stripe Elements for first-cut speed; swap is a one-endpoint refactor when polish time comes.
+- **Payment architecture (locked):** **one-time `PaymentIntent`s against a saved card. NO Stripe Subscription object.** First cycle uses `checkout.session.create({mode:'payment', payment_intent_data:{setup_future_usage:'off_session'}})` so the card is saved on the Customer. From cycle 2+ the `cron-auto-renew-detection` Edge Function fires `stripe.paymentIntents.create({customer, payment_method, off_session:true, confirm:true, amount: 5600})` against the family's default saved card. **Reason this beats a Stripe Subscription:** the billing cycle is "$56 every 4 lessons delivered," not "every 30 days." Stripe's recurring engine is calendar-driven; ours is delivery-driven. Cron-fired PaymentIntents let us pause cleanly during dunning + coach cancels + parent skips without fighting Stripe's billing rhythm. The trade-off is we own the renewal trigger and idempotency (`subscriptions.renewal_pi_id` is set the moment the PI fires, cleared by webhook on settle either way; double-fire protected).
+- **Cycle definition:** `cycle_started_at` + `cycle_lessons_delivered` (0–4) + `cycle_skips_used` (0–10 sanity bound). When `cycle_lessons_delivered=4` AND `auto_renew_enabled=TRUE`, the auto-renew cron fires the next $56 PI. The `payment_intent.succeeded` webhook calls `provisionNextCycle()` which marks the old curriculum `completed`, lays down the new curriculum + 4 slots (library-driven, see "Library-driven auto-renew" in Done), and resets counters. Failure routes to `lifecycle_state='PAST_DUE'` (see Lifecycle states below).
 - **Kid's portal during this window:**
   - Awaiting Tim's decision: quest log shows "Tim is reviewing your session. Check back soon."
   - Conversion approved: big "ACHIEVEMENT UNLOCKED · LEVEL 2 · ACTIVE PLAYER" moment with confetti, trial badge replaced, first lesson countdown to Sunday appears, 4-week curriculum visible.
   - Conversion declined: graceful "thanks for trying" screen with Tim's recommended free creators. Account stays open.
 
-### Cancellation policy & credits
+### Cancellation policy: skips + reschedules (unified model)
 
-- **Two cancel paths, both reconciled through the same backend webhook:**
-  1. Parent dashboard → Upcoming Lessons card → **[Reschedule this week]** (primary, deep-links Calendly's reschedule flow) or **[Cancel this week]** (smaller secondary action).
-  2. Native Calendly cancel/reschedule link in booking confirmation emails.
-  - **Calendly's cancel/reschedule window must be opened to 0hr in Calendly settings** so all cancels reach our webhook. Our backend governs the 24hr rule, not Calendly — otherwise Calendly silently blocks late cancels and we never see them.
-- **>24hr from call = credit.** Cycle pauses 1 week. No "credit balance" surface anywhere — `cycle_lessons_delivered` simply doesn't advance. Next Sunday becomes the rescheduled lesson.
-  - **If PowerPoint+VO was already delivered Sunday and parent cancels Mon/Tue (still >24hr from a Wed call):** kid keeps the material as a freebie, cycle still pauses. Tim absorbs the work cost. The 2/cycle cap limits damage.
-- **<24hr from call = no credit.** Kid keeps the PowerPoint+VO, the 30-min call is forfeit, cycle advances. Does NOT count toward the 2/cycle cap.
-- **No-shows = same mechanical outcome as <24hr cancel** (lesson counts, cycle advances, no cap impact). Tracked in a separate `no_shows` log so Tim sees repeat patterns. Auto-email to parent: "We missed you — everything OK?" Tim can manually convert a no-show to a credit if a legitimate reason surfaces. No automatic grace.
-- **Cap: 2 credits per 4-lesson cycle**, not per calendar month. Cycle is the right window because billing is per 4 lessons, not per 30 days — see Stage C above. Cap resets when the cycle's 4th lesson is delivered and the next $56 charges.
-- **3rd cancel attempt ends the subscription**, different confirmation flow per surface:
-  - **Portal path:** dedicated end-subscription screen with type-to-confirm ("Type END to confirm"). Framed protectively, not punitively: "kids who skip more than 2 per cycle don't see meaningful progress, and we'd rather pause than charge you for lessons that aren't landing." Restart any time, progress is preserved.
-  - **Calendly-email path:** webhook marks subscription `pending_cancel` immediately (the call IS cancelled), sends email with two CTAs: **[Confirm end subscription]** or **[Undo cancel and keep subscription]**. 7-day pending window with reminder emails at day 3 and day 6. No billing, no new lessons during pending. Day 7 no response → auto-confirm. "Undo" reverts the 3rd cancel itself: `cycle_cancels_used` → 2, Calendly event re-booked, subscription remains active.
-- **Reschedules do NOT count toward the cap.** Cancel-after-reschedule does — otherwise the cap is trivially gameable.
-- **Backend state on the subscription row:** `cycle_started_at`, `cycle_lessons_delivered` (0–4), `cycle_cancels_used` (0–2; 3 triggers `pending_cancel`), `last_cancel_at`. Coach-initiated cancels live in a separate `coach_cancels` table and never touch `cycle_cancels_used` — see below.
-- **Tim's admin client card** shows running state: `Cycle: 3/4 lessons · 1 cancel used`. Discord DM bot fires on any cancel #3 attempt so Tim sees it in real time and can reach out before auto-confirm.
+The MVP shipped a unified "skip" model. There is no separate "credit" surface, no `cycle_cancels_used` counter, and no immediate-end-subscription path on the 3rd cancel. Replaces an older 2-credit / 3rd-cancel-ends design that never shipped.
+
+- **Two cancel paths, both reconciled through the same backend:**
+  1. Parent dashboard `/portal/sessions` → per-slot **[Reschedule]** button → modal with state A (>=24hr, free reschedule) or state B (<24hr, forfeit).
+  2. Native Calendly cancel/reschedule link in booking confirmation emails → webhook handler classifies same way.
+  - **Calendly's cancel/reschedule window must be opened to 0hr on the paid-lessons event type** so all cancels reach our webhook. Our backend governs the 24hr rule, not Calendly. (Intro-call event type is free with no cycle math; its cancel window doesn't matter.)
+- **State A (>=24hr ahead, free reschedule):** parent picks a new time in the Calendly embed inside the reschedule modal. New `live_call_at` + `live_call_event_id` written. Cadence preserved if new time is within 168hr of original; if >168hr, **consumes one skip** (cycle pushed forward).
+- **State B (<24hr ahead, forfeit):** call is cancelled in Calendly via REST + slot's `live_call_event_id` sentinel-marked (`cancelled:<original>`). `cycle_lessons_delivered` advances (kid keeps materials), **`cycle_skips_used+1`**.
+- **No-shows** mark `curriculum_slots.no_show_at`, default to charge-as-skip (`cycle_skips_used+1, cycle_lessons_delivered+1`), tracked separately in the `call_outcome_pending` Focused Home task so Tim sees patterns. Tim can flip a no-show to courtesy pass (no skip charge, cycle pauses one week) from `/admin/calendar` if a legitimate reason surfaces.
+- **Skip allowance: 2 per 4-lesson cycle. 3rd skip triggers `auto_renew_enabled=FALSE`.** Subscription **completes the current cycle to lesson 4 normally**; auto-renew cron then transitions to `canceled` instead of charging the next $56. No immediate-end-subscription confirmation flow — parent can re-enable auto-renew any time from `/portal/billing` while the cycle is still running. Cap resets each cycle.
+- **Grace recovery:** when a future cycle runs with `cycle_skips_used=0`, `auto_renew_enabled` flips back to TRUE silently. Parents who had one bad month get a clean reset without ever having to ask.
+- **Reschedules do NOT count toward the cap** (free reschedule branch). Same-week reschedules preserve cadence. Cancel-after-reschedule consumes a skip.
+- **Coach-initiated cancels** (Tim) live in `coach_cancels` table, never touch `cycle_skips_used`. Three locked reasons: `sick / out_of_control / need_to_reschedule`. Two surfaces: proactive from `/admin/calendar` (24hr gate enforced) + reactive from the post-call outcome panel (no gate, emergency path). Parent gets a "pick a new time" email pointing at the Calendly embed in `/portal/sessions` — no lesson lost.
+- **Backend state on the subscription row (locked):**
+  - `cycle_started_at TIMESTAMPTZ` — anchor for the current 4-lesson window
+  - `cycle_lessons_delivered SMALLINT 0..4` — Sunday cron + outcome marking advance this
+  - `cycle_skips_used SMALLINT 0..10` (sanity bound) — parent cancels + no-shows charge here
+  - `cycle_timezone TEXT` — frozen at cycle creation, all cadence math runs in this tz
+  - `auto_renew_enabled BOOLEAN` — flips FALSE at skip #3; flips TRUE on grace recovery
+  - `auto_renew_off_acknowledged_at TIMESTAMPTZ` — Tim's "got it" stamp on the Focused Home awareness card
+  - `renewal_pi_id TEXT` — set the moment the cron fires the renewal PaymentIntent; cleared by Stripe webhook on settle (idempotency)
+- **Tim's admin** shows running state per client: `Cycle: 3/4 · Skips: 1/2 · Auto renew on/off`. No Discord DM bot — operator notifications surface in-app on Focused Home only (see `feedback_no_discord_dms.md`).
+
+### Lifecycle states (locked)
+
+Operationally load-bearing. Every subscription has a `lifecycle_state` enum value distinct from the Stripe-flavored `status` field. State drives Home queue task surfacing, cron eligibility, and parent portal branching.
+
+- `TRIAL_PREP` — intake complete, free call NOT yet booked or no `trial_call_at` recorded.
+- `TRIAL_SCHEDULED` — free call booked via Calendly. Set by `invitee.created` webhook.
+- `TRIAL_DONE` — `trial_call_at < NOW() - 30min`. Surfaces as `trial_decision` task on Tim's Focused Home (view does the lazy transition; no cron flip needed).
+- `ACCEPTED_PENDING_SCHEDULING` — Tim took kid on. Parent has 4 slots to reserve.
+- `SCHEDULING_IN_PROGRESS` — parent has reserved at least one slot but not all four.
+- `PENDING_PAYMENT` — all 4 slots reserved, Stripe Checkout session created. 24hr window before slots release.
+- `ACTIVE` — first cycle paid + first lesson delivered (or any subsequent active cycle).
+- `PAST_DUE` — auto-renew PaymentIntent failed. Cycle freezes (no Sunday delivery, no charge to skip counter). Stripe Smart Retries don't apply here since we're not using Stripe's recurring billing; the `cron-day7-dunning-ping` + `cron-dunning-parent-reminders` crons drive the timeline.
+- `PENDING_CANCEL` — legacy state retained for the `pending_cancel` workflow (used during the early-cancel-confirmation flow that the skip model superseded; still appears on a small number of rows from pre-rewrite data).
+- `CANCELED` — terminal. Either auto-renew off + cycle completed, or 14 days dunning with no payment, or coach declined at Stage C.
+
+**Distinct from `status`:** `status` is the Stripe-flavored field (`trial / active / past_due / canceled / declined`). `lifecycle_state` is the operational truth — what surface the parent sees, what task Tim sees, what cron is eligible. They're kept in sync by the Stripe webhook + Calendly webhook + outcome marking endpoints. When they disagree, `lifecycle_state` is canonical.
+
+**`waiting_on` enum** (separate from lifecycle): `TIM / PARENT / KID / SYSTEM / DAD`. Denormalized onto `messages`, `subscriptions`, `curricula`, `cancellation_events`. Drives the Home queue. `DAD` is set by the Stuck button; the Dad admin's resolution flow flips it back to TIM, KID, PARENT, or SYSTEM.
 
 ### Coach cancellations (Tim's side)
 
@@ -288,24 +332,21 @@ Both paths produce:
 
 ### Notifications (Tim's side)
 
-- **Discord DM bot, 20 min before each call**, with full context: prep completion status, VOD link, channel link. Tim is on Discord 24/7 for the coaching server — push notifications are reliable and free.
-- **Day-7 dunning ping and cancel-#3 ping** also DM Tim — see Cancellation and Dunning sections above for the triggers, and Discord bot architecture below for the infra.
-- **Calendly auto-creates a calendar invite** — backstop reminder via Tim's calendar app.
-- **SMS via Twilio is upgrade-later**, not MVP. Add if Discord notifications ever miss a critical reminder.
+**No Discord DMs to Tim. All operator notifications surface in-app on Focused Home.** This is a hard policy override (2026-05-19) that supersedes the original Discord-bot architecture. See `feedback_no_discord_dms.md`.
 
-### Discord bot architecture
+- **Pre-call awareness** lives on Focused Home as the `call_outcome_pending` task once the call window closes + as the upcoming-call entry on `/admin/calendar`. Calendly's auto-created calendar invite is the immediate reminder; Tim has Calendly + Google Calendar on his phone.
+- **Day-7 dunning + cancel-#3** surface as awareness cards on Focused Home (`past_due_opened`, `subscription_auto_renew_off`, `cycle_drag_out`). Calendar push notifications + the lime-accented Focused Home cards are the only operator-side signals; no system DM ever messages Tim.
+- **Parent-side branded emails still fire** through every dunning + cancel + auto-renew transition. Resend (via `notification_log` audit). Discord stays the channel for *coaching content* (per-client private channels Tim runs manually); it is NOT a system notification channel.
+- **SMS via Twilio is upgrade-later**, not MVP.
 
-The XPL Keyed Bot handles three outbound notification triggers from the same Supabase Edge Function infrastructure. Outbound-only — no persistent Discord gateway connection. Inbound interaction (kid messages, parent observation) happens in the coaching server itself via Discord's normal clients; the bot doesn't proxy that.
+### Discord coaching server (manual setup, no system bot)
 
-- **Where it lives:** Supabase Edge Function in TypeScript, deployed alongside the rest of the Supabase project. No dedicated long-lived server. Outbound messages via Discord's REST API.
-- **Auth:** Bot identity registered in Discord's developer portal, invited to Tim's coaching server with permissions to (a) DM Tim and (b) post in any per-client channel. Token stored as `DISCORD_BOT_TOKEN` env var in Supabase. **Bot speaks as itself ("XPL Keyed Bot"), never as Tim.** Honest framing — never disguise an auto-message as Tim writing personally.
-- **Three triggers:**
-  1. **20-min pre-call reminder** — `pg_cron` job runs every 1 minute, queries for calls in the 19–21 minute window not yet pinged, fires the Edge Function. Function DMs Tim with prep-completion status, VOD link, channel link.
-  2. **Day-7 dunning ping** — `pg_cron` job runs once a day, queries for subscriptions where `past_due` began exactly 7 days ago, fires the function. DM: *"Jake's family — payment failing 7 days. Want to reach out personally?"*
-  3. **Cancel-#3 ping** — event-driven (no cron). Fires from the cancel webhook handler the moment a 3rd cancel is registered. DM: *"Jake's family is about to hit cancel #3 — flagged for ending. Want to reach out?"*
-- **Idempotency:** each trigger has a `notified_at` column on the relevant row (`calls.notified_at_20min`, `subscriptions.notified_at_day7_dunning`, `cancel_attempts.notified_at_third`). Edge Function sets it on send. pg_cron queries filter on `IS NULL` so a missed run never double-pings, and a late-firing 2-minute job still catches the call.
-- **Failure mode:** if Discord API is down or rate-limited, the Edge Function logs to Supabase and does not retry. Calendly invites are the backstop for the 20-min ping. Dunning and cancel-#3 ping have parallel branded emails going to the parent regardless — a missed Discord ping means Tim doesn't intervene personally, not that the family is unhandled.
-- **Out of scope for MVP:** inbound bot commands, persistent gateway connection, real-time presence tracking. If/when those matter, migrate to a dedicated tiny Node service on Railway/Fly.
+The Hard rule says coaching happens on Discord, not phone. Implementation today is **manual server management by Tim**, not an automated bot.
+
+- Tim runs his own XPL Keyed coaching Discord server. Per-client private channels are created by hand. The channel invite URL is pasted into `/admin` via the inline form on each client card (`PATCH /api/admin/players/[id]` writes `players.discord_channel_url`).
+- Parent is invited as observer when Tim creates the channel. Recording: Tim records calls locally (QuickTime), uploads to the platform later (see "What's not built" — upload UI doesn't exist yet).
+- **Server template + channel naming convention + parent-observer role config + recording-bot setup are NOT documented** anywhere yet. For operator #2 this becomes a real deliverable; for Tim's n=1 it's tribal knowledge.
+- **No XPL Keyed Bot exists.** The `DISCORD_BOT_TOKEN` env var is reserved in `.env.local.example` but nothing reads it. Earlier spec described a bot that DM'd Tim for 20-min reminders + Day-7 dunning + Cancel-#3 — that bot is **explicitly retired**. In-app notifications replaced it (see Notifications above).
 
 ### Parent-facing upsell ("why coached Fortnite actually builds your kid")
 
@@ -408,6 +449,8 @@ The **platform** (XPL Keyed today, likely "Keyed" or similar umbrella brand once
 - Enforces the Hard Rules globally.
 - Provides the recruiting funnel, the operator onboarding sequence, and the safety/compliance scaffolding.
 
+**Tim's n=1 instance does NOT use Stripe Connect.** Tim runs on Peter's direct Stripe account during MVP. Connect onboarding adds friction with zero upside while there's only one operator pair, and Connect's payout architecture changes the PaymentIntent flow non-trivially. The Connect migration is queued for operator-#2 onboarding: at that point we'll add the `tenants` / `operators` table, scope every query, route per-subdomain, and stand up Stripe Connect for *both* Tim and operator #2 at the same time. Same migration pattern Peter has done on Day & Knight. Don't pre-build Connect for Tim alone.
+
 ### Hard age floor for operator kids: 13 minimum, 14 canonical
 
 - **Under 13 as a coach is a non-starter.** 13 is the COPPA cliff; below it, the operator kid is themselves a regulated user, and the compliance burden compounds catastrophically.
@@ -490,6 +533,21 @@ Plausible acquirers: Epic Games, Discord, Take-Two, EA, Chegg, Outschool, kids-s
 ## What's still open (design conversation)
 
 All major design topics are locked. New questions land here as they surface during the build.
+
+## What's NOT built (known gaps in built reality)
+
+Spec describes these as design-locked. Code does not implement them yet. Surfacing here so future-Claude doesn't assume they exist when reading the Locked Decisions above.
+
+1. **Ongoing curriculum approval (cycles 2+).** First-cycle approval at Stage C is built (`/curriculum/[token]` magic-link + Approve plan and subscribe → Stripe Checkout). The Locked Decisions also say approval is monthly — i.e. every new 4-week curriculum needs parent approval before the next $56 charges. `provisionNextCycle` currently skips this; it lays down the new curriculum with `status='active'` and the auto-renew cron charges immediately. To honor the spec we'd need: (a) provision next curriculum as `pending_approval` instead of `active`, (b) email parent the new approval-token link, (c) gate the renewal PaymentIntent on `pending_approval → active`, (d) auto-cancel after N days of no approval. Not yet built; flag the gap before promising parents that every cycle is opt-in.
+2. **Call recording infrastructure.** Spec says Tim records calls locally + uploads, parent can stream/download from `/portal`, with 12-month minimum retention purged at 24 months. Code: zero. `/portal` has a "Call recordings" empty-state card that never fills. Needs: upload UI on `/admin/calendar` event modal, Supabase Storage bucket with per-family RLS, signed-URL minting on parent read, retention cron. Pressure-test #13 (recording access matrix) is also unbuilt.
+3. **Discord coaching server template.** Setup item #2 says "create the bot." No setup docs exist for the server template, channel-naming convention, parent-observer role config, recording-bot setup. For Tim's launch this is manual: Tim creates a per-family private channel by hand in his existing server and pastes the invite URL into `/admin` via the inline form on each client card. Operator #2 will need a documented template.
+4. **iOS PWA Add-to-Home-Screen.** Manifest icons are SVG (Android-friendly, iOS ignores manifest icons). iOS uses `<link rel="apple-touch-icon">` which must be a 180×180 PNG; not added. If iOS is >50% of family users (likely), this is a real adoption blocker pre-launch.
+5. **Analytics + TikTok funnel measurement.** Long-term thesis section says "hand-tracked spreadsheet → analytics later." The spreadsheet template is not in the repo. No UTM convention locked in for the marketing-site bio link. The TikTok comment screenshot library (Tim's "20 comments that got him to first 10 clients") has no storage path.
+6. **`pending_intake_verifications` purge cron.** Unverified COPPA gate rows accumulate. Verified rows are deleted on `rpc_intake` success but expired/unredeemed rows sit. Low priority at 1–10 client scale; daily `DELETE WHERE expires_at < NOW() AND verified_at IS NULL` is a 5-minute task when it matters.
+7. **Refund window enforcement.** Policy lives in ToS + email copy only. No Stripe-portal refund block for requests > 60 days post-charge. Build when the first refund flows.
+8. **Day-7 unscheduled auto-cancel for scattered renewals.** `cron-scheduling-abandonment` reminds but doesn't auto-cancel post-charge unscheduled families.
+9. **Calendly auto-booking of uniform predicted times.** Auto-renew sets predicted `live_call_at` but doesn't create real Calendly events. Parent has to manually reschedule into a real slot.
+10. **Multi-tenant migration for operator #2.** `tenants` / `operators` table, RLS scoping, subdomain routing, Stripe Connect onboarding. All deferred per "do not rebuild as multi-tenant before operator #2 commits."
 
 ---
 
@@ -691,6 +749,15 @@ This section is the running source of truth for what's on Peter's plate. Update 
 
 #### ✅ Done
 
+- **CLAUDE.md reconcile pass (2026-05-20).** Brought the canonical Locked Decisions section in line with built reality after an audit caught multiple contradictions between the top-of-doc spec and what's actually shipped. Five concrete edits:
+  - **Stage C section rewritten.** Was: "Stripe subscription with manually-advanced cycle" + "Or metered billing with a custom job." Is now: "**One-time PaymentIntents against a saved card. NO Stripe Subscription object.**" Documents the locked first-cycle flow (Stripe Checkout `mode='payment'` + `setup_future_usage='off_session'`) and cycle-2+ flow (`cron-auto-renew-detection` fires `paymentIntents.create({customer, payment_method, off_session:true, confirm:true})`). Explains *why* this beats Stripe Subscriptions for our delivery-driven (not calendar-driven) billing rhythm. Documents the `renewal_pi_id` idempotency mechanism.
+  - **Cancellation section rewritten.** Was: "2 credits per 4-lesson cycle, 3rd cancel ends the subscription with type-to-confirm + 7-day pending window" using `cycle_cancels_used`. Is now: **"2 skips per cycle, 3rd skip triggers `auto_renew_enabled=FALSE`"** with grace-recovery (clean cycle restores TRUE silently) and no immediate-end-subscription path. Documents state A (>=24hr free reschedule) vs state B (<24hr forfeit), the 168hr same-week threshold, coach-cancel reasons, the locked backend state shape, and the "no Discord DM, in-app only" notification posture.
+  - **New "Lifecycle states (locked)" subsection.** Documents every value of the `lifecycle_state_t` enum (TRIAL_PREP / TRIAL_SCHEDULED / TRIAL_DONE / ACCEPTED_PENDING_SCHEDULING / SCHEDULING_IN_PROGRESS / PENDING_PAYMENT / ACTIVE / PAST_DUE / PENDING_CANCEL / CANCELED) + how `lifecycle_state` relates to `status` (lifecycle_state is canonical when they disagree) + `waiting_on` enum (TIM / PARENT / KID / SYSTEM / DAD).
+  - **Operator-pair section** got a one-paragraph addition: **"Tim's n=1 instance does NOT use Stripe Connect."** Locks the decision to defer Connect onboarding until operator #2 lands; both Tim + operator #2 get the Connect migration at the same time.
+  - **Notifications + Discord bot architecture rewritten.** Was: a 3-trigger XPL Keyed Bot DMing Tim for 20-min reminders + Day-7 dunning + Cancel-#3 ping. Is now: **"No Discord DMs to Tim. All operator notifications surface in-app on Focused Home."** Per `feedback_no_discord_dms.md` (2026-05-19 hard policy override). The bot is **explicitly retired**; Discord stays the channel for coaching content only (manual per-client channels Tim runs by hand).
+  - **New "What's NOT built (known gaps)" section.** 10-item list covering ongoing curriculum approval (cycles 2+), call recording infrastructure, Discord server template, iOS PWA apple-touch-icon, analytics/TikTok funnel measurement, pending_intake_verifications purge cron, 60-day refund window enforcement, Day-7 unscheduled auto-cancel, Calendly auto-booking, multi-tenant operator-#2 migration. Surfaces the gaps so future-Claude doesn't assume a spec feature works just because it's in Locked Decisions.
+  - **Deployment section expanded** from a 3-line stub to a 10-step plan covering: live Supabase project secrets (incl. Edge Function `supabase secrets set`), live Stripe activation + webhook subscriptions list, Calendly webhook re-registration off ngrok, DNS + Resend domain verification, smoke test plan, rollback notes.
+  - **Table of contents** added at the top of the file. 1679 lines is still long; the TOC makes the doc scannable instead of requiring a linear read to find one fact.
 - **Dad admin Phase 2 (2026-05-20).** Closed TODO #8. Four new surfaces on `/dad`, each pulling data already in the system:
   - **Tim activity strip** — 2-column grid (Today / Last 7 days) with 5 metrics: messages replied (`messages` WHERE `sender_role='coach'`), tasks completed (`task_completions.completed_at`), calls done (`curriculum_slots.live_call_completed_at`), no-shows (`curriculum_slots.no_show_at`), coach cancels (`coach_cancels.created_at`). Total-today summary in the panel header.
   - **Business glance** — 5 KPI tiles: paying clients of 12 (DB count `subscriptions WHERE status='active' AND tier='monthly'`), cycle MRR (count × $56), last 7 days revenue (Stripe `paymentIntents.list` paginated up to 5 pages, sum of `status='succeeded'`), Stripe balance (`balance.retrieve()` summed across available currencies), next payout (`payouts.list({status:'pending', limit:1})` with arrival date hint). All Stripe calls inside one try/catch; failure surfaces a `subtleFail` message in the panel header rather than crashing the page.
@@ -1496,9 +1563,30 @@ This section is the running source of truth for what's on Peter's plate. Update 
 
 #### 🚢 Deployment (when MVP is ready to ship)
 
-5. **Create the live Supabase project** at supabase.com; copy URL + anon + service_role keys into Vercel project env (and rerun `supabase db push` against the live project).
-6. **Activate live Stripe account** (currently only the sandbox is set up). Re-generate prod webhook endpoint via Stripe dashboard (a fresh `whsec_...` separate from the sandbox one).
-7. **Vercel deploy** pointed at `xplkeyed.com` (domain is already owned).
+5. **Live Supabase project** at supabase.com.
+   - Copy URL + anon + service_role keys into Vercel project env. ALL env vars from `.env.local` re-set in Vercel (the list in 🔑 Env vars status below).
+   - Apply migrations against the live project: `supabase link --project-ref <ref> && supabase db push`.
+   - Regenerate types: `npm run gen:types` (so the local repo's `src/types/db.ts` reflects prod schema; no behavior change, just consistency).
+   - **Supabase Edge Function secrets:** the same env vars need to be set as Supabase project secrets via `supabase secrets set` so cron Edge Functions can read them at runtime. Specifically: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `STRIPE_SECRET_KEY`, `CALENDLY_PAT`, `NEXT_PUBLIC_APP_URL` (set to `https://xplkeyed.com`). The Supabase URL + service role key are automatic.
+6. **Live Stripe account.** Currently only the sandbox is set up.
+   - Activate the live account (Stripe identity verification, business details, tax form).
+   - Create new webhook endpoint pointing at `https://xplkeyed.com/api/stripe-webhook`. Subscribe to: `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `invoice.paid` (legacy fallback, retained from the pre-PaymentIntent architecture), `invoice.payment_failed` (same).
+   - Set new prod `STRIPE_WEBHOOK_SECRET` in Vercel + Supabase secrets (different from sandbox).
+   - Disable Stripe's built-in dunning emails (we own that voice). Leave the expiring-card emails on.
+7. **Calendly webhook re-registration.** The dev webhook subscription points at an ephemeral ngrok tunnel. For production:
+   - Delete the ngrok-pointed subscription via Calendly API.
+   - POST a new subscription against `https://xplkeyed.com/api/calendly-webhook` reusing the same `CALENDLY_WEBHOOK_SECRET` (so existing handler code keeps working with no env-var change).
+   - Confirm `invitee.created` + `invitee.canceled` events are subscribed; scope `user`.
+8. **Domain + DNS at xplkeyed.com.**
+   - Add Vercel-provided A/CNAME records at the registrar.
+   - Confirm `tim@xplkeyed.com` MX/forwarding: cheapest is registrar-side forwarding to peteraugros@gmail.com; Google Workspace ($6/mo) is the "real inbox" option. Magic-link emails work without inbound mail, but parent replies to confirmation emails will bounce until forwarding is set up. (Per locked decision, in-app messaging is the long-term contact channel; MX is no longer load-bearing but still useful for stray replies.)
+   - Resend domain verification (DKIM + SPF + DMARC records). Already done for dev; confirm same setup on the live xplkeyed.com.
+9. **Vercel deploy.**
+   - Deploy to `xplkeyed.com` (domain already owned).
+   - Production build smoke test: hit `/`, `/login`, `/admin` (with magic-link sign-in), `/portal`, `/play`, `/intake`. Confirm no 500s.
+   - Stripe end-to-end test in live mode: book a real intake → take on → approve plan → pay with a real card (then refund yourself).
+   - Calendly webhook smoke: cancel a test booking via Calendly's UI, confirm `cancellation_events` row lands in prod.
+10. **Rollback plan.** Vercel keeps previous deployments; one-click revert to the last green deploy. Supabase migrations are forward-only — for a bad migration the recovery is a remediation migration (don't rely on rollback). Stripe webhook events are replayable from the Stripe dashboard if a deploy was missing a handler.
 
 #### 🔑 Env vars status
 
@@ -1511,7 +1599,8 @@ This section is the running source of truth for what's on Peter's plate. Update 
 - ✅ `NEXT_PUBLIC_APP_URL=http://localhost:3000` (swap to `https://xplkeyed.com` in Vercel for prod)
 - ✅ `CALENDLY_PAT` (Standard plan, scopes: Scheduling + Webhooks, token name "XPL Keyed dev")
 - ✅ `CALENDLY_WEBHOOK_SECRET` (64-char hex, generated locally via `openssl rand -hex 32` and passed to Calendly as a request param when creating the subscription — see Done entry for full context). Durable across ngrok URL changes; only rotate if security demands it.
-- ⏳ `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` — blocked on Discord setup
+- 🚫 `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` — **reserved but not used.** Bot architecture retired per `feedback_no_discord_dms.md`. Leave in `.env.local.example` for future operator-pair pattern; do not populate.
+- ✅ `ANTHROPIC_API_KEY` (for `/admin/lessons/new` AI-assist suggest buttons)
 
 #### ⚙️ Post-deploy DB config (when the live Supabase project exists)
 
