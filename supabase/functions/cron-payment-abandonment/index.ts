@@ -12,7 +12,7 @@
 // payment_pending_at, slots are released + lifecycle is reset.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -129,10 +129,17 @@ Deno.serve(async (_req) => {
           payment_reminder_12h_at: null,
         })
         .eq("id", sub.id);
-      await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+      await sendEmailWithLog({
+        apiKey: RESEND_API_KEY,
+        defaultFrom: RESEND_FROM_EMAIL,
+        supabase,
         to: parentEmail,
         subject: `${kid}'s reserved sessions released`,
         html: expiredHtml(kid, `${NEXT_PUBLIC_APP_URL}/portal/sessions`),
+        trigger: "payment_released_24h",
+        recipientType: "parent",
+        relatedEntityType: "subscription",
+        relatedEntityId: sub.id,
       });
       expired++;
       continue;
@@ -140,10 +147,17 @@ Deno.serve(async (_req) => {
 
     // ---- 12h reminder ----------------------------------------------------
     if (sub.payment_pending_at <= t12 && !sub.payment_reminder_12h_at) {
-      await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+      await sendEmailWithLog({
+        apiKey: RESEND_API_KEY,
+        defaultFrom: RESEND_FROM_EMAIL,
+        supabase,
         to: parentEmail,
         subject: `Last chance to lock in ${kid}'s sessions`,
         html: reminderHtml(kid, 12, `${NEXT_PUBLIC_APP_URL}/portal/sessions`),
+        trigger: "payment_reminder_12h",
+        recipientType: "parent",
+        relatedEntityType: "subscription",
+        relatedEntityId: sub.id,
       });
       await supabase
         .from("subscriptions")
@@ -155,10 +169,17 @@ Deno.serve(async (_req) => {
 
     // ---- 6h reminder -----------------------------------------------------
     if (sub.payment_pending_at <= t6 && !sub.payment_reminder_6h_at) {
-      await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+      await sendEmailWithLog({
+        apiKey: RESEND_API_KEY,
+        defaultFrom: RESEND_FROM_EMAIL,
+        supabase,
         to: parentEmail,
         subject: `Finish ${kid}'s first cycle`,
         html: reminderHtml(kid, 6, `${NEXT_PUBLIC_APP_URL}/portal/sessions`),
+        trigger: "payment_reminder_6h",
+        recipientType: "parent",
+        relatedEntityType: "subscription",
+        relatedEntityId: sub.id,
       });
       await supabase
         .from("subscriptions")

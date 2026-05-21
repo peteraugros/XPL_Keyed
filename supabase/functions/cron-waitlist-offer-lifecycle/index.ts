@@ -11,7 +11,7 @@
 // new offer rows have their own offered_at + offer_expires_at + offer_token.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -64,13 +64,20 @@ Deno.serve(async (_req) => {
 
   let reminded = 0;
   for (const entry of reminderTargets ?? []) {
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to: entry.parent_email,
       subject: `Spot for ${entry.kid_first_name} closes in 24 hours`,
       html: reminderBody(
         entry.kid_first_name,
         `${NEXT_PUBLIC_APP_URL}/offer/${entry.offer_token}`,
       ),
+      trigger: "waitlist_offer_reminder_24hr",
+      recipientType: "parent",
+      relatedEntityType: "waitlist_entry",
+      relatedEntityId: entry.id,
     });
     await supabase
       .from("waitlist_entries")
@@ -95,11 +102,18 @@ Deno.serve(async (_req) => {
       .update({ status: "expired", expired_at: stamp })
       .eq("id", entry.id);
 
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to: entry.parent_email,
       subject: `Spot passed to the next family`,
       html: expiryBody(entry.kid_first_name),
-    }).catch(() => {/* expiry email failure is non-blocking */});
+      trigger: "waitlist_offer_expired",
+      recipientType: "parent",
+      relatedEntityType: "waitlist_entry",
+      relatedEntityId: entry.id,
+    });
     expired++;
 
     // Promote next-in-line: oldest waiting family gets a fresh offer.
@@ -127,7 +141,10 @@ Deno.serve(async (_req) => {
       })
       .eq("id", next.id);
 
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to: next.parent_email,
       subject: `A spot opened in my coaching roster`,
       html: offerBody(
@@ -136,6 +153,10 @@ Deno.serve(async (_req) => {
         `A spot opened for ${next.kid_first_name}`,
         `My roster is capped at 12 students and one just opened up.`,
       ),
+      trigger: "waitlist_offer_email",
+      recipientType: "parent",
+      relatedEntityType: "waitlist_entry",
+      relatedEntityId: next.id,
     });
     promoted++;
   }

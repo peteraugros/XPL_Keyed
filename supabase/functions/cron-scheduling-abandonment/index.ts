@@ -13,7 +13,7 @@
 // reset to ACCEPTED_PENDING_SCHEDULING and the timestamps cleared.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -149,10 +149,17 @@ Deno.serve(async (_req) => {
           payment_pending_at: null,
         })
         .eq("id", sub.id);
-      await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+      await sendEmailWithLog({
+        apiKey: RESEND_API_KEY,
+        defaultFrom: RESEND_FROM_EMAIL,
+        supabase,
         to: parentEmail,
         subject: `Your reserved times for ${kid} expired`,
         html: expiredHtml(kid, `${NEXT_PUBLIC_APP_URL}/portal`),
+        trigger: "scheduling_released_7d",
+        recipientType: "parent",
+        relatedEntityType: "subscription",
+        relatedEntityId: sub.id,
       });
       expired++;
       continue;
@@ -163,10 +170,17 @@ Deno.serve(async (_req) => {
       sub.scheduling_started_at <= t72 &&
       !sub.scheduling_reminder_72h_at
     ) {
-      await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+      await sendEmailWithLog({
+        apiKey: RESEND_API_KEY,
+        defaultFrom: RESEND_FROM_EMAIL,
+        supabase,
         to: parentEmail,
         subject: `Complete ${kid}'s lesson booking`,
         html: reminder72Html(kid, `${NEXT_PUBLIC_APP_URL}/portal/sessions`),
+        trigger: "scheduling_reminder_72h",
+        recipientType: "parent",
+        relatedEntityType: "subscription",
+        relatedEntityId: sub.id,
       });
       await supabase
         .from("subscriptions")
@@ -181,7 +195,10 @@ Deno.serve(async (_req) => {
       sub.scheduling_started_at <= t24 &&
       !sub.scheduling_reminder_24h_at
     ) {
-      await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+      await sendEmailWithLog({
+        apiKey: RESEND_API_KEY,
+        defaultFrom: RESEND_FROM_EMAIL,
+        supabase,
         to: parentEmail,
         subject: `Reserve ${kid}'s sessions`,
         html: reminder24Html(
@@ -189,6 +206,10 @@ Deno.serve(async (_req) => {
           remaining,
           `${NEXT_PUBLIC_APP_URL}/portal/sessions`,
         ),
+        trigger: "scheduling_reminder_24h",
+        recipientType: "parent",
+        relatedEntityType: "subscription",
+        relatedEntityId: sub.id,
       });
       await supabase
         .from("subscriptions")

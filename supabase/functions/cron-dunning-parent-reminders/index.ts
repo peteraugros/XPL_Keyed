@@ -11,7 +11,7 @@
 // TODO: final email copy (currently placeholder, dash-free per Hard rule #8).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -79,10 +79,17 @@ Deno.serve(async (_req) => {
     const parentEmail = player?.families?.parents?.[0]?.email;
     const firstName = player?.first_name ?? "your kid";
     if (!parentEmail) continue;
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to: parentEmail,
       subject: `Payment hold on ${firstName}'s lessons`,
       html: bodyDay3(firstName),
+      trigger: "dunning_reminder_day3",
+      recipientType: "parent",
+      relatedEntityType: "subscription",
+      relatedEntityId: sub.id,
     });
     await supabase.from("subscriptions").update({ notified_at_dunning_day3: stamp }).eq("id", sub.id);
     sent++;
@@ -93,10 +100,17 @@ Deno.serve(async (_req) => {
     const parentEmail = player?.families?.parents?.[0]?.email;
     const firstName = player?.first_name ?? "your kid";
     if (!parentEmail) continue;
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to: parentEmail,
       subject: `Day 6 reminder: payment still on hold`,
       html: bodyDay6(firstName),
+      trigger: "dunning_reminder_day6",
+      recipientType: "parent",
+      relatedEntityType: "subscription",
+      relatedEntityId: sub.id,
     });
     await supabase.from("subscriptions").update({ notified_at_dunning_day6: stamp }).eq("id", sub.id);
     sent++;

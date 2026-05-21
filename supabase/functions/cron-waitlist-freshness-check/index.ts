@@ -14,7 +14,7 @@
 //      → set status='removed', removed_reason='no_freshness_response'
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -57,7 +57,10 @@ Deno.serve(async (_req) => {
 
   let asked = 0;
   for (const entry of toCheck) {
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to: entry.parent_email,
       subject: `Still on the waitlist for ${entry.kid_first_name}?`,
       html: freshnessBody(
@@ -65,6 +68,10 @@ Deno.serve(async (_req) => {
         `${NEXT_PUBLIC_APP_URL}/waitlist/${entry.id}/keep`,
         `${NEXT_PUBLIC_APP_URL}/waitlist/${entry.id}/stop`,
       ),
+      trigger: "waitlist_freshness_check",
+      recipientType: "parent",
+      relatedEntityType: "waitlist_entry",
+      relatedEntityId: entry.id,
     });
     await supabase
       .from("waitlist_entries")

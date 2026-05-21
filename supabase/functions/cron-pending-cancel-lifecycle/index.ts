@@ -16,7 +16,7 @@
 //                                   auto-confirm complete)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -56,7 +56,10 @@ Deno.serve(async (_req) => {
     const to = parentEmail(sub);
     const name = firstName(sub);
     if (!to) continue;
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to,
       subject: `4 days left to confirm or undo ${name}'s cancellation`,
       html: brandedEmailHtml({
@@ -65,6 +68,10 @@ Deno.serve(async (_req) => {
         ctaLabel: "Review options",
         ctaHref: `${NEXT_PUBLIC_APP_URL}/parent/subscription`,
       }),
+      trigger: "pending_cancel_reminder_day3",
+      recipientType: "parent",
+      relatedEntityType: "subscription",
+      relatedEntityId: sub.id,
     });
     await supabase
       .from("subscriptions")
@@ -86,7 +93,10 @@ Deno.serve(async (_req) => {
     const to = parentEmail(sub);
     const name = firstName(sub);
     if (!to) continue;
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to,
       subject: `Last reminder: ${name}'s subscription ends tomorrow`,
       html: brandedEmailHtml({
@@ -95,6 +105,10 @@ Deno.serve(async (_req) => {
         ctaLabel: "Review options",
         ctaHref: `${NEXT_PUBLIC_APP_URL}/parent/subscription`,
       }),
+      trigger: "pending_cancel_reminder_day6",
+      recipientType: "parent",
+      relatedEntityType: "subscription",
+      relatedEntityId: sub.id,
     });
     await supabase
       .from("subscriptions")
@@ -120,7 +134,10 @@ Deno.serve(async (_req) => {
       .update({ status: "canceled" })
       .eq("id", sub.id);
     if (to) {
-      await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+      await sendEmailWithLog({
+        apiKey: RESEND_API_KEY,
+        defaultFrom: RESEND_FROM_EMAIL,
+        supabase,
         to,
         subject: `${name}'s subscription has ended`,
         html: brandedEmailHtml({
@@ -129,6 +146,10 @@ Deno.serve(async (_req) => {
           ctaLabel: "Restart subscription",
           ctaHref: `${NEXT_PUBLIC_APP_URL}/parent/restart`,
         }),
+        trigger: "pending_cancel_auto_confirmed",
+        recipientType: "parent",
+        relatedEntityType: "subscription",
+        relatedEntityId: sub.id,
       });
     }
     autoCanceled++;

@@ -22,7 +22,7 @@
 //   * VOD-week branch (slot.is_vod_review) renders different body
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -175,10 +175,17 @@ Deno.serve(async (_req) => {
       });
     }
 
-    await sendEmail(RESEND_API_KEY, RESEND_FROM_EMAIL, {
+    await sendEmailWithLog({
+      apiKey: RESEND_API_KEY,
+      defaultFrom: RESEND_FROM_EMAIL,
+      supabase,
       to: parentEmail,
       subject: `${kidName}'s week ${slot.week_number} lesson is ready`,
       html,
+      trigger: "sunday_lesson_delivery",
+      recipientType: "parent",
+      relatedEntityType: "curriculum_slot",
+      relatedEntityId: slot.id,
     });
 
     // Mark slot delivered, increment cycle counter.

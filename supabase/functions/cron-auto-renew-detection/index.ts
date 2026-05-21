@@ -27,7 +27,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@17.5.0?target=denonext";
-import { sendEmail, brandedEmailHtml } from "../_shared/resend.ts";
+import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -127,12 +127,17 @@ Deno.serve(async (_req) => {
           ctaLabel: "Book another cycle",
           ctaHref: `${NEXT_PUBLIC_APP_URL}/portal`,
         });
-        await sendEmail({
+        await sendEmailWithLog({
           apiKey: RESEND_API_KEY,
-          from: RESEND_FROM_EMAIL,
+          defaultFrom: RESEND_FROM_EMAIL,
+          supabase,
           to: parent.email,
           subject: `${player.first_name}'s cycle wrapped`,
           html,
+          trigger: "auto_renew_subscription_canceled",
+          recipientType: "parent",
+          relatedEntityType: "subscription",
+          relatedEntityId: sub.id,
         });
 
         results.push({ subscription_id: sub.id, status: "canceled" });

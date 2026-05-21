@@ -42,6 +42,82 @@ export async function sendEmail(
   return await res.json();
 }
 
+// Send + write a notification_log row in one shot. Mirrors the Node-side
+// sendBrandedEmail() in src/lib/email/send.ts so the audit trail covers
+// every system-fired email regardless of which runtime did the send.
+//
+// On Resend failure: logs status='failed' + error_message. Never throws.
+// On insert failure: console.error + swallow (the email already went out).
+//
+// Pass the supabase client (constructed with service role inside the
+// caller — Edge Functions already do this).
+
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
+
+export interface SendEmailWithLogArgs {
+  apiKey: string;
+  defaultFrom: string;
+  supabase: SupabaseClient;
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
+  replyTo?: string;
+  // Audit metadata
+  trigger: string;
+  recipientType: "coach" | "parent" | "player";
+  recipientId?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
+}
+
+export async function sendEmailWithLog(
+  args: SendEmailWithLogArgs,
+): Promise<{ ok: boolean }> {
+  let status: "sent" | "failed" = "sent";
+  let errorMessage: string | null = null;
+  let sentAt: string | null = null;
+
+  if (!args.apiKey) {
+    status = "failed";
+    errorMessage = "resend_not_configured";
+  } else {
+    try {
+      await sendEmail(args.apiKey, args.defaultFrom, {
+        to: args.to,
+        subject: args.subject,
+        html: args.html,
+        from: args.from,
+        replyTo: args.replyTo,
+      });
+      sentAt = new Date().toISOString();
+    } catch (err) {
+      status = "failed";
+      errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("[shared/sendEmailWithLog]", args.trigger, errorMessage);
+    }
+  }
+
+  try {
+    await args.supabase.from("notification_log").insert({
+      channel: "email",
+      trigger: args.trigger,
+      recipient_type: args.recipientType,
+      recipient_id: args.recipientId ?? null,
+      related_entity_type: args.relatedEntityType ?? null,
+      related_entity_id: args.relatedEntityId ?? null,
+      status,
+      sent_at: sentAt,
+      error_message: errorMessage,
+    });
+  } catch (logErr) {
+    console.error("[shared/sendEmailWithLog] notification_log insert failed", logErr);
+  }
+
+  return { ok: status === "sent" };
+}
+
 // Minimal branded wrapper. Replace with a real template once the design system
 // supplies HTML email partials. Keeps the body dash-free per Hard rule #8.
 export function brandedEmailHtml(opts: { headline: string; bodyHtml: string; ctaLabel?: string; ctaHref?: string }): string {
