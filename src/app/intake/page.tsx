@@ -8,7 +8,7 @@
 // Step 4a + 4b: scaffold + Level 1 + inline under-13 COPPA gate.
 // Levels 2-4 are placeholders for the next steps.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
 import styles from "./page.module.css";
@@ -160,6 +160,14 @@ function persistState(state: FormState) {
 }
 
 export default function IntakePage() {
+  return (
+    <Suspense fallback={null}>
+      <IntakePageInner />
+    </Suspense>
+  );
+}
+
+function IntakePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
