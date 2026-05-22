@@ -170,8 +170,7 @@ export function AutoRenewToggle({
     return (
       <div className={styles.playerLinkRow}>
         <div className={styles.playerLinkInfo}>
-          Auto renew is off. {kidFirstName}&apos;s current cycle continues
-          through lesson 4, then the subscription ends. No surprise charges.
+          Auto renew is off for this subscription.
         </div>
         <button
           type="button"
@@ -186,13 +185,14 @@ export function AutoRenewToggle({
     );
   }
 
+  // The dense explanation lives in the parent <section> above. The
+  // confirming step is intentionally minimal — a single "are you sure?"
+  // sentence so the user isn't reading the same four facts twice.
   if (confirming) {
     return (
       <div className={styles.playerLinkRow}>
         <div className={styles.playerLinkInfo}>
-          {kidFirstName}&apos;s current cycle still completes through lesson 4.
-          No new charge fires. You can re-enable any time before the cycle
-          wraps. After that, restart any time by booking a new cycle.
+          End auto renew now? The cycle still finishes through lesson 4.
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
@@ -201,7 +201,7 @@ export function AutoRenewToggle({
             disabled={busy}
             className={styles.playerLinkBtn}
           >
-            {busy ? "Cancelling..." : "Yes, cancel auto renew"}
+            {busy ? "Ending..." : "Yes, end after lesson 4"}
           </button>
           <button
             type="button"
@@ -226,7 +226,7 @@ export function AutoRenewToggle({
         className={styles.playerLinkBtn}
         style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text)" }}
       >
-        Cancel auto renew
+        End after current cycle
       </button>
     </div>
   );

@@ -170,17 +170,30 @@ export default async function BillingPage() {
 
       {sub?.status === "active" ? (
         <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Cancel subscription</div>
+          <div className={styles.cardEyebrow}>Cancellation</div>
           <h2 className={styles.cardTitle}>
             {sub.auto_renew_enabled
-              ? "End this subscription after the current cycle"
+              ? "End after current cycle"
               : "Auto renew is off"}
           </h2>
-          <p className={styles.cardBody}>
-            {sub.auto_renew_enabled
-              ? `${player.first_name}'s current cycle will still complete through lesson 4. After that, no new charge fires and the subscription ends. Your account, progress, and message history stay open if you want to come back.`
-              : `The current cycle continues normally through lesson 4. After the last lesson, the subscription ends. You can re-enable any time before the cycle wraps.`}
-          </p>
+          {sub.auto_renew_enabled ? (
+            <ul className={styles.bullets}>
+              <li>
+                {player.first_name}&apos;s current cycle still completes through
+                lesson 4.
+              </li>
+              <li>No further charge after this cycle.</li>
+              <li>
+                Account stays active. Progress and messages are preserved.
+              </li>
+              <li>Restart any time by booking a new cycle.</li>
+            </ul>
+          ) : (
+            <p className={styles.cardBody}>
+              The current cycle finishes through lesson 4 either way. Re enable
+              below to keep things running after that, or let it end naturally.
+            </p>
+          )}
           <AutoRenewToggle
             initialAutoRenewEnabled={sub.auto_renew_enabled}
             kidFirstName={player.first_name}
@@ -192,11 +205,23 @@ export default async function BillingPage() {
         <div className={styles.cardEyebrow}>How billing works</div>
         <ul className={styles.bullets}>
           <li>$56 for 4 lessons. One lesson drops every Sunday.</li>
-          <li>The next $56 charge fires after the 4th lesson lands, not every 30 days.</li>
-          <li>If a week is paused (illness, vacation, coach time off), the cycle pauses too. You are never charged for lessons you did not get.</li>
-          <li>Up to 2 skips per 4 lesson cycle. A 3rd skip turns off auto renew. The current cycle still completes to lesson 4.</li>
-          <li>If a card declines, the cycle freezes. Stripe retries automatically. No new lessons run until payment is sorted.</li>
-          <li>Cancel any time from this page. The current cycle still completes through lesson 4. No surprise charges.</li>
+          <li>
+            The next $56 charge fires after the 4th lesson lands, not every 30
+            days.
+          </li>
+          <li>
+            If a week is paused (illness, vacation, coach time off), the cycle
+            pauses too. You are never charged for lessons you did not get.
+          </li>
+          <li>
+            Up to 2 skips per 4 lesson cycle. A 3rd skip turns off auto renew
+            automatically.
+          </li>
+          <li>
+            If a card declines, the cycle freezes. Stripe retries automatically.
+            No new lessons run until payment is sorted.
+          </li>
+          <li>Cancel any time from this page. Current cycle still completes.</li>
         </ul>
       </section>
     </div>
