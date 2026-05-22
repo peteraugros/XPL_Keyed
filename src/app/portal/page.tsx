@@ -36,6 +36,7 @@ export const dynamic = "force-dynamic";
 // Casts at the boundary to dodge @supabase/ssr 0.5's chained generic regression.
 type SubLookup = {
   status: string;
+  lifecycle_state: string | null;
   cycle_lessons_delivered: number;
   cycle_cancels_used: number;
   cycle_started_at: string | null;
@@ -52,6 +53,20 @@ type MessageRow = {
 type PendingCurriculum = { approval_token: string };
 
 type Phase = "trial" | "active" | "past_due" | "pending_cancel" | "ended";
+
+// Did the parent already click the acceptance email? The lifecycle
+// flips from TRIAL_DONE -> ACCEPTED_PENDING_SCHEDULING on that click,
+// and progresses through SCHEDULING_IN_PROGRESS / PENDING_PAYMENT
+// before payment lands. Any of those count as "post-acceptance" for
+// the dashboard banner.
+const POST_ACCEPTANCE_LIFECYCLES = new Set([
+  "ACCEPTED_PENDING_SCHEDULING",
+  "SCHEDULING_IN_PROGRESS",
+  "PENDING_PAYMENT",
+]);
+function isPostAcceptance(lifecycle: string | null): boolean {
+  return lifecycle !== null && POST_ACCEPTANCE_LIFECYCLES.has(lifecycle);
+}
 
 function phaseFor(status: string | undefined): Phase {
   switch (status) {
@@ -105,17 +120,18 @@ function formatCallDateTime(iso: string | null): string | null {
 export default async function PortalHome({
   searchParams,
 }: {
-  searchParams: Promise<{ welcome?: string }>;
+  searchParams: Promise<{ welcome?: string; just_accepted?: string }>;
 }) {
-  const { welcome } = await searchParams;
+  const { welcome, just_accepted } = await searchParams;
   const showWelcome = welcome === "1";
+  const justAccepted = just_accepted === "1";
   const { supabase, parent, player } = await requireParentSession();
 
   const [subResp, questResp, msgResp, pendingResp] = await Promise.all([
     supabase
       .from("subscriptions")
       .select(
-        "status, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at",
+        "status, lifecycle_state, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -308,7 +324,43 @@ export default async function PortalHome({
            ACTIVE, then the enrolled banner above takes over. No
            "confirming payment" or "refresh" language. */
         <PaymentProcessingCard kidFirstName={player.first_name} />
+      ) : pendingCurriculum && phase === "trial" && isPostAcceptance(sub?.lifecycle_state ?? null) ? (
+        /* Post-acceptance celebration. Parent has clicked the acceptance
+           email, lifecycle has transitioned (ACCEPTED_PENDING_SCHEDULING
+           or beyond), but they haven't completed payment yet. Drop them
+           here with congrats + clear next step instead of straight into
+           the scheduler. */
+        <section className={styles.alertCelebrate}>
+          <div className={styles.alertEyebrowCelebrate}>
+            {justAccepted ? "Congratulations" : "Onboarding"}
+          </div>
+          <h2 className={styles.alertTitleLarge}>
+            {sub?.lifecycle_state === "PENDING_PAYMENT"
+              ? `${player.first_name}'s slots are reserved`
+              : "You are in."}
+          </h2>
+          <p className={styles.alertBody}>
+            {sub?.lifecycle_state === "PENDING_PAYMENT"
+              ? `All 4 lessons are on the calendar. Complete payment to lock them in.`
+              : sub?.lifecycle_state === "SCHEDULING_IN_PROGRESS"
+                ? `You started scheduling. Pick the remaining slots when you're ready.`
+                : `Tim accepted ${player.first_name} as a student. When you're ready, book the 4 lessons. They'll run in the order you pick.`}
+          </p>
+          <Link
+            href={"/portal/sessions" as never}
+            className={styles.alertCta}
+          >
+            {sub?.lifecycle_state === "PENDING_PAYMENT"
+              ? "Complete payment"
+              : sub?.lifecycle_state === "SCHEDULING_IN_PROGRESS"
+                ? "Continue scheduling"
+                : "Schedule sessions"}
+          </Link>
+        </section>
       ) : pendingCurriculum && phase === "trial" ? (
+        /* Pre-acceptance. Tim has drafted a curriculum but the parent
+           hasn't clicked the acceptance email yet. Point them at the
+           curriculum overview to review before kicking off scheduling. */
         <section className={styles.alertCelebrate}>
           <div className={styles.alertEyebrowCelebrate}>Congratulations</div>
           <h2 className={styles.alertTitleLarge}>You are in.</h2>

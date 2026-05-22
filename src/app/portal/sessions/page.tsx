@@ -28,7 +28,27 @@ type SubLookup = {
   cycle_cancels_used: number;
   cycle_skips_used: number;
   auto_renew_enabled: boolean;
+  trial_call_at: string | null;
 };
+
+// Structured date / time / duration formatter for trial + paid sessions.
+// Returns { date: "Wed, May 27", time: "4:00 pm", duration: "30 min" }
+// in the user's locale. Lowercased am/pm to match the rest of the UI.
+function formatSessionMeta(iso: string, durationMinutes = 30) {
+  const d = new Date(iso);
+  const date = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(d);
+  const timeRaw = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(d);
+  const time = timeRaw.replace(" AM", " am").replace(" PM", " pm");
+  return { date, time, duration: `${durationMinutes} min` };
+}
 type CurriculumLookup = {
   id: string;
   personalization_note: string | null;
@@ -69,7 +89,7 @@ export default async function SessionsPage() {
   const subResp = await supabase
     .from("subscriptions")
     .select(
-      "id, status, lifecycle_state, cycle_cancels_used, cycle_skips_used, auto_renew_enabled",
+      "id, status, lifecycle_state, cycle_cancels_used, cycle_skips_used, auto_renew_enabled, trial_call_at",
     )
     .eq("player_id", player.id)
     .maybeSingle();
@@ -182,17 +202,55 @@ export default async function SessionsPage() {
       ) : null}
 
       {!inScheduler && !inPayment && !isActive ? (
-        <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Not ready yet</div>
-          <h2 className={styles.cardTitle}>Sessions open after you approve the plan</h2>
-          <p className={styles.body}>
-            Tim drafts the curriculum after the free trial call. The
-            approval email lands in your inbox. Open it to start scheduling.
-          </p>
-          <Link href={"/portal" as never} className={styles.linkBtn}>
-            Back to overview
-          </Link>
-        </section>
+        sub?.trial_call_at ? (
+          (() => {
+            const meta = formatSessionMeta(sub.trial_call_at, 30);
+            return (
+              <section className={styles.card}>
+                <div className={styles.cardEyebrow}>Free intro call</div>
+                <h2 className={styles.cardTitle}>
+                  {player.first_name}&apos;s call with Tim
+                </h2>
+                <div className={styles.metaRow}>
+                  <div className={styles.metaBlock}>
+                    <span className={styles.metaLabel}>Date</span>
+                    <span className={styles.metaValue}>{meta.date}</span>
+                  </div>
+                  <div className={styles.metaBlock}>
+                    <span className={styles.metaLabel}>Time</span>
+                    <span className={styles.metaValue}>{meta.time}</span>
+                  </div>
+                  <div className={styles.metaBlock}>
+                    <span className={styles.metaLabel}>Duration</span>
+                    <span className={styles.metaValue}>{meta.duration}</span>
+                  </div>
+                </div>
+                <p className={styles.body}>
+                  The call happens on Discord. Tim sends {player.first_name} an
+                  invite to {player.discord_username ?? "their Discord"}{" "}
+                  beforehand. No payment today. After the call, if Tim takes
+                  {" "}{player.first_name} on, you&apos;ll receive an acceptance
+                  email and the 4 week plan to approve.
+                </p>
+                <Link href={"/portal" as never} className={styles.linkBtn}>
+                  Back to overview
+                </Link>
+              </section>
+            );
+          })()
+        ) : (
+          <section className={styles.card}>
+            <div className={styles.cardEyebrow}>Not ready yet</div>
+            <h2 className={styles.cardTitle}>Sessions open after you approve the plan</h2>
+            <p className={styles.body}>
+              Tim drafts the curriculum after the free trial call. The
+              approval email lands in your inbox. Open it to start scheduling.
+            </p>
+            <Link href={"/portal" as never} className={styles.linkBtn}>
+              Back to overview
+            </Link>
+          </section>
+        )
       ) : null}
 
     </div>

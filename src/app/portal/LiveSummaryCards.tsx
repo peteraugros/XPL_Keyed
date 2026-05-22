@@ -159,7 +159,18 @@ export default function LiveSummaryCards(props: Props) {
                 : phase === "ended"
                   ? "No sessions on the books. Your past history is still here when you come back."
                   : callDateTime
-                    ? `${callDateTime}. The call happens on Discord. Tim sends ${playerFirstName} an invite to ${playerDiscordUsername ?? "their Discord"} beforehand. No payment today.`
+                    ? (
+                      <>
+                        <span className={styles.summaryMetaLine}>
+                          {callDateTime} &middot; 30 min &middot; Discord call.
+                        </span>
+                        <span className={styles.summarySubBody}>
+                          Tim sends {playerFirstName} an invite to{" "}
+                          {playerDiscordUsername ?? "their Discord"} beforehand.
+                          No payment today.
+                        </span>
+                      </>
+                    )
                     : "Check your Calendly confirmation for the date and time. The call happens on Discord."}
         </div>
         <div className={styles.summaryLink}>View sessions</div>

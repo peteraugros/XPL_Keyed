@@ -343,6 +343,44 @@
   border-color: var(--text-dim);
 }
 
+/* Date / Time / Duration meta strip. Used on the trial intro call card
+   so the visual treatment matches how paid session cards expose their
+   timing. Three small labeled blocks side by side, stack on mobile. */
+.metaRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.metaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.metaLabel {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.metaValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.2;
+}
+@media (max-width: 479px) {
+  .metaRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 /* --- Session policy panel --- */
 .policyCard {
   background: var(--bg-2);

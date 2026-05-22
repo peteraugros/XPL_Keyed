@@ -286,6 +286,20 @@
   color: var(--text-dim);
   line-height: 1.5;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* First line of structured body content: date · duration · channel.
+   Slightly higher contrast + tighter line height so the meta reads
+   as a single label, not flowing prose. */
+.summaryMetaLine {
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.summarySubBody {
+  color: var(--text-dim);
 }
 .summaryLink {
   font-size: 12px;

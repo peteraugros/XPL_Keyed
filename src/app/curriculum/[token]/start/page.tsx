@@ -1,19 +1,23 @@
 // /curriculum/[token]/start
 //
-// Deep-link target for the acceptance email CTA. Replaces the
-// /curriculum/[token] overview page in the email flow — the email
-// already shows the curriculum + terms, so this skips the duplicate
-// preview and drops the parent straight into the scheduling surface.
+// Deep-link target for the acceptance email CTA. The email already
+// shows the curriculum + terms, so this skips the duplicate preview
+// and drops the parent into their dashboard with a celebratory
+// "Onboarding complete" banner — from there they navigate to
+// /portal/sessions to schedule when ready. The hard handoff to the
+// scheduler page used to happen directly here; user research said
+// that felt jarring without a "you did it" landing.
 //
 // What this Server Component does on GET:
 //   1. Validate the token + look up the curriculum.
 //   2. Resolve curriculum -> player -> family -> parent + subscription.
 //   3. Transition lifecycle to ACCEPTED_PENDING_SCHEDULING (idempotent —
 //      skip if already past TRIAL_DONE).
-//   4. Generate a Supabase magic link to /portal/sessions.
+//   4. Generate a Supabase magic link to /portal?just_accepted=1.
 //   5. redirect() to that magic-link URL.
 //
-// Net effect: one click in the email -> signed in on /portal/sessions.
+// Net effect: one click in the email -> signed in on /portal with a
+// "Congratulations / Onboarding complete" celebration banner.
 
 import { redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -106,15 +110,17 @@ export default async function CurriculumStartPage({
     }
   }
 
-  // Generate magic link redirecting to /portal/sessions.
+  // Generate magic link redirecting to /portal with the just-accepted
+  // flag so the dashboard shows the "Onboarding complete" celebration
+  // banner instead of the pre-acceptance "Review the plan" copy.
   const linkResult = await supabase.auth.admin.generateLink({
     type: "magiclink",
     email: parent.email,
-    options: { redirectTo: `${APP_URL}/auth/callback?next=/portal/sessions` },
+    options: { redirectTo: `${APP_URL}/auth/callback?next=/portal?just_accepted=1` },
   });
   if (linkResult.error || !linkResult.data.properties?.action_link) {
     console.error("[curriculum/start] generateLink failed", linkResult.error);
-    redirect("/login?error=generate_link_failed&next=/portal/sessions" as never);
+    redirect("/login?error=generate_link_failed&next=/portal" as never);
   }
 
   redirect(linkResult.data.properties.action_link as never);
