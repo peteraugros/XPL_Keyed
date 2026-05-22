@@ -249,11 +249,18 @@ export default async function AdminClientsPage() {
           ? {
               subscription_id: sub.id,
               player_id: sub.player_id,
+              // Full player + parent so ActiveDetail can render the
+              // same identity block as the trial card.
+              player,
+              parent: parent ?? null,
               player_first_name: player.first_name,
               parent_first_name: parent?.first_name ?? "(unknown)",
               status: sub.status,
               cycle_lessons_delivered: sub.cycle_lessons_delivered,
               cycle_cancels_used: sub.cycle_cancels_used,
+              // Trial-time context carried forward.
+              latest_vod_url: vodByPlayer.get(sub.player_id) ?? null,
+              prep: prepByPlayer.get(sub.player_id) ?? null,
               messages: messagesByPlayer.get(sub.player_id) ?? [],
               curricula: curriculaByPlayer.get(sub.player_id) ?? [],
             }

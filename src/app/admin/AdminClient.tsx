@@ -74,6 +74,14 @@ export type TrialCard = {
 export type ActiveRow = {
   subscription_id: string;
   player_id: string;
+  // Full player + parent records so post-acceptance views can still
+  // surface age, rank, platform, IGN, hours/week, parent email, and
+  // Discord username — Tim needs that reference info long after the
+  // trial card disappears.
+  player: Player | null;
+  parent: Parent | null;
+  // First names hoisted out for cheap sidebar rendering without
+  // having to null-check the full record every time.
   player_first_name: string;
   parent_first_name: string;
   // Real subscription.status. Includes 'active' (paying, delivering),
@@ -83,6 +91,11 @@ export type ActiveRow = {
   status: string;
   cycle_lessons_delivered: number;
   cycle_cancels_used: number;
+  // Trial-time context carried forward into the active phase so Tim
+  // can still glance at what motivated the family. Both nullable —
+  // older active clients may not have prep recorded.
+  latest_vod_url: string | null;
+  prep: Prep | null;
   messages: MessageRow[];
   curricula: CurriculumWithSlots[];
 };
@@ -1598,6 +1611,112 @@ function Stat({
   );
 }
 
+// Identity block used by both TrialCardView and ActiveDetail. Each
+// piece of info renders on its own row so Tim can scan quickly —
+// no compound "Parent: Sarah <email>" lines that bury the email.
+// Optional VOD and prep render at the bottom when present.
+export function ClientIdentityBlock({
+  player,
+  parent,
+  latestVodUrl,
+  prep,
+}: {
+  player: Player | null;
+  parent: Parent | null;
+  latestVodUrl: string | null;
+  prep: Prep | null;
+}) {
+  if (!player) return null;
+  return (
+    <div className={styles.identityBlock}>
+      <IdentityRow label="Age" value={String(player.age)} />
+      <IdentityRow
+        label="Fortnite IGN"
+        value={player.fortnite_username ?? "(none)"}
+      />
+      <IdentityRow label="Rank" value={player.current_rank ?? "no rank"} />
+      <IdentityRow
+        label="Platform"
+        value={player.platform ?? "platform unknown"}
+      />
+      <IdentityRow
+        label="Hours/wk"
+        value={
+          player.hours_per_week !== null
+            ? `${player.hours_per_week} hrs`
+            : "unknown"
+        }
+      />
+      {parent ? <IdentityRow label="Parent" value={parent.first_name} /> : null}
+      {parent ? (
+        <IdentityRow
+          label="Email"
+          value={
+            <a className={styles.linkLime} href={`mailto:${parent.email}`}>
+              {parent.email}
+            </a>
+          }
+        />
+      ) : null}
+      {player.discord_username ? (
+        <IdentityRow
+          label="Discord"
+          value={<code className={styles.code}>{player.discord_username}</code>}
+        />
+      ) : null}
+      {latestVodUrl ? (
+        <IdentityRow
+          label="VOD"
+          value={
+            <a
+              className={styles.linkLime}
+              href={latestVodUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {latestVodUrl}
+            </a>
+          }
+        />
+      ) : null}
+      {prep ? (
+        <>
+          <IdentityRow
+            label="Frustration"
+            value={
+              (Q1_LABELS[prep.q1_choice] ?? prep.q1_choice) +
+              (prep.q1_other_text ? `. ${prep.q1_other_text}` : "")
+            }
+          />
+          <IdentityRow
+            label="Goal"
+            value={
+              (Q2_LABELS[prep.q2_choice] ?? prep.q2_choice) +
+              (prep.q2_other_text ? `. ${prep.q2_other_text}` : "")
+            }
+          />
+          <IdentityRow label="Rewatch" value={prep.q3_reflection} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function IdentityRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className={styles.identityRow}>
+      <span className={styles.identityLabel}>{label}</span>
+      <span className={styles.identityValue}>{value}</span>
+    </div>
+  );
+}
+
 export function TrialCardView({
   card,
   router,
@@ -1628,11 +1747,6 @@ export function TrialCardView({
           <div className={styles.trialName}>
             {player.first_name}, {player.age}
           </div>
-          <div className={styles.trialSub}>
-            IGN {player.fortnite_username ?? "(none)"} ·{" "}
-            {player.current_rank ?? "no rank"} · {player.platform ?? "platform unknown"} ·{" "}
-            {player.hours_per_week !== null ? `${player.hours_per_week} hrs/wk` : "hours unknown"}
-          </div>
         </div>
         <div className={styles.prepBadge} data-done={completedCount === 4}>
           Prep {completedCount}/4
@@ -1651,59 +1765,12 @@ export function TrialCardView({
         ))}
       </div>
 
-      {parent ? (
-        <div className={styles.parentRow}>
-          <span className={styles.parentLabel}>Parent</span>
-          <span>{parent.first_name}</span>
-          <a className={styles.linkLime} href={`mailto:${parent.email}`}>
-            {parent.email}
-          </a>
-        </div>
-      ) : null}
-
-      {player.discord_username ? (
-        <div className={styles.metaRow}>
-          <span className={styles.metaLabel}>Discord</span>
-          <code className={styles.code}>{player.discord_username}</code>
-        </div>
-      ) : null}
-
-      {card.latest_vod_url ? (
-        <div className={styles.metaRow}>
-          <span className={styles.metaLabel}>VOD</span>
-          <a
-            className={styles.linkLime}
-            href={card.latest_vod_url}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            {card.latest_vod_url}
-          </a>
-        </div>
-      ) : null}
-
-      {card.prep ? (
-        <div className={styles.prepBlock}>
-          <div className={styles.prepRow}>
-            <span className={styles.metaLabel}>Frustration</span>
-            <span>
-              {Q1_LABELS[card.prep.q1_choice] ?? card.prep.q1_choice}
-              {card.prep.q1_other_text ? ` — ${card.prep.q1_other_text}` : ""}
-            </span>
-          </div>
-          <div className={styles.prepRow}>
-            <span className={styles.metaLabel}>Goal</span>
-            <span>
-              {Q2_LABELS[card.prep.q2_choice] ?? card.prep.q2_choice}
-              {card.prep.q2_other_text ? ` — ${card.prep.q2_other_text}` : ""}
-            </span>
-          </div>
-          <div className={styles.prepRow}>
-            <span className={styles.metaLabel}>Rewatch</span>
-            <span>{card.prep.q3_reflection}</span>
-          </div>
-        </div>
-      ) : null}
+      <ClientIdentityBlock
+        player={player}
+        parent={parent}
+        latestVodUrl={card.latest_vod_url}
+        prep={card.prep}
+      />
 
       <StageCPanel playerId={player.id} kidFirstName={player.first_name} router={router} />
 

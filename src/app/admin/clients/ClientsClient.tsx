@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   TrialCardView,
+  ClientIdentityBlock,
   type TrialCard,
   type ActiveRow,
   type CurriculumWithSlots,
@@ -162,8 +163,10 @@ function ActiveDetail({ row }: { row: ActiveRow }) {
   return (
     <article className={styles.activeCard}>
       <header className={styles.activeHeader}>
-        <h2 className={styles.activeKid}>{row.player_first_name}</h2>
-        <div className={styles.activeParent}>Parent: {row.parent_first_name}</div>
+        <h2 className={styles.activeKid}>
+          {row.player_first_name}
+          {row.player ? `, ${row.player.age}` : ""}
+        </h2>
         <div className={styles.statusRow}>
           {row.status === "past_due" ? (
             <span className={`${styles.pill} ${styles.pillEpic}`}>Payment hold</span>
@@ -180,6 +183,14 @@ function ActiveDetail({ row }: { row: ActiveRow }) {
           </span>
         </div>
       </header>
+
+      <ClientIdentityBlock
+        player={row.player}
+        parent={row.parent}
+        latestVodUrl={row.latest_vod_url}
+        prep={row.prep}
+      />
+
       <LessonPlanPanel
         playerId={row.player_id}
         kidFirstName={row.player_first_name}

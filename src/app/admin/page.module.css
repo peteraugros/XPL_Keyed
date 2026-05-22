@@ -872,6 +872,51 @@
   color: var(--text);
 }
 
+/* Shared identity block for TrialCardView + ActiveDetail. One row per
+   piece of info, label-on-left grid, no compound rows that bury an
+   email after a first name. Reused between pre-acceptance trial card
+   and post-acceptance active card so the operator sees the same kid
+   facts in both phases. */
+.identityBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.identityRow {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--text);
+  min-width: 0;
+}
+.identityLabel {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.identityValue {
+  color: var(--text);
+  word-break: break-word;
+  min-width: 0;
+}
+@media (max-width: 479px) {
+  /* On narrow screens stack the label above the value so long emails
+     / VOD URLs don't get cramped into a tiny right column. */
+  .identityRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
 /* Discord URL form */
 .discordForm {
   display: flex;
