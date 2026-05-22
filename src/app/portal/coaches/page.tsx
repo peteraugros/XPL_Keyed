@@ -59,7 +59,8 @@ export default function CoachesPage() {
         <div className={styles.cardEyebrow}>Safety promises</div>
         <h2 className={styles.cardTitle}>What we do, what we never do</h2>
         <ul className={styles.bullets}>
-          <li>Every coaching call is recorded. You can stream or download from your dashboard.</li>
+          <li>You can sit in on any call. Parents are invited to every kid&apos;s private Discord channel as an observer, so you can listen live whenever you want.</li>
+          <li>Tim writes a short note after every call. It lands on your dashboard so you always see what was covered.</li>
           <li>No phone calls. No phone numbers collected. Coaching happens on Discord voice only.</li>
           <li>No DMs between Tim and your kid. All chat lives in the per family Discord channel where you have observer access.</li>
           <li>Your kid will never be photographed by us, and you will never see a photo of Tim either. Identity stays on rank and play, not faces.</li>
