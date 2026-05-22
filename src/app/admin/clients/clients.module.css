@@ -312,6 +312,19 @@
   color: var(--text-faint);
   text-transform: uppercase;
   margin: 0 0 4px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sectionLabelLink {
+  color: var(--lime);
+  text-decoration: none;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.sectionLabelLink:hover {
+  text-decoration: underline;
 }
 
 @media (prefers-reduced-motion: reduce) {

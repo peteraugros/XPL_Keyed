@@ -188,7 +188,13 @@ function ActiveDetail({ row }: { row: ActiveRow }) {
 
       <section className={styles.messagesSection}>
         <div className={styles.sectionLabel}>
-          Messages with {row.player_first_name}
+          <span>Messages with {row.player_first_name}</span>
+          <a
+            href={`/admin/inbox?client=${row.player_id}`}
+            className={styles.sectionLabelLink}
+          >
+            Open in inbox →
+          </a>
         </div>
         <MessageThread
           initialMessages={row.messages}

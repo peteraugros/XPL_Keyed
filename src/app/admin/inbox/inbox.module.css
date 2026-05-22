@@ -1,0 +1,261 @@
+/* /admin/inbox layout — two-pane on desktop, stacked on mobile.
+   When a conversation is selected (pageWithDetail), mobile hides the
+   list so the detail gets full width; desktop shows both side by
+   side regardless. */
+
+.page {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 16px;
+  min-height: 70vh;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+  .pageWithDetail .listColumn {
+    display: none;
+  }
+}
+
+.listColumn {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.listHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.listEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lime);
+  text-transform: uppercase;
+}
+
+.listTitle {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.listSubtitle {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text-faint);
+  padding: 20px 4px;
+  text-align: center;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  color: inherit;
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.row:hover {
+  background: var(--bg-3);
+  border-color: var(--border);
+}
+
+.rowActive {
+  background: var(--bg-3);
+  border-color: rgba(199, 255, 61, 0.4);
+}
+
+.rowUnread {
+  /* Subtle lime accent on the left edge for unread rows. */
+  box-shadow: inset 3px 0 0 var(--lime);
+  padding-left: 14px;
+}
+
+.rowTopLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.rowName {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+.rowTime {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.rowSecondLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.rowPreview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.rowSender {
+  color: var(--text-faint);
+}
+
+.rowPreviewMuted {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.unreadBadge {
+  background: var(--lime);
+  color: var(--bg);
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.rowThirdLine {
+  font-size: 11px;
+  color: var(--text-faint);
+  line-height: 1.3;
+}
+
+/* Detail column */
+
+.detailColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 400px;
+}
+
+.detailHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detailBack {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.detailBack:hover {
+  color: var(--text);
+}
+
+@media (min-width: 769px) {
+  /* On desktop the list stays visible, so the "back" link is
+     redundant. Hide it but keep it for keyboard / mobile users. */
+  .detailBack {
+    display: none;
+  }
+}
+
+.detailTitle {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.detailMeta {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.detailClientLink {
+  color: var(--lime);
+  text-decoration: none;
+}
+
+.detailClientLink:hover {
+  text-decoration: underline;
+}
+
+.detailEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  text-align: center;
+  flex: 1;
+}
+
+.detailEmptyEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.detailEmptyBody {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
