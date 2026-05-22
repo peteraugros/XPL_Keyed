@@ -72,11 +72,33 @@ export default async function InboxPage({
 
   const { supabase, coach } = await requireCoachSession();
 
-  // 1. Every player + family parent (sender of the parent-side view).
+  // 1. Active subscriptions only. Players whose subscription is
+  //    `canceled` (parent ended) or `declined` (Tim said no at Stage C)
+  //    are excluded from the inbox entirely — they don't appear in
+  //    the list AND deep-link URLs to their threads show the empty
+  //    state. Their messages persist in the DB for audit + future
+  //    re-engagement (no hard delete, no soft delete column —
+  //    filtered at the query layer only). If a family later returns,
+  //    flipping subscription.status back to a non-terminal value
+  //    surfaces the full history automatically with no data migration.
+  //    For direct audit access while inactive, query the messages
+  //    table via the Supabase SQL Editor.
+  type ActiveSubLookup = { player_id: string };
+  const activeSubResp = await supabase
+    .from("subscriptions")
+    .select("player_id")
+    .not("status", "in", "(canceled,declined)");
+  const activePlayerIds = new Set(
+    ((activeSubResp.data ?? []) as ActiveSubLookup[]).map((s) => s.player_id),
+  );
+
+  // 2. Every player + family parent (sender of the parent-side view),
+  //    filtered to those whose subscription is still active.
   const playersResp = await supabase
     .from("players")
     .select("id, first_name, family_id");
-  const players = (playersResp.data ?? []) as PlayerLookup[];
+  const allPlayers = (playersResp.data ?? []) as PlayerLookup[];
+  const players = allPlayers.filter((p) => activePlayerIds.has(p.id));
 
   if (players.length === 0) {
     return (
