@@ -258,3 +258,85 @@
   text-transform: uppercase;
   margin-bottom: 4px;
 }
+
+/* --- Trial-phase prep checklist mirror (parent view of kid's quests) --- */
+.questMirror {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.questItemDone,
+.questItemPending {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 6px 0;
+}
+.questItemDone {
+  color: var(--text);
+}
+.questItemPending {
+  color: var(--text-dim);
+}
+.questCheck {
+  font-family: var(--font-display);
+  font-size: 13px;
+  width: 18px;
+  text-align: center;
+  color: var(--lime);
+}
+.questItemPending .questCheck {
+  color: var(--text-faint);
+}
+
+/* --- Trial-phase VOD link card --- */
+.vodLink {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--lime);
+  word-break: break-all;
+  margin-top: 4px;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(199, 255, 61, 0.35);
+  padding-bottom: 1px;
+}
+.vodLink:hover {
+  border-bottom-color: var(--lime);
+}
+
+/* --- Trial-phase prep answers readout (definition list) --- */
+.prepReadout {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.prepReadout dt {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  align-self: baseline;
+  padding-top: 3px;
+}
+.prepReadout dd {
+  margin: 0;
+  color: var(--text);
+}
+@media (max-width: 479px) {
+  .prepReadout {
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+  }
+  .prepReadout dd {
+    margin-bottom: 8px;
+  }
+}
