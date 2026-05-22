@@ -29,6 +29,7 @@ import { SendPlayerLinkButton, ManagePaymentButton } from "./PortalClient";
 import SessionPersistenceModal from "@/components/SessionPersistenceModal";
 import PaymentProcessingCard from "./PaymentProcessingCard";
 import LiveSummaryCards from "./LiveSummaryCards";
+import LiveOnboardingCards from "./LiveOnboardingCards";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,20 @@ type MessageRow = {
   body: string;
   created_at: string;
 };
-type PendingCurriculum = { approval_token: string };
+type PendingCurriculum = { id: string; approval_token: string };
+type SlotLookup = { week_number: number; live_call_at: string | null };
+
+// Data shape passed to LiveSummaryCards when the parent is in a
+// post-acceptance lifecycle (after clicking the acceptance email,
+// before payment lands). Drives the redesigned onboarding card set.
+export type OnboardingCardData = {
+  // Next slot the parent should care about. Prefer the earliest
+  // unscheduled, then fall back to the earliest scheduled future call.
+  nextSlot: SlotLookup | null;
+  slotsBookedCount: number;
+  totalSlots: number;
+  approvalToken: string;
+};
 
 type Phase = "trial" | "active" | "past_due" | "pending_cancel" | "ended";
 
@@ -147,7 +161,7 @@ export default async function PortalHome({
       .limit(1),
     supabase
       .from("curricula")
-      .select("approval_token")
+      .select("id, approval_token")
       .eq("player_id", player.id)
       .eq("status", "pending_approval")
       .order("created_at", { ascending: false })
@@ -159,6 +173,39 @@ export default async function PortalHome({
   const completedQuests = ((questResp.data ?? []) as QuestRow[]).length;
   const latestMessage = ((msgResp.data ?? []) as MessageRow[])[0] ?? null;
   const pendingCurriculum = pendingResp.data as PendingCurriculum | null;
+
+  // Post-acceptance onboarding card data. Only fetched when the
+  // subscription is in one of the post-acceptance lifecycle states
+  // (ACCEPTED_PENDING_SCHEDULING / SCHEDULING_IN_PROGRESS / PENDING_PAYMENT).
+  // Drives the redesigned 3-card onboarding set inside LiveSummaryCards.
+  let onboardingCardData: OnboardingCardData | null = null;
+  if (
+    isPostAcceptance(sub?.lifecycle_state ?? null) &&
+    pendingCurriculum
+  ) {
+    const slotsLookup = await supabase
+      .from("curriculum_slots")
+      .select("week_number, live_call_at")
+      .eq("curriculum_id", pendingCurriculum.id)
+      .order("week_number", { ascending: true });
+    const slots = (slotsLookup.data ?? []) as SlotLookup[];
+    const slotsBookedCount = slots.filter((s) => s.live_call_at !== null).length;
+    // Prefer the earliest unscheduled slot so the parent always sees the
+    // "next thing to do." If everything's booked, surface the soonest
+    // future call as the "next session" snapshot.
+    const now = Date.now();
+    const nextSlot =
+      slots.find((s) => !s.live_call_at) ??
+      slots.find((s) => s.live_call_at && new Date(s.live_call_at).getTime() >= now) ??
+      slots[0] ??
+      null;
+    onboardingCardData = {
+      nextSlot,
+      slotsBookedCount,
+      totalSlots: slots.length,
+      approvalToken: pendingCurriculum.approval_token,
+    };
+  }
 
   // Week-1-delivered signal for the welcome state copy. If Week 1's
   // delivered_at is set, the parent has received the PDF today.
@@ -419,16 +466,27 @@ export default async function PortalHome({
         </section>
       ) : null}
 
-      <LiveSummaryCards
-        phase={phase}
-        callDateTime={callDateTime}
-        completedQuests={completedQuests}
-        cycleProgress={cycleProgress}
-        cancelsUsed={cancelsUsed}
-        latestMessage={latestMessage}
-        playerFirstName={player.first_name}
-        playerDiscordUsername={player.discord_username ?? null}
-      />
+      {onboardingCardData ? (
+        <LiveOnboardingCards
+          lifecycleState={sub?.lifecycle_state ?? null}
+          nextSlot={onboardingCardData.nextSlot}
+          slotsBookedCount={onboardingCardData.slotsBookedCount}
+          totalSlots={onboardingCardData.totalSlots}
+          approvalToken={onboardingCardData.approvalToken}
+          playerFirstName={player.first_name}
+        />
+      ) : (
+        <LiveSummaryCards
+          phase={phase}
+          callDateTime={callDateTime}
+          completedQuests={completedQuests}
+          cycleProgress={cycleProgress}
+          cancelsUsed={cancelsUsed}
+          latestMessage={latestMessage}
+          playerFirstName={player.first_name}
+          playerDiscordUsername={player.discord_username ?? null}
+        />
+      )}
 
       <SessionPersistenceModal />
     </div>
