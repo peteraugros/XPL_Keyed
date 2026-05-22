@@ -132,8 +132,26 @@ export default async function AdminHome() {
     .select("task_type, client_id, client_name, age_in_state, source_object_id, priority_score, task_payload")
     .order("priority_score", { ascending: false })
     .order("age_in_state", { ascending: false })
-    .limit(20);
-  const tasks = (tasksLookup.data ?? []) as DerivedTask[];
+    .limit(30);
+  const rawTasks = (tasksLookup.data ?? []) as DerivedTask[];
+
+  // Active dismissals: drop tasks the coach manually cleared. Bumped
+  // the tasks limit to 30 above so heavy dismissal use doesn't empty
+  // the visible queue. App-side filter — see migration 0100 for why
+  // we don't push this into derived_tasks_view itself.
+  type ActiveDismissal = { task_type: string; source_object_id: string };
+  const dismissalLookup = await supabase
+    .from("task_dismissals")
+    .select("task_type, source_object_id")
+    .is("restored_at", null);
+  const dismissedSet = new Set(
+    ((dismissalLookup.data ?? []) as ActiveDismissal[]).map(
+      (d) => `${d.task_type}|${d.source_object_id}`,
+    ),
+  );
+  const tasks = rawTasks
+    .filter((t) => !dismissedSet.has(`${t.task_type}|${t.source_object_id}`))
+    .slice(0, 20);
 
   type ReturnedStuck = {
     id: string;

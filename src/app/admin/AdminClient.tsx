@@ -700,6 +700,8 @@ function FocusedHome({
           <>
             <span className={styles.focusedHomeDot}>·</span>
             <StuckButton task={topTask} variant="link" />
+            <span className={styles.focusedHomeDot}>·</span>
+            <DismissButton task={topTask} variant="link" />
           </>
         )}
       </div>
@@ -838,7 +840,7 @@ function FocusedHome({
                       <span className={styles.focusedHomeMoreName}>{t.client_name}</span>
                       <span className={styles.focusedHomeMoreSubtitle}>{p.title}</span>
                       <span className={styles.focusedHomeMoreAge}>
-                        {formatAge(t.age_in_state)} · <StuckButton task={t} variant="link" />
+                        {formatAge(t.age_in_state)} · <StuckButton task={t} variant="link" /> · <DismissButton task={t} variant="link" />
                       </span>
                     </div>
                     <a href={`/admin/clients?client=${t.client_id}`} className={styles.focusedHomeMoreCta}>
@@ -1196,6 +1198,69 @@ function StuckButton({
       </button>
       {error ? <span className={styles.stuckError}>{error}</span> : null}
     </span>
+  );
+}
+
+// Dismiss is the recoverable "this task does not need action" path.
+// Single click drops the task from the queue without flipping any
+// underlying state. The task can be restored from task_dismissals if
+// audit catches a mistake. Distinct from Stuck (which is "route this
+// to Dad") and from completion (which is "I acted on the underlying
+// thing"). Same compact link style as StuckButton.
+function DismissButton({
+  task,
+  variant = "link",
+}: {
+  task: DerivedTask;
+  variant?: "link" | "button";
+}) {
+  const router = useRouter();
+  const [stage, setStage] = useState<"idle" | "submitting" | "done">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    setError(null);
+    setStage("submitting");
+    try {
+      const res = await fetch("/api/admin/tasks/dismiss", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          task_type: task.task_type,
+          source_object_id: task.source_object_id,
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? "Failed.");
+        setStage("idle");
+        return;
+      }
+      setStage("done");
+      router.refresh();
+    } catch {
+      setError("Could not reach the server.");
+      setStage("idle");
+    }
+  }
+
+  if (stage === "done") {
+    return <span className={styles.stuckSent}>Dismissed</span>;
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={variant === "link" ? styles.stuckLink : styles.stuckBtn}
+        onClick={submit}
+        disabled={stage === "submitting"}
+        title="Clear this task from the queue without resolving the underlying state. Restorable."
+      >
+        {stage === "submitting" ? "..." : "Dismiss"}
+      </button>
+      {error ? <span className={styles.stuckError}>{error}</span> : null}
+    </>
   );
 }
 
