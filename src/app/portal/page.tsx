@@ -28,6 +28,7 @@ import { requireParentSession } from "./_lib/session";
 import { SendPlayerLinkButton, ManagePaymentButton } from "./PortalClient";
 import SessionPersistenceModal from "@/components/SessionPersistenceModal";
 import PaymentProcessingCard from "./PaymentProcessingCard";
+import LiveSummaryCards from "./LiveSummaryCards";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -196,10 +197,6 @@ export default async function PortalHome({
     },
   };
   const hero = heroByPhase[phase];
-
-  // Which group of cards to render. trial vs active vs paused vs ended.
-  const showQuestSnapshot = phase === "trial";
-  const showCycleSnapshot = phase === "active" || phase === "past_due" || phase === "pending_cancel";
 
   // The primary action varies by phase. Rendered inside the hero row at
   // desktop (right column) so it doesn't push the summary cards below
@@ -370,80 +367,16 @@ export default async function PortalHome({
         </section>
       ) : null}
 
-      <section className={styles.summaryGrid}>
-        <Link href={"/portal/sessions" as never} className={styles.summaryCard}>
-          <div className={styles.summaryEyebrow}>Next session</div>
-          <div className={styles.summaryTitle}>
-            {phase === "active"
-              ? "Sunday lesson drop"
-              : phase === "past_due"
-                ? "Paused"
-                : phase === "pending_cancel"
-                  ? "No new sessions"
-                  : phase === "ended"
-                    ? "Nothing scheduled"
-                    : "Free intro call"}
-          </div>
-          <div className={styles.summaryBody}>
-            {phase === "active"
-              ? "Tim ships the slides and voiceover every Sunday. Your kid sees them in the player view."
-              : phase === "past_due"
-                ? "No Sunday drops or live calls run during the payment hold. Update your card to resume."
-                : phase === "pending_cancel"
-                  ? "Nothing new ships during the 7 day undo window. Undo at any time to resume."
-                  : phase === "ended"
-                    ? "No sessions on the books. Your past history is still here when you come back."
-                    : callDateTime
-                      ? `${callDateTime}. The call happens on Discord. Tim sends ${player.first_name} an invite to ${player.discord_username ?? "their Discord"} beforehand. No payment today.`
-                      : "Check your Calendly confirmation for the date and time. The call happens on Discord."}
-          </div>
-          <div className={styles.summaryLink}>View sessions</div>
-        </Link>
-
-        <Link href={"/portal/progress" as never} className={styles.summaryCard}>
-          <div className={styles.summaryEyebrow}>
-            {showCycleSnapshot ? "This cycle" : showQuestSnapshot ? "Trial prep" : "History"}
-          </div>
-          <div className={styles.summaryTitle}>
-            {showCycleSnapshot
-              ? `Lesson ${cycleProgress} of 4`
-              : showQuestSnapshot
-                ? `${completedQuests} of 4 quests done`
-                : "Saved for later"}
-          </div>
-          <div className={styles.summaryBody}>
-            {phase === "active"
-              ? cancelsUsed > 0
-                ? `${cancelsUsed} cancellation${cancelsUsed === 1 ? "" : "s"} used this cycle. ${2 - cancelsUsed} remaining.`
-                : "Both of your 2 cancellations this cycle are still available."
-              : phase === "past_due"
-                ? "Cycle is frozen at this lesson. It will resume from here once payment is updated."
-                : phase === "pending_cancel"
-                  ? "Cycle paused while the undo window is open. Nothing advances until you decide."
-                  : phase === "ended"
-                    ? "Everything from your past sessions stays accessible. Open progress to look back."
-                    : `These are short prep tasks ${player.first_name} does before the call. The more done, the better the first session goes.`}
-          </div>
-          <div className={styles.summaryLink}>View progress</div>
-        </Link>
-
-        <Link href={"/portal/messages" as never} className={styles.summaryCard}>
-          <div className={styles.summaryEyebrow}>Messages</div>
-          <div className={styles.summaryTitle}>
-            {latestMessage
-              ? latestMessage.sender_role === "coach"
-                ? "Tim sent a message"
-                : `${player.first_name} sent a message`
-              : "Nothing yet"}
-          </div>
-          <div className={styles.summaryBody}>
-            {latestMessage
-              ? `"${latestMessage.body.slice(0, 90).trim()}${latestMessage.body.length > 90 ? "..." : ""}"`
-              : `${player.first_name} can message Tim from the player view. You see every message here.`}
-          </div>
-          <div className={styles.summaryLink}>Open messages</div>
-        </Link>
-      </section>
+      <LiveSummaryCards
+        phase={phase}
+        callDateTime={callDateTime}
+        completedQuests={completedQuests}
+        cycleProgress={cycleProgress}
+        cancelsUsed={cancelsUsed}
+        latestMessage={latestMessage}
+        playerFirstName={player.first_name}
+        playerDiscordUsername={player.discord_username ?? null}
+      />
 
       <SessionPersistenceModal />
     </div>
