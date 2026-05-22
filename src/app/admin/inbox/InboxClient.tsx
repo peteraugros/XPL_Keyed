@@ -133,6 +133,11 @@ export default function InboxClient({
             </header>
 
             <MessageThread
+              // Force remount when the selected player changes so the
+              // component's internal useState (which seeds from
+              // initialMessages on first mount only) gets reset to
+              // the new thread instead of keeping the previous one.
+              key={selectedPlayerId}
               initialMessages={selectedThread}
               viewerRole="coach"
               kidFirstName={selectedHeader.kid_first_name}
