@@ -22,6 +22,8 @@ import type { TablesUpdate } from "@/types/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://xplkeyed.com";
+
 const BodySchema = z.object({
   player_id: z.string().uuid(),
 });
@@ -94,12 +96,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "subscription_update_failed" }, { status: 500 });
   }
 
-  // Decline email. Free-creator recs per CLAUDE.md Stage C decision tree.
+  // Decline email. Graceful downgrade ladder per Stage C decision tree:
+  // monthly cycle was not the right fit -> offer the $24 single session
+  // as a one off step -> free creator recs as the final fallback. The
+  // single session lives as the primary inline CTA; free recs follow as
+  // the honest "no pressure" alternative.
   const html = brandedEmailHtml({
     headline: "Thanks for the call",
     bodyHtml: `<p>Hi ${escapeHtml(parent.first_name)},</p>
-<p>Thanks for taking the time. After the call, my honest read is that ${escapeHtml(player.first_name)} would get more out of free creators right now than paid coaching with me. No pressure on either side.</p>
-<p><strong>If you want to keep learning, these three creators make some of the best free Fortnite content for improvement:</strong></p>
+<p>Thanks for taking the time. After the call, my honest read is the four week monthly cycle isn't the right fit for ${escapeHtml(player.first_name)} right now. No pressure on either side.</p>
+<p><strong>If you want a one off check in instead</strong>, I offer a single 30 minute session for $24. Same call, same Discord, same lesson materials in the player view afterward. You tell me what to focus on and I build the session around it.</p>
+<p style="margin:22px 0;"><a href="${APP_URL}/single-session" style="display:inline-block;background:#C7FF3D;color:#0B1538;padding:14px 22px;border-radius:6px;font-weight:600;text-decoration:none;letter-spacing:0.5px;">Book the single session</a></p>
+<p>Or if you'd rather learn free, these three creators make some of the best Fortnite content for improvement:</p>
 <ul style="padding-left:18px;">
   <li><strong>Mero</strong>. Tournament VOD reviews and game sense.</li>
   <li><strong>Reet</strong>. Mechanics and edit course breakdowns.</li>
