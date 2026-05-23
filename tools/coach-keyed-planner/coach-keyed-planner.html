@@ -1882,66 +1882,83 @@ function onInput(e) {
   const lesson = currentLesson();
   if (!lesson) return;
 
+  let handled = false;
+
   if (t.dataset.field) {
     setNested(lesson, t.dataset.field, t.value);
-    lesson.updatedAt = Date.now();
-    scheduleSave();
-    return;
-  }
-  if (t.dataset.identifyName !== undefined) {
+    handled = true;
+  } else if (t.dataset.identifyName !== undefined) {
     const item = (lesson.identifyList || []).find((it) => it.id === t.dataset.identifyName);
-    if (item) { item.name = t.value; lesson.updatedAt = Date.now(); scheduleSave(); }
-    return;
-  }
-  if (t.dataset.identifyDesc !== undefined) {
+    if (item) { item.name = t.value; handled = true; }
+  } else if (t.dataset.identifyDesc !== undefined) {
     const item = (lesson.identifyList || []).find((it) => it.id === t.dataset.identifyDesc);
-    if (item) { item.description = t.value; lesson.updatedAt = Date.now(); scheduleSave(); }
-    return;
-  }
-  if (t.dataset.breakdownBullet !== undefined) {
+    if (item) { item.description = t.value; handled = true; }
+  } else if (t.dataset.breakdownBullet !== undefined) {
     const idx = parseInt(t.dataset.breakdownBullet, 10);
     if (lesson.beatSheet.breakdown[idx]) {
       lesson.beatSheet.breakdown[idx].bullet = t.value;
-      lesson.updatedAt = Date.now();
-      scheduleSave();
+      handled = true;
     }
-    return;
-  }
-  if (t.dataset.breakdownWhy !== undefined) {
+  } else if (t.dataset.breakdownWhy !== undefined) {
     const idx = parseInt(t.dataset.breakdownWhy, 10);
     if (lesson.beatSheet.breakdown[idx]) {
       lesson.beatSheet.breakdown[idx].why = t.value;
-      lesson.updatedAt = Date.now();
-      scheduleSave();
+      handled = true;
     }
-    return;
-  }
-  if (t.dataset.termWord !== undefined) {
+  } else if (t.dataset.termWord !== undefined) {
     const idx = parseInt(t.dataset.termWord, 10);
     if (lesson.terms[idx]) {
       lesson.terms[idx].word = t.value;
-      lesson.updatedAt = Date.now();
-      scheduleSave();
+      handled = true;
     }
-    return;
-  }
-  if (t.dataset.termDef !== undefined) {
+  } else if (t.dataset.termDef !== undefined) {
     const idx = parseInt(t.dataset.termDef, 10);
     if (lesson.terms[idx]) {
       lesson.terms[idx].definition = t.value;
-      lesson.updatedAt = Date.now();
-      scheduleSave();
+      handled = true;
     }
-    return;
-  }
-  if (t.dataset.check !== undefined) {
+  } else if (t.dataset.check !== undefined) {
     lesson.reviewChecks = lesson.reviewChecks || {};
     lesson.reviewChecks[t.dataset.check] = t.checked;
     lesson.updatedAt = Date.now();
     scheduleSave();
-    // No re-render on each check; user can see immediately, button enables on advance attempt.
+    // Step 6 has the pacing display + terms table that should refresh,
+    // and checkboxes don't have focus to preserve, so re-render is fine.
     debouncedRerender();
     return;
+  }
+
+  if (handled) {
+    lesson.updatedAt = Date.now();
+    scheduleSave();
+    // Re-evaluate the primary CTA without a full re-render. Keeps the
+    // textarea caret + focus intact across keystrokes.
+    updateAdvanceButton();
+  }
+}
+
+// Targeted DOM update: walks the current step's completion check and
+// toggles disabled on the next-step (or capstone-start) button. Called
+// from onInput so the CTA stays in sync without triggering a re-render
+// that would steal focus mid-typing.
+function updateAdvanceButton() {
+  const lesson = currentLesson();
+  if (!lesson) return;
+  const step = state.currentStep;
+  let complete = false;
+  if (step === 1) complete = step1Complete(lesson);
+  else if (step === 2) complete = step2Complete(lesson);
+  else if (step === 3) complete = step3Complete(lesson);
+  else if (step === 4) complete = step4Complete(lesson);
+  else if (step === 5) complete = step5Complete(lesson);
+  else if (step === 6) complete = step6Complete(lesson);
+  else return;
+
+  const nextBtn = document.querySelector('button[data-action="next-step"]');
+  if (nextBtn) nextBtn.disabled = !complete;
+  const capBtn = document.querySelector('button[data-action="capstone-start-lesson-1"]');
+  if (capBtn) {
+    capBtn.disabled = !(Array.isArray(lesson.curriculumOrder) && lesson.curriculumOrder.length >= 2);
   }
 }
 
