@@ -123,13 +123,37 @@ export async function POST(req: Request) {
   // ---- 4. Insert family / parent / player / subscription. -------------
   // No RPC — direct service-role inserts. If any step fails, roll back
   // both auth users + any earlier inserts.
+  //
+  // Cleanup tracks which records have been created. On any later
+  // failure we delete the family (FK cascades drop parents, players,
+  // subscriptions, curricula, curriculum_slots automatically) and
+  // both auth users. Prevents the orphan-parent rows that previously
+  // accumulated from failed mid-submit aborts and broke the
+  // sendParentMagicLink lookup with multi-row errors.
+  const created: { familyId: string | null } = { familyId: null };
   const cleanupOnError = async () => {
+    if (created.familyId) {
+      const cascadeDel = await supabase
+        .from("families")
+        .delete()
+        .eq("id", created.familyId);
+      if (cascadeDel.error) {
+        console.error(
+          "[single-session/submit] family cascade delete failed",
+          cascadeDel.error,
+        );
+      }
+    }
     await supabase.auth.admin
       .deleteUser(parentAuth.data.user!.id)
-      .catch(() => null);
+      .catch((err) =>
+        console.error("[single-session/submit] parent auth cleanup failed", err),
+      );
     await supabase.auth.admin
       .deleteUser(kidAuth.data.user!.id)
-      .catch(() => null);
+      .catch((err) =>
+        console.error("[single-session/submit] kid auth cleanup failed", err),
+      );
   };
 
   const familyInsert = await supabase
@@ -143,6 +167,9 @@ export async function POST(req: Request) {
     await cleanupOnError();
     return NextResponse.json({ error: "family_insert_failed" }, { status: 500 });
   }
+  // Mark family as cleanup-eligible so any subsequent insert failure
+  // cascades the partial state away instead of leaving orphans.
+  created.familyId = family.id;
 
   const parentInsert = await supabase
     .from("parents")
