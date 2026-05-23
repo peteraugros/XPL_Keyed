@@ -186,11 +186,17 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString();
 
+  // tier='single_lesson' matches the existing CHECK constraint on
+  // subscriptions.tier (set when the schema was first written for
+  // the originally-specced $14 single lesson). The user-facing
+  // naming is "single coaching session" per the 2026-05-22 design
+  // pivot — that distinction lives in copy only. DB tier label
+  // stays as the originally-reserved value.
   const subInsert = await supabase
     .from("subscriptions")
     .insert({
       player_id: player.id,
-      tier: "single",
+      tier: "single_lesson",
       status: "trial",
       lifecycle_state: "PENDING_PAYMENT",
       waiting_on: "PARENT",
