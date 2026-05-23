@@ -483,21 +483,31 @@ async function handlePaidLessonCreated(
     return;
   }
 
+  // Cycle curricula stay 'pending_approval' until the parent finishes
+  // checkout. Single-session curricula flip to 'active' the moment Stripe
+  // settles and never have a pending state. Broadening to both lets the
+  // same handler resolve either path; the unbooked-slot filter below is
+  // what actually drives slot selection.
   const curriculumRow = await supabase
     .from("curricula")
-    .select("id, cycle_anchor_at")
+    .select("id, cycle_anchor_at, curriculum_type" as never)
     .eq("player_id", player.id)
-    .eq("status", "pending_approval")
+    .in("status", ["pending_approval", "active"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   const curriculum = curriculumRow.data as
-    | { id: string; cycle_anchor_at: string | null }
+    | {
+        id: string;
+        cycle_anchor_at: string | null;
+        curriculum_type: "subscription" | "single_session" | null;
+      }
     | null;
   if (!curriculum) {
-    console.warn("[calendly-webhook][paid] no pending curriculum for player", player.id);
+    console.warn("[calendly-webhook][paid] no curriculum for player", player.id);
     return;
   }
+  const isSingleSession = curriculum.curriculum_type === "single_session";
 
   // Find next pending slot.
   const slotRow = await supabase
@@ -527,8 +537,9 @@ async function handlePaidLessonCreated(
     return;
   }
 
-  // If this is Week 1, anchor the cycle.
-  if (slot.week_number === 1 && !curriculum.cycle_anchor_at) {
+  // If this is Week 1 of a cycle curriculum, anchor it. Single-session
+  // has no cycle, so skip the anchor + the "repeat at this time" math.
+  if (!isSingleSession && slot.week_number === 1 && !curriculum.cycle_anchor_at) {
     const curriculumUpdate = await supabase
       .from("curricula")
       .update({ cycle_anchor_at: startIso } as never)
@@ -547,6 +558,53 @@ async function handlePaidLessonCreated(
   const bookedCount = allSlots.filter((s) => s.live_call_at).length;
   const totalSlots = allSlots.length;
 
+  const tz = payload.timezone || "America/Los_Angeles";
+  const startDate = new Date(startIso);
+  const fullDate = formatFullDate(startDate, tz);
+  const timeStr = formatTime(startDate, tz);
+
+  if (isSingleSession) {
+    // Single-session is already paid (Stripe webhook flipped status='active'
+    // + lifecycle='SCHEDULING_IN_PROGRESS' at checkout). After the parent
+    // picks the time, we want the subscription to read ACTIVE so the
+    // portal stops nagging them to schedule. waiting_on flips back to
+    // TIM since the next action is his (the call itself + post-call note).
+    const subUpdate = await supabase
+      .from("subscriptions")
+      .update({
+        lifecycle_state: "ACTIVE",
+        waiting_on: "TIM",
+      } as never)
+      .eq("player_id", player.id);
+    if (subUpdate.error) {
+      console.error(
+        "[calendly-webhook][single-session] subscription lifecycle update failed",
+        subUpdate.error,
+      );
+    }
+
+    const html = brandedEmailHtml({
+      headline: `${player.first_name}'s session is on the calendar`,
+      bodyHtml: `<p>Hi ${parent.first_name},</p>
+<p>${player.first_name}'s coaching session is set for ${fullDate} at ${timeStr}. The call happens on Discord. I'll send ${player.first_name} the server invite before we start.</p>
+<p>After the call, the slides and voiceover land in the player view so ${player.first_name} can review.</p>
+<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+      ctaLabel: "Open dashboard",
+      ctaHref: `${APP_URL}/portal`,
+    });
+    await sendBrandedEmail({
+      to: parent.email,
+      subject: `${player.first_name}'s session is set`,
+      html,
+      trigger: "branded_booking_confirmation",
+      recipientType: "parent",
+      relatedEntityType: "curriculum_slot",
+      relatedEntityId: slot.id,
+    });
+    return;
+  }
+
+  // Cycle path (4 slots, advances through SCHEDULING_IN_PROGRESS -> PENDING_PAYMENT).
   let nextLifecycle: "SCHEDULING_IN_PROGRESS" | "PENDING_PAYMENT" =
     "SCHEDULING_IN_PROGRESS";
   const updatePatch: Record<string, unknown> = {
@@ -568,10 +626,6 @@ async function handlePaidLessonCreated(
   }
 
   // Confirmation email in Tim's voice.
-  const tz = payload.timezone || "America/Los_Angeles";
-  const startDate = new Date(startIso);
-  const fullDate = formatFullDate(startDate, tz);
-  const timeStr = formatTime(startDate, tz);
   const remaining = totalSlots - bookedCount;
   const closingLine =
     remaining > 0

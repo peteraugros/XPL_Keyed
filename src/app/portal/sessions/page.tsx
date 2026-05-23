@@ -16,6 +16,7 @@ import { requireParentSession } from "../_lib/session";
 import SchedulerWizard from "./SchedulerWizard";
 import PaymentSummary from "./PaymentSummary";
 import ActiveCycleManager from "./ActiveCycleManager";
+import SingleSessionScheduler from "./SingleSessionScheduler";
 import styles from "./sessions.module.css";
 import Link from "next/link";
 
@@ -24,6 +25,7 @@ export const dynamic = "force-dynamic";
 type SubLookup = {
   id: string;
   status: string;
+  tier: string | null;
   lifecycle_state: string;
   cycle_cancels_used: number;
   cycle_skips_used: number;
@@ -61,6 +63,8 @@ type SlotLookup = {
   lesson_id: string | null;
   live_call_at: string | null;
   live_call_event_id: string | null;
+  live_call_completed_at: string | null;
+  no_show_at: string | null;
 };
 type LessonLookup = {
   id: string;
@@ -89,7 +93,7 @@ export default async function SessionsPage() {
   const subResp = await supabase
     .from("subscriptions")
     .select(
-      "id, status, lifecycle_state, cycle_cancels_used, cycle_skips_used, auto_renew_enabled, trial_call_at",
+      "id, status, tier, lifecycle_state, cycle_cancels_used, cycle_skips_used, auto_renew_enabled, trial_call_at",
     )
     .eq("player_id", player.id)
     .maybeSingle();
@@ -113,7 +117,9 @@ export default async function SessionsPage() {
   if (curriculum) {
     const slotResp = await supabase
       .from("curriculum_slots")
-      .select("id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id")
+      .select(
+        "id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id, live_call_completed_at, no_show_at",
+      )
       .eq("curriculum_id", curriculum.id)
       .order("week_number", { ascending: true });
     slots = (slotResp.data ?? []) as SlotLookup[];
@@ -131,10 +137,15 @@ export default async function SessionsPage() {
   }
 
   const lifecycle = sub?.lifecycle_state ?? "TRIAL_PREP";
+  const isSingleSession = sub?.tier === "single_lesson";
+  // Single-session bypasses the cycle's lifecycle gating. Anything after
+  // payment (SCHEDULING_IN_PROGRESS or ACTIVE) renders SingleSessionScheduler,
+  // and it self-branches on the slot's live_call_at + completed flags.
   const inScheduler =
-    lifecycle === "ACCEPTED_PENDING_SCHEDULING" || lifecycle === "SCHEDULING_IN_PROGRESS";
-  const inPayment = lifecycle === "PENDING_PAYMENT";
-  const isActive = lifecycle === "ACTIVE";
+    !isSingleSession &&
+    (lifecycle === "ACCEPTED_PENDING_SCHEDULING" || lifecycle === "SCHEDULING_IN_PROGRESS");
+  const inPayment = !isSingleSession && lifecycle === "PENDING_PAYMENT";
+  const isActive = !isSingleSession && lifecycle === "ACTIVE";
 
   const slotsForClient = slots.map((s) => {
     const lesson = s.lesson_id ? lessonsById.get(s.lesson_id) ?? null : null;
@@ -166,6 +177,20 @@ export default async function SessionsPage() {
         <div className={styles.eyebrow}>Program</div>
         <h1 className={styles.title}>Sessions</h1>
       </section>
+
+      {isSingleSession && curriculum && slots[0] ? (
+        <SingleSessionScheduler
+          parentFirstName={parent.first_name}
+          parentEmail={parent.email}
+          kidFirstName={player.first_name}
+          kidDiscord={player.discord_username}
+          scheduledAt={slots[0].live_call_at}
+          completed={
+            !!(slots[0].live_call_completed_at || slots[0].no_show_at)
+          }
+          intakeNote={curriculum.personalization_note}
+        />
+      ) : null}
 
       {inScheduler && curriculum ? (
         <SchedulerWizard
@@ -201,7 +226,7 @@ export default async function SessionsPage() {
         />
       ) : null}
 
-      {!inScheduler && !inPayment && !isActive ? (
+      {!isSingleSession && !inScheduler && !inPayment && !isActive ? (
         sub?.trial_call_at ? (
           (() => {
             const meta = formatSessionMeta(sub.trial_call_at, 30);
