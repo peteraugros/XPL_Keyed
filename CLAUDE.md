@@ -759,12 +759,24 @@ Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or oper
 
 #### New feature requests
 
-- **$14 single class wire-up** — marketing site advertises $14 single lesson · $56/mo for 4 lessons. Stage C MVP excluded the $14 path. Design questions to resolve before coding:
-  - (a) who can buy — active subscribers as top-up? trial parents as alternative? walk-in non-subscribers?
-  - (b) which lesson — Tim picks at sale time? parent picks from a library catalog?
-  - (c) does it include the 30-min live call, or materials-only?
-  - (d) data model — one curriculum + 1 slot, or new "ad-hoc lessons" table?
-  - (e) refunds + dispute handling under the 60-day ToS window.
+- **$24 single coaching session** — *In progress 2026-05-22.* Locked design:
+  - **Price**: $24 (changed from marketing's $14 — preserves cycle economics: $56/4 = $14/lesson, single = $14 + $10 no-commitment premium).
+  - **Naming**: "single coaching session." Never "single lesson." Lesson = content; session = interaction + mentorship + analysis. Pricing rests on the session framing.
+  - **Who can buy**: trial families (decline path alternative) + marketing-site cold traffic. **Not active subscribers in v1** — top-ups break the "subscription = primary, single = entry point" mental model.
+  - **Which lesson**: parent picks from Tim's published catalog at checkout. Productized, no DM friction, no Tim decision fatigue.
+  - **Live call included**: yes. Same shape as a cycle lesson (materials + 30-min Discord call), just unbundled.
+  - **Data model**: new column `curriculum_type` on `curricula` — enum `'subscription' | 'single_session'` (not a boolean — ages better when a third type appears). Reuse `curriculum_slots`, scheduling, Sunday delivery, coach_note, reschedule, Stripe Checkout. Auto-renew cron + cycle-skip math explicitly skip `curriculum_type='single_session'`.
+  - **Cancellation rules**: identical to cycle policy where reusable. Non-refundable after session completion. Missed without notice forfeits the session. One free reschedule with 24hr notice. Same 60-day refund window.
+  - **Selling surfaces** (3 entry points, all converge on the same checkout):
+    1. Marketing pricing card on `/` (primary)
+    2. Dedicated `/single-session` flow (the page parents land on from any CTA)
+    3. Stage C decline path on `/admin` — when Tim picks "Not the right fit," the decline email offers the single session **before** the free-creator recs. Graceful downgrade ladder: subscription → single session → free creators.
+  - **Intake fields** (lighter than full /intake but not minimal): kid first name + age + Fortnite IGN + Discord username, current rank, hours/week, what they most want help with (free text), parent first name + email. COPPA gate for under-13 reuses existing infrastructure.
+  - **Account creation**: a real family/parent/player record gets created. Parent gets `/portal` access, kid gets `/play` access. Same RLS/auth, just 1 slot instead of 4 and no auto-renew. Materials remain accessible post-session; kid can still message Tim.
+  - **Build phases**:
+    - **Phase 1 (v1)**: migration adding `curriculum_type`, marketing card update, `/single-session` form + checkout, Stripe webhook activation handler, auto-renew cron skip, post-purchase scheduling reuse, branded confirmation email with Calendly link.
+    - **Phase 2 (polish)**: Stage C decline-with-single-session-offer flow, Stripe live charge end-to-end smoke test, refund edge cases.
+  - Tracked here through completion. Move details into a Done entry once Phase 2 ships.
 - **Tim's lesson production (10 lessons before first paying customer)** — Peter driving with Tim; Peter QC's as Tim ships. See `tim-lesson-requirements.md` at repo root for the Tim-facing brief.
 
 #### `/portal/progress` v2 (deferred, design notes in "What's NOT built" #11)
