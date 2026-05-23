@@ -103,11 +103,30 @@ export async function sendSingleSessionPaidEmail(subscriptionId: string) {
 <p>Last step: pick the time that works. Tap below to sign in and open the scheduling page. Sessions run on Discord; Tim will send the server invite to ${escapeHtml(player.first_name)}'s Discord handle before the call.</p>
 <p style="font-size:13px;color:rgba(255,255,255,0.6);">After the call, the lesson slides and voiceover land in the player view so ${escapeHtml(player.first_name)} can review.</p>`;
 
-  await sendParentMagicLink(supabase, parent.email, {
+  const result = await sendParentMagicLink(supabase, parent.email, {
     next: "/portal/sessions",
     subject: `${player.first_name}'s single session is paid. Last step: pick a time.`,
     headline,
     bodyHtml,
     ctaLabel: "Pick the time",
   });
+
+  if (!result.ok) {
+    // Was silently swallowed before. Log loudly so Railway captures
+    // it and we know whether the issue is parent lookup, magic-link
+    // generation, or the actual Resend send.
+    console.error(
+      "[single-session-email] sendParentMagicLink failed",
+      {
+        subscriptionId,
+        parentEmail: parent.email,
+        code: result.code,
+      },
+    );
+  } else {
+    console.log(
+      "[single-session-email] magic link sent",
+      { subscriptionId, parentEmail: parent.email },
+    );
+  }
 }
