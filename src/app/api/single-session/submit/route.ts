@@ -39,14 +39,7 @@ const BodySchema = z.object({
   parent_first_name: z.string().trim().min(1).max(80),
   parent_email: z.string().trim().email().max(254),
   what_to_help_with: z.string().trim().min(1).max(1000),
-  lesson_id: z.string().uuid(),
 });
-
-type LessonRow = {
-  id: string;
-  parent_label: string;
-  is_published: boolean;
-};
 
 export async function POST(req: Request) {
   let parsed: z.infer<typeof BodySchema>;
@@ -61,18 +54,11 @@ export async function POST(req: Request) {
 
   const supabase = createServiceRoleClient();
 
-  // ---- 1. Validate the picked lesson exists + is published. -----------
-  const lessonResp = await supabase
-    .from("lessons")
-    .select("id, parent_label, is_published")
-    .eq("id", parsed.lesson_id)
-    .maybeSingle();
-  const lesson = lessonResp.data as LessonRow | null;
-  if (!lesson || !lesson.is_published) {
-    return NextResponse.json({ error: "lesson_unavailable" }, { status: 400 });
-  }
+  // No lesson validation step — single-session sales no longer ask the
+  // parent to pick from a catalog. Tim assigns a lesson after payment
+  // via the existing /admin lesson-swap flow.
 
-  // ---- 2. COPPA gate for under-13. ------------------------------------
+  // ---- 1. COPPA gate for under-13. ------------------------------------
   if (parsed.kid_age < 13) {
     const verResp = await supabase
       .from("pending_intake_verifications")
@@ -263,11 +249,15 @@ export async function POST(req: Request) {
     );
   }
 
+  // Slot created with lesson_id NULL. Tim picks (or builds) the lesson
+  // post-payment via the existing /admin lesson-swap surface. Sunday
+  // delivery cron will skip a slot with no lesson, so materials only
+  // ship once Tim assigns one — which is what we want.
   const slotInsert = await supabase.from("curriculum_slots").insert({
     curriculum_id: curriculum.id,
     week_number: 1,
     is_vod_review: false,
-    lesson_id: lesson.id,
+    lesson_id: null,
     live_call_at: null,
     live_call_event_id: null,
   } as never);
@@ -310,7 +300,7 @@ export async function POST(req: Request) {
           currency: "usd",
           product_data: {
             name: `${parsed.kid_first_name}'s single coaching session`,
-            description: `30 min Discord call with Tim + materials for "${lesson.parent_label}".`,
+            description: `30 min Discord call with Tim plus lesson materials. Lesson picked by Tim from "${parsed.what_to_help_with.slice(0, 60)}${parsed.what_to_help_with.length > 60 ? "..." : ""}".`,
           },
           unit_amount: PRICE_CENTS,
         },
@@ -325,7 +315,6 @@ export async function POST(req: Request) {
         subscription_id: subscription.id,
         family_id: family.id,
         player_id: player.id,
-        lesson_id: lesson.id,
       },
     },
     metadata: {
@@ -334,7 +323,6 @@ export async function POST(req: Request) {
       subscription_id: subscription.id,
       family_id: family.id,
       player_id: player.id,
-      lesson_id: lesson.id,
       approval_token: approvalToken,
     },
     success_url: `${APP_URL}/single-session/success`,
