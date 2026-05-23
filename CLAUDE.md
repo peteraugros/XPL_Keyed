@@ -742,23 +742,62 @@ For Stripe webhook testing locally: `stripe listen --forward-to localhost:3000/a
 
 The scaffold lands here. Don't reconstruct from memory — read the files, then continue.
 
-### Open TODO (build next, ordered by ROI)
+### Open TODO
 
-Wired-but-invisible + specced-but-unbuilt items surfaced by the 2026-05-20 audit, plus a couple of new asks. None block production for Tim's n=1 instance; each closes a real UX or operator gap.
+Outstanding work, grouped by category. Recently shipped items live in the "✅ Done" subsection below for audit history. Updated 2026-05-22 after the verified gap audit + recording-feature retirement.
 
-1. **Tim secret password login.** ✅ Built 2026-05-20. **Single-click** the "XPL KEYED" brand on `/login` to reveal username + password form. (Originally specced as triple-tap; simplified after the timing-based detection proved unreliable on the live install.) URL bypass `?coach=1` also works. Both surfaces show the form even when a session exists, so Tim can switch accounts without signing out first. See "Done" entry for setup SQL.
-2. **`notification_log` table wiring.** ✅ Built 2026-05-20. Node-side `sendBrandedEmail()` wrapper writes every Resend send + status to the table. All 14 Node-side call sites migrated. Dad admin shows last 50 rows. **Deno Edge Functions still bypass** — see item #12.
-3. **Read receipts on messages.** ✅ Built 2026-05-20. `POST /api/messages/mark-read` stamps `read_by_parent_at` or `read_by_recipient_at` on `MessageThread` mount. Data is there for any future "unread" badge UI; surfacing it is a small follow-up.
-4. **Lesson edit route at `/admin/lessons/<id>/edit`.** ✅ Built 2026-05-20. `PATCH /api/admin/lessons/[id]` covers all metadata + per-slide speaker notes + parent talking points. Edit link on each row of `/admin/lessons`. Media re-upload deferred — Tim re-authors via `/admin/lessons/new` for new images/audio.
-5. **Live trial-call countdown + "Join Discord call" CTA on `/play`.** ✅ Built 2026-05-20. `TrialCallCard` shows a live countdown until 15 min before call time, then flips to a green join button pointing at `players.discord_channel_url`. Hides after the call ends + 2 hours.
-6. **Multi-kid login UX on `/login`.** ✅ Built 2026-05-20. Single text input instead of a second screen: when Player role is picked, a "Player first name" input appears below the parent email. Required to submit. `sendPlayerMagicLink` accepts optional `playerFirstName` and uses `.ilike("first_name", name)` within the family; falls back to the family's oldest player if omitted (backwards compat for any old callers). API route adds `player_first_name` to the Zod schema. No-enumeration policy preserved: a name mismatch returns 200 ok same as success, so an attacker can't probe which kids belong to which family. Success card surfaces the kid by name ("We sent Jake's sign in link to the parent email on file").
-7. **Intake form polish.** ✅ Already built (audit was wrong — this landed in an earlier session and got missed). `/intake` ships: sound toggle (off-default, persisted under `xpl-intake-sound`), `+25 XP` floats on each level advance, Web Audio level-up + success chimes, `canvas-confetti` 3-burst on success in brand colors, `SuccessCard` with `ACHIEVEMENT UNLOCKED` kicker + entrance/pulse keyframes. `prefers-reduced-motion` respected throughout.
-8. **Dad admin Phase 2.** ✅ Built 2026-05-20. All four pieces shipped: Tim activity strip (today vs 7-day window for messages replied / tasks completed / calls done / no-shows / coach cancels), Business glance (paying clients, cycle MRR, last 7 days revenue, Stripe balance, next payout), Operational alerts (24h Resend failure pct + per-cron freshness pills with stale thresholds), and View as Tim (lime "View as Tim →" button in Dad's topbar + reciprocal "← Back to Dad view" in the Admin sidebar footer when `coach.is_dad=true`).
-9. **60-day refund window enforcement.** Today the policy lives in ToS + email copy; no actual block on Stripe-portal refund requests > 60 days. Customer experience unchanged at MVP scale. Build when first real refund flows in.
-10. **Day-7 unscheduled auto-cancel for scattered renewals.** Existing `cron-scheduling-abandonment` Edge Function needs a branch for "post-charge unscheduled." Currently parent gets reminded but never auto-cancelled.
-11. **Calendly auto-booking of uniform predicted times.** Auto-renew sets `live_call_at` to predicted times but doesn't create a real Calendly event. Parent has to manually reschedule into a real slot. Either use Calendly's one-time scheduling-link API or add an auto-suggest UI on next sign-in. **Bundle with the "uniform-parent confirmation prompt" follow-up from the curriculum-approval resolution above** — same problem, same surface.
-13. **$14 single class wire-up.** Marketing site advertises $14 single lesson · $56/mo for 4 lessons. The Stage C decision locked MVP to MONTHLY $56 only and explicitly excluded the $14 path. Peter wants the $14 path built. Design questions to resolve before coding: (a) who can buy — active subscribers as a top-up? trial parents as an alternative? walk-in non-subscribers? (b) which lesson — Tim picks at time of sale? parent picks from a library catalog? (c) live call — does a single class include the 30-min Discord call, or is it materials-only? (d) data model — one curriculum + 1 slot, or new "ad-hoc lessons" table? (e) refunds + dispute handling — single charge under the 60-day ToS window. Per CLAUDE.md "Stack target" the customer portal already supports one-time PaymentIntents. Build plan tracked here; flesh out design before implementation.
-12. **Deno-side notification_log wiring.** ✅ Built 2026-05-20. `sendEmailWithLog()` helper added to `supabase/functions/_shared/resend.ts` (writes `notification_log` row with `status='sent'` or `status='failed'+error_message` after the Resend call; never throws). All 13 Deno-side sends across 8 crons migrated: `cron-dunning-parent-reminders` (2), `cron-pending-cancel-lifecycle` (3), `cron-waitlist-offer-lifecycle` (3), `cron-waitlist-freshness-check` (1), `cron-sunday-lesson-delivery` (1), `cron-scheduling-abandonment` (3), `cron-payment-abandonment` (3), `cron-auto-renew-detection` (1, also fixed a signature bug where it called `sendEmail({apiKey,...})` instead of positional). Triggers: `dunning_reminder_day3/6`, `pending_cancel_reminder_day3/6 + auto_confirmed`, `waitlist_offer_reminder_24hr/expired/email`, `waitlist_freshness_check`, `sunday_lesson_delivery`, `scheduling_reminder_24h/72h + released_7d`, `payment_reminder_6h/12h + released_24h`, `auto_renew_subscription_canceled`. Cron audit trail is now complete; the Dad admin's "Recent system activity" panel will show cron sends once any fire.
+Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or operator gap.
+
+#### Real product gaps (build when bandwidth + need align)
+
+- **Uniform-parent soft confirmation prompt at cycle-2 start** — "Your next 4 sessions are predicted at [Sat 2pm × 4]. Confirm or reschedule." Patches the only real gap in the cycle-2+ approval flow. Bundle with the Calendly auto-booking work below — same surface, same problem.
+- **Calendly auto-booking of uniform predicted times** — auto-renew writes `live_call_at` but doesn't create real Calendly events. Parent has to manually reschedule into a real slot every cycle. Either Calendly's scheduling-link API or an auto-suggest UI.
+- **Day-7 unscheduled auto-cancel for scattered renewals** — `cron-scheduling-abandonment` reminds but doesn't auto-cancel post-charge unscheduled cycles.
+- **60-day refund window enforcement** — policy lives in ToS only; no Stripe-portal block. Build when first refund request flows.
+- **`pending_intake_verifications` purge cron** — unverified COPPA gate rows accumulate. ~5 min when annoyed.
+- **TikTok funnel analytics** — spreadsheet template + UTM convention for the bio link + screenshot library storage path. Manual until volume matters.
+
+#### New feature requests
+
+- **$14 single class wire-up** — marketing site advertises $14 single lesson · $56/mo for 4 lessons. Stage C MVP excluded the $14 path. Design questions to resolve before coding:
+  - (a) who can buy — active subscribers as top-up? trial parents as alternative? walk-in non-subscribers?
+  - (b) which lesson — Tim picks at sale time? parent picks from a library catalog?
+  - (c) does it include the 30-min live call, or materials-only?
+  - (d) data model — one curriculum + 1 slot, or new "ad-hoc lessons" table?
+  - (e) refunds + dispute handling under the 60-day ToS window.
+- **Tim's lesson production (10 lessons before first paying customer)** — Peter driving with Tim; Peter QC's as Tim ships. See `tim-lesson-requirements.md` at repo root for the Tim-facing brief.
+
+#### `/portal/progress` v2 (deferred, design notes in "What's NOT built" #11)
+
+- **Rank progression over time** — needs `rank_snapshots` table + Tim entering rank during lesson recap.
+- **Milestones** — cheapest path is a `coach_note_is_milestone` boolean on `curriculum_slots`.
+- **Rich history view** for canceled/declined families — per-cycle talking-point archive, downloadable lesson library snapshot, "what they accomplished" summary.
+
+#### Operator-#2 territory (don't touch until commitment)
+
+- **Multi-tenant migration** — `tenants` / `operators` tables, RLS scoping, subdomain routing.
+- **Stripe Connect onboarding + 30/70 enforcement** — 30/70 working number locked 2026-05-22; enforcement at Stripe layer ships with Connect when operator #2 lands.
+- **Tutor earnings dashboard** — pairs with Connect.
+- **Background check vendor selection + lawyer review** of the operator agreement.
+- **Operator-pair insurance** — general liability + E&O + cyber.
+- **Discord coaching server template doc** — channels, roles, parent-observer config. Tim's n=1 is tribal knowledge; operator #2 needs documentation.
+- **Pressure tests #1–#32** in CLAUDE.md (minus #13 which is retired with the recording feature).
+- **State child-labor compliance audit** + 1099 / multi-state nexus setup.
+- **Operator recruiting form** — Google form with kid + parent qualifying questions per spec.
+
+#### Peter setup (outside code)
+
+- **Dedicated business bank for Stripe payouts** (Mercury or Relay, ~1hr online onboarding) **before first paying customer** — currently routing to personal bank as placeholder.
+- **MX records / forwarding for `tim@xplkeyed.com`** — not load-bearing (in-app messaging is the contact channel) but useful for stray replies.
+- **Confirm Stripe live-mode KYC review is fully clear** — the "Action required" banner cleared during activation but worth a check for any pending follow-up info requests.
+- **Subscribe Tim's mobile to Calendly notifications** so he sees new bookings as they land. He has Calendly + Google Calendar on his phone per spec; just confirm the push notif is on.
+
+#### Operational (run periodically once customers exist)
+
+- Watch the Dad admin "Recent system activity" panel for any Resend failures once crons start firing in prod.
+- Review `notification_log` for unexpected `status='failed'` rows.
+- Smoke-test Tim's coach login from a non-personal device once a week.
+- Keep Tim's published lesson count above the "library running low" threshold (12).
 
 ### Human setup (only Peter can do)
 
