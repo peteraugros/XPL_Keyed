@@ -24,10 +24,19 @@ export const dynamic = "force-dynamic";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const TOKEN_TTL_HOURS = 24;
 
+// Allow-list of caller paths the verify route can redirect back to.
+// Prevents open-redirect via a hostile return_to value. Any new caller
+// of this endpoint must add its path here.
+const ALLOWED_RETURN_PATHS = new Set(["/intake", "/single-session"]);
+
 const BodySchema = z.object({
   intake_id: z.string().uuid(),
   parent_first_name: z.string().trim().min(1).max(80),
   parent_email: z.string().trim().email().max(254),
+  // Optional. Where /intake/verify should send the parent back to
+  // after a successful click. Defaults to /intake for backward
+  // compatibility with the trial intake flow.
+  return_to: z.string().trim().optional(),
 });
 
 export async function POST(req: Request) {
@@ -64,7 +73,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
-  const verifyUrl = `${APP_URL}/intake/verify?t=${token}`;
+  const returnTo =
+    parsed.return_to && ALLOWED_RETURN_PATHS.has(parsed.return_to)
+      ? parsed.return_to
+      : "/intake";
+  const verifyUrl = `${APP_URL}/intake/verify?t=${token}&return_to=${encodeURIComponent(returnTo)}`;
   const html = brandedEmailHtml({
     headline: "Confirm your child's coaching trial",
     bodyHtml: `<p>Hi ${escapeHtml(parsed.parent_first_name)},</p>

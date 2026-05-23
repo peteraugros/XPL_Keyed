@@ -114,12 +114,29 @@ async function handleCheckoutSessionCompleted(
   const kind = meta.kind;
   const curriculumId = meta.curriculum_id;
   const subscriptionId = meta.subscription_id;
-  if (kind !== "first_cycle" || !curriculumId || !subscriptionId) {
+  if (!curriculumId || !subscriptionId) {
     console.warn("[stripe-webhook] checkout.session.completed missing metadata", {
       kind,
       hasCurriculum: !!curriculumId,
       hasSubscription: !!subscriptionId,
     });
+    return;
+  }
+
+  // Single coaching session ($24 one-off) has its own activation path —
+  // no cycle counters, no welcome task, no auto-renew. Parent goes
+  // straight to scheduling via /portal/sessions.
+  if (kind === "single_session") {
+    await activateSingleSessionAfterPayment(
+      supabase,
+      curriculumId,
+      subscriptionId,
+    );
+    return;
+  }
+
+  if (kind !== "first_cycle") {
+    console.warn("[stripe-webhook] unknown checkout.session.completed kind", kind);
     return;
   }
 
@@ -193,6 +210,77 @@ async function handleCheckoutSessionCompleted(
     }
   } catch (err) {
     console.error("[stripe-webhook] immediate-delivery branch threw", err);
+  }
+}
+
+// $24 single coaching session activation. Mirrors the relevant subset
+// of handleCheckoutSessionCompleted's "first_cycle" branch but:
+//   * tier stays 'single' (set at submit time, not flipped to 'monthly').
+//   * lifecycle PENDING_PAYMENT → SCHEDULING_IN_PROGRESS so the parent
+//     lands in /portal/sessions and the SchedulerWizard offers the
+//     single slot. waiting_on=PARENT for the same reason.
+//   * scheduling_started_at stamped so the parent_started_scheduling
+//     task surfaces on Tim's Focused Home.
+//   * cycle_started_at deliberately NOT set — keeps cycle_drag_out
+//     (and any future cycle-counter logic) from firing for this
+//     subscription type. Single-session does not have a "cycle."
+//   * payment_pending_at cleared.
+//   * No new_student_welcome task — single-session doesn't onboard.
+//   * No Sunday-cron auto-delivery prep — slides ship after the call
+//     is marked complete (or at slot live_call_at time, whichever
+//     pattern the existing delivery cron uses).
+async function activateSingleSessionAfterPayment(
+  supabase: Supa,
+  curriculumId: string,
+  subscriptionId: string,
+) {
+  const curriculumUpdate = await supabase
+    .from("curricula")
+    .update({
+      status: "active",
+      approved_at: new Date().toISOString(),
+      waiting_on: "SYSTEM",
+    } as never)
+    .eq("id", curriculumId);
+  if (curriculumUpdate.error) {
+    console.error(
+      "[stripe-webhook] single-session curriculum update failed",
+      curriculumUpdate.error,
+    );
+    throw new Error("curriculum_update_failed");
+  }
+
+  const now = new Date().toISOString();
+  const subscriptionUpdate = await supabase
+    .from("subscriptions")
+    .update({
+      status: "active",
+      lifecycle_state: "SCHEDULING_IN_PROGRESS",
+      waiting_on: "PARENT",
+      scheduling_started_at: now,
+      payment_pending_at: null,
+    } as never)
+    .eq("id", subscriptionId);
+  if (subscriptionUpdate.error) {
+    console.error(
+      "[stripe-webhook] single-session subscription update failed",
+      subscriptionUpdate.error,
+    );
+    throw new Error("subscription_update_failed");
+  }
+
+  // Send the "paid, now schedule" email — fire-and-log; failure here
+  // is recoverable (parent can sign in to /portal manually).
+  try {
+    const { sendSingleSessionPaidEmail } = await import(
+      "@/lib/lessons/single-session-email"
+    );
+    await sendSingleSessionPaidEmail(subscriptionId);
+  } catch (err) {
+    console.error(
+      "[stripe-webhook] single-session paid-email branch threw",
+      err,
+    );
   }
 }
 

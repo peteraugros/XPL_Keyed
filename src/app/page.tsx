@@ -228,15 +228,15 @@ export default function HomePage() {
             </div>
 
             <div className="price-card reveal">
-              <div className="price-tier">Single Lesson</div>
-              <div className="price-amount">$14</div>
-              <div className="price-cycle">Per lesson cycle</div>
+              <div className="price-tier">Single Session</div>
+              <div className="price-amount">$24</div>
+              <div className="price-cycle">One coaching session, no commitment</div>
               <ul className="price-features">
-                <li>Custom PowerPoint + voiceover</li>
-                <li>30 min live coaching call</li>
-                <li>VOD review option</li>
+                <li>Pick the lesson that matters most</li>
+                <li>30 min live coaching call on Discord</li>
+                <li>Slides and voiceover delivered to keep</li>
               </ul>
-              <a href="/intake" className="btn btn-ghost">Start with the free call</a>
+              <a href="/single-session" className="btn btn-ghost">Book a single session</a>
             </div>
 
             <div className="price-card featured reveal">

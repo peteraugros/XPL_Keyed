@@ -23,12 +23,23 @@ export const dynamic = "force-dynamic";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+// Allow-list mirror of /api/intake/request-verification's
+// ALLOWED_RETURN_PATHS. Any new caller of the COPPA gate must
+// register its path in both places.
+const ALLOWED_RETURN_PATHS = new Set(["/intake", "/single-session"]);
+
+function safeReturnPath(input: string | null): string {
+  if (input && ALLOWED_RETURN_PATHS.has(input)) return input;
+  return "/intake";
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const token = url.searchParams.get("t");
+  const returnTo = safeReturnPath(url.searchParams.get("return_to"));
 
   if (!token || token.length !== 64) {
-    return NextResponse.redirect(`${APP_URL}/intake?coppa_error=not_found`);
+    return NextResponse.redirect(`${APP_URL}${returnTo}?coppa_error=not_found`);
   }
 
   const supabase = createServiceRoleClient();
@@ -41,15 +52,15 @@ export async function GET(req: Request) {
 
   if (error) {
     console.error("[intake/verify] lookup failed", error);
-    return NextResponse.redirect(`${APP_URL}/intake?coppa_error=server`);
+    return NextResponse.redirect(`${APP_URL}${returnTo}?coppa_error=server`);
   }
 
   if (!row) {
-    return NextResponse.redirect(`${APP_URL}/intake?coppa_error=not_found`);
+    return NextResponse.redirect(`${APP_URL}${returnTo}?coppa_error=not_found`);
   }
 
   if (new Date(row.expires_at).getTime() < Date.now()) {
-    return NextResponse.redirect(`${APP_URL}/intake?coppa_error=expired`);
+    return NextResponse.redirect(`${APP_URL}${returnTo}?coppa_error=expired`);
   }
 
   if (!row.verified_at) {
@@ -59,9 +70,11 @@ export async function GET(req: Request) {
       .eq("token", token);
     if (updateErr) {
       console.error("[intake/verify] update failed", updateErr);
-      return NextResponse.redirect(`${APP_URL}/intake?coppa_error=server`);
+      return NextResponse.redirect(`${APP_URL}${returnTo}?coppa_error=server`);
     }
   }
 
-  return NextResponse.redirect(`${APP_URL}/intake?verified=${row.intake_id}`);
+  return NextResponse.redirect(
+    `${APP_URL}${returnTo}?verified=${row.intake_id}`,
+  );
 }
