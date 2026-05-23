@@ -30,6 +30,7 @@ import SessionPersistenceModal from "@/components/SessionPersistenceModal";
 import PaymentProcessingCard from "./PaymentProcessingCard";
 import LiveSummaryCards from "./LiveSummaryCards";
 import LiveOnboardingCards from "./LiveOnboardingCards";
+import LiveSingleSessionCards from "./LiveSingleSessionCards";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export const dynamic = "force-dynamic";
 // Casts at the boundary to dodge @supabase/ssr 0.5's chained generic regression.
 type SubLookup = {
   status: string;
+  tier: string | null;
   lifecycle_state: string | null;
   cycle_lessons_delivered: number;
   cycle_cancels_used: number;
@@ -145,7 +147,7 @@ export default async function PortalHome({
     supabase
       .from("subscriptions")
       .select(
-        "status, lifecycle_state, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at",
+        "status, tier, lifecycle_state, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -223,6 +225,64 @@ export default async function PortalHome({
     week1Delivered = !!week1?.delivered_at;
   }
 
+  // Single-session families pay $24 for one coaching call and don't have
+  // a cycle, auto-renew, or Sunday lesson drops. Detect off subscription
+  // tier and branch the hero + bottom cards. The cycle-subscriber UI
+  // (Lesson X of 4, cancellations remaining) does not apply to them.
+  const isSingleSession = sub?.tier === "single_lesson";
+
+  let singleSessionData: {
+    callAtIso: string | null;
+    callCompleted: boolean;
+    intakeNote: string | null;
+    lessonParentLabel: string | null;
+  } | null = null;
+  if (isSingleSession) {
+    const currResp = await supabase
+      .from("curricula")
+      .select("id, personalization_note")
+      .eq("player_id", player.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const curr = currResp.data as
+      | { id: string; personalization_note: string | null }
+      | null;
+    if (curr) {
+      const slotResp = await supabase
+        .from("curriculum_slots")
+        .select("live_call_at, live_call_completed_at, no_show_at, lesson_id")
+        .eq("curriculum_id", curr.id)
+        .order("week_number", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      const slot = slotResp.data as
+        | {
+            live_call_at: string | null;
+            live_call_completed_at: string | null;
+            no_show_at: string | null;
+            lesson_id: string | null;
+          }
+        | null;
+      let lessonParentLabel: string | null = null;
+      if (slot?.lesson_id) {
+        const lessonResp = await supabase
+          .from("lessons")
+          .select("parent_label")
+          .eq("id", slot.lesson_id)
+          .maybeSingle();
+        const lesson = lessonResp.data as { parent_label: string } | null;
+        lessonParentLabel = lesson?.parent_label ?? null;
+      }
+      singleSessionData = {
+        callAtIso: slot?.live_call_at ?? null,
+        callCompleted: !!(slot?.live_call_completed_at || slot?.no_show_at),
+        intakeNote: curr.personalization_note,
+        lessonParentLabel,
+      };
+    }
+  }
+
   const phase = phaseFor(sub?.status);
   const cycleProgress = sub?.cycle_lessons_delivered ?? 0;
   const cancelsUsed = sub?.cycle_cancels_used ?? 0;
@@ -231,6 +291,10 @@ export default async function PortalHome({
   // subscription as soon as the parent books. NULL only in the brief
   // window before the webhook fires.
   const callDateTime = formatCallDateTime(sub?.trial_call_at ?? null);
+
+  const singleSessionCallDateTime = formatCallDateTime(
+    singleSessionData?.callAtIso ?? null,
+  );
 
   const heroByPhase: Record<Phase, { eyebrow: string; body: string }> = {
     trial: {
@@ -259,7 +323,19 @@ export default async function PortalHome({
           : `${player.first_name}'s coaching has ended. Your account stays open. Restart any time.`,
     },
   };
-  const hero = heroByPhase[phase];
+  // Single-session hero overrides the cycle hero entirely. Three states
+  // keyed off the slot: not scheduled / scheduled future / call complete.
+  const singleSessionHero: { eyebrow: string; body: string } | null = isSingleSession
+    ? {
+        eyebrow: "Single session",
+        body: singleSessionData?.callCompleted
+          ? `${player.first_name}'s coaching session is complete. Materials are in the player view.`
+          : singleSessionCallDateTime
+            ? `${player.first_name}'s coaching session is on ${singleSessionCallDateTime}.`
+            : `Last step: pick a time for ${player.first_name}'s coaching call.`,
+      }
+    : null;
+  const hero = singleSessionHero ?? heroByPhase[phase];
 
   // The primary action varies by phase. Rendered inside the hero row at
   // desktop (right column) so it doesn't push the summary cards below
@@ -466,7 +542,16 @@ export default async function PortalHome({
         </section>
       ) : null}
 
-      {onboardingCardData ? (
+      {isSingleSession ? (
+        <LiveSingleSessionCards
+          callDateTime={singleSessionCallDateTime}
+          callCompleted={singleSessionData?.callCompleted ?? false}
+          intakeNote={singleSessionData?.intakeNote ?? null}
+          lessonParentLabel={singleSessionData?.lessonParentLabel ?? null}
+          latestMessage={latestMessage}
+          playerFirstName={player.first_name}
+        />
+      ) : onboardingCardData ? (
         <LiveOnboardingCards
           lifecycleState={sub?.lifecycle_state ?? null}
           nextSlot={onboardingCardData.nextSlot}
