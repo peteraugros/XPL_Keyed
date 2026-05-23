@@ -219,17 +219,23 @@ export async function POST(req: Request) {
   // naming is "single coaching session" per the 2026-05-22 design
   // pivot — that distinction lives in copy only. DB tier label
   // stays as the originally-reserved value.
+  // Lifecycle starts at ACCEPTED_PENDING_SCHEDULING (slot exists with
+  // live_call_at NULL; parent will pick a time at L5 of the form). When
+  // Calendly fires invitee.created the webhook writes live_call_at +
+  // flips lifecycle to PENDING_PAYMENT + stamps payment_pending_at. That
+  // hand-off matches the cycle subscription pattern: schedule first,
+  // pay second, and cron-payment-abandonment owns the 24hr cleanup.
   const subInsert = await supabase
     .from("subscriptions")
     .insert({
       player_id: player.id,
       tier: "single_lesson",
       status: "trial",
-      lifecycle_state: "PENDING_PAYMENT",
+      lifecycle_state: "ACCEPTED_PENDING_SCHEDULING",
       waiting_on: "PARENT",
       auto_renew_enabled: false,
       auto_renew_off_acknowledged_at: now,
-      payment_pending_at: now,
+      payment_pending_at: null,
     } as never)
     .select("id")
     .single();
@@ -308,7 +314,12 @@ export async function POST(req: Request) {
       .eq("intake_id", parsed.intake_id);
   }
 
-  // ---- 5. Stripe Customer + Checkout Session. -------------------------
+  // ---- 5. Stripe Customer (no Checkout Session yet). ------------------
+  // Customer object is cheap; create now so the family row has its
+  // stripe_customer_id from the jump. The Checkout Session itself is
+  // created at /api/single-session/checkout once the parent has picked
+  // a time. That flip is what unblocks the "see availability before
+  // paying" UX.
   const customer = await stripe.customers.create({
     email: parsed.parent_email,
     name: parsed.parent_first_name,
@@ -324,53 +335,5 @@ export async function POST(req: Request) {
     .update({ stripe_customer_id: customer.id } as never)
     .eq("id", family.id);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer: customer.id,
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `${parsed.kid_first_name}'s single coaching session`,
-            description: `30 min Discord call with Tim plus lesson materials. Lesson picked by Tim from "${parsed.what_to_help_with.slice(0, 60)}${parsed.what_to_help_with.length > 60 ? "..." : ""}".`,
-          },
-          unit_amount: PRICE_CENTS,
-        },
-        quantity: 1,
-      },
-    ],
-    payment_intent_data: {
-      // No setup_future_usage — single charge, no auto-renew.
-      metadata: {
-        kind: "single_session",
-        curriculum_id: curriculum.id,
-        subscription_id: subscription.id,
-        family_id: family.id,
-        player_id: player.id,
-      },
-    },
-    metadata: {
-      kind: "single_session",
-      curriculum_id: curriculum.id,
-      subscription_id: subscription.id,
-      family_id: family.id,
-      player_id: player.id,
-      approval_token: approvalToken,
-    },
-    // {CHECKOUT_SESSION_ID} is replaced by Stripe at redirect time so
-    // the success page can look up customer details (email) without
-    // us leaking it through the URL ourselves.
-    success_url: `${APP_URL}/single-session/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${APP_URL}/single-session`,
-  });
-
-  if (!session.url) {
-    return NextResponse.json(
-      { error: "session_url_missing" },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({ url: session.url });
+  return NextResponse.json({ ok: true, subscription_id: subscription.id });
 }

@@ -250,14 +250,17 @@ async function activateSingleSessionAfterPayment(
     throw new Error("curriculum_update_failed");
   }
 
-  const now = new Date().toISOString();
+  // In the new pre-pay-schedule flow the slot is already booked by the
+  // time this fires (Calendly webhook ran first). lifecycle goes
+  // straight to ACTIVE, waiting_on flips to TIM (he runs the call
+  // next), and payment_pending_at clears so the abandonment cron
+  // stops watching this row.
   const subscriptionUpdate = await supabase
     .from("subscriptions")
     .update({
       status: "active",
-      lifecycle_state: "SCHEDULING_IN_PROGRESS",
-      waiting_on: "PARENT",
-      scheduling_started_at: now,
+      lifecycle_state: "ACTIVE",
+      waiting_on: "TIM",
       payment_pending_at: null,
     } as never)
     .eq("id", subscriptionId);
@@ -269,8 +272,10 @@ async function activateSingleSessionAfterPayment(
     throw new Error("subscription_update_failed");
   }
 
-  // Send the "paid, now schedule" email — fire-and-log; failure here
-  // is recoverable (parent can sign in to /portal manually).
+  // Send the "payment received, you're locked in" magic-link email.
+  // Different copy from the old "now schedule" email — by this point
+  // the parent has already picked the time. Fire-and-log; failure is
+  // recoverable (parent can sign in to /portal manually).
   try {
     const { sendSingleSessionPaidEmail } = await import(
       "@/lib/lessons/single-session-email"

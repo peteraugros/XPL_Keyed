@@ -17,6 +17,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Script from "next/script";
 import styles from "../intake/page.module.css";
 import pay from "./page.module.css";
 
@@ -191,8 +192,22 @@ function SingleSessionInner() {
   const [xpFloats, setXpFloats] = useState<{ id: number }[]>([]);
   const xpFloatIdRef = useRef(0);
 
-  const [stage, setStage] = useState<"form" | "submitting" | "submit_failed">("form");
+  // Stage machine within Level 4. 'form' through 'submit_failed' is the
+  // pre-account-creation phase. 'scheduling' / 'ready_to_pay' /
+  // 'opening_stripe' are the post-submit phases (account exists, slot
+  // exists, waiting on Calendly + Stripe). 'pay_failed' is the failure
+  // bucket for the final Stripe Checkout opening.
+  const [stage, setStage] = useState<
+    | "form"
+    | "submitting"
+    | "submit_failed"
+    | "scheduling"
+    | "ready_to_pay"
+    | "opening_stripe"
+    | "pay_failed"
+  >("form");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
 
   // Hydrate.
   useEffect(() => {
@@ -369,7 +384,7 @@ function SingleSessionInner() {
     state.parent_email,
   ]);
 
-  // ---- Submit (Pay) -------------------------------------------------------
+  // ---- Submit (creates account, then advances to scheduling) ----------
   const submitOrder = useCallback(async () => {
     if (!canSubmit) return;
     setStage("submitting");
@@ -395,24 +410,75 @@ function SingleSessionInner() {
       });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
-        url?: string;
+        ok?: boolean;
+        subscription_id?: string;
       };
-      if (!res.ok || !body.url) {
+      if (!res.ok || !body.ok || !body.subscription_id) {
         setSubmitError(body.error ?? "submit_failed");
         setStage("submit_failed");
         return;
       }
       try {
+        // Form data was persisted to localStorage to survive refreshes
+        // during data entry. Now that the account is created, clear it —
+        // the Calendly + Stripe phases run against subscription_id, not
+        // form state.
         window.localStorage.removeItem(STORAGE_KEY);
       } catch {
         /* ignore */
       }
-      window.location.href = body.url;
+      setSubscriptionId(body.subscription_id);
+      setStage("scheduling");
     } catch {
       setSubmitError("network");
       setStage("submit_failed");
     }
   }, [canSubmit, soundOn, state, ageNum, hoursNum]);
+
+  // ---- Calendly handoff ------------------------------------------------
+  // When Calendly fires invitee.created, our webhook writes the slot
+  // and flips lifecycle to PENDING_PAYMENT. Listen for the postMessage
+  // and advance to ready_to_pay so the Pay button appears.
+  useEffect(() => {
+    if (stage !== "scheduling") return;
+    function onMessage(e: MessageEvent) {
+      const data = e.data as { event?: string } | undefined;
+      if (!data?.event) return;
+      if (data.event === "calendly.event_scheduled") {
+        setStage("ready_to_pay");
+        if (soundOn) playChime(SUCCESS_NOTES, audioCtxRef);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [stage, soundOn]);
+
+  // ---- Pay (opens Stripe Checkout for the existing subscription) ------
+  const openCheckout = useCallback(async () => {
+    if (!subscriptionId || stage !== "ready_to_pay") return;
+    setStage("opening_stripe");
+    setSubmitError(null);
+    try {
+      const res = await fetch("/api/single-session/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subscription_id: subscriptionId }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+      if (!res.ok || !body.url) {
+        setSubmitError(body.error ?? "checkout_failed");
+        setStage("pay_failed");
+        return;
+      }
+      window.location.href = body.url;
+    } catch {
+      setSubmitError("network");
+      setStage("pay_failed");
+    }
+  }, [subscriptionId, stage]);
 
   const meta = LEVEL_META[level - 1];
   const segmentSize = 100 / TOTAL_LEVELS;
@@ -498,20 +564,28 @@ function SingleSessionInner() {
             <Level4
               state={state}
               setField={setField}
+              stage={stage}
+              parentEmail={state.parent_email.trim()}
+              parentFirstName={state.parent_first_name.trim()}
+              kidFirstName={state.kid_first_name.trim()}
+              kidDiscord={state.kid_discord_username.trim()}
               onSubmit={submitOrder}
-              submitting={stage === "submitting"}
+              onPay={openCheckout}
               canSubmit={canSubmit}
-              submitError={stage === "submit_failed" ? submitError : null}
+              submitError={
+                stage === "submit_failed" || stage === "pay_failed"
+                  ? submitError
+                  : null
+              }
             />
           )}
 
           <div className={styles.actions}>
-            {level > 1 && (
+            {level > 1 && stage === "form" && (
               <button
                 type="button"
                 className={`${styles.btn} ${styles.btnGhost}`}
                 onClick={() => setLevel((l) => Math.max(1, l - 1))}
-                disabled={stage === "submitting"}
               >
                 Back
               </button>
@@ -870,15 +944,66 @@ function Level3({ state, setField, lockedByCoppa }: Level3Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Level 4 — "What" textarea + Pay $24 block. Tim reads the textarea and
-// picks the lesson; the parent doesn't pick from a catalog.
+// Level 4 — multi-stage final boss.
+//
+// Three sub-renderings, keyed off the parent component's `stage`:
+//   * form / submitting / submit_failed -> "What to help with" textarea
+//     + "Continue to scheduling" button.
+//   * scheduling -> Calendly embed (paid-lesson event type). The
+//     Calendly webhook fires invitee.created on book, which writes the
+//     slot + flips lifecycle to PENDING_PAYMENT. The parent component
+//     listens for postMessage and advances stage to ready_to_pay.
+//   * ready_to_pay / opening_stripe / pay_failed -> "Last step: pay"
+//     screen with the $24 CTA. Click opens a fresh Stripe Checkout
+//     Session via /api/single-session/checkout and redirects.
+//
+// Account already exists by the time stage moves past "form" — so
+// localStorage form recovery is no longer needed; subscriptionId in
+// component state is the canonical thread.
 // ---------------------------------------------------------------------------
+
+const PAID_LESSON_CALENDLY_URL =
+  "https://calendly.com/xpl-keyed/paid-lesson";
+
+function buildPaidLessonEmbedUrl(
+  parentName: string,
+  parentEmail: string,
+  kidFirstName: string,
+  kidDiscord: string,
+): string {
+  const params = new URLSearchParams({
+    background_color: "0F1B47",
+    text_color: "FFFFFF",
+    primary_color: "C7FF3D",
+    hide_gdpr_banner: "1",
+    hide_event_type_details: "1",
+    name: parentName,
+    email: parentEmail,
+    a1: kidFirstName,
+  });
+  if (kidDiscord) params.set("a2", kidDiscord);
+  return `${PAID_LESSON_CALENDLY_URL}?${params.toString()}`;
+}
+
+type Level4Stage =
+  | "form"
+  | "submitting"
+  | "submit_failed"
+  | "scheduling"
+  | "ready_to_pay"
+  | "opening_stripe"
+  | "pay_failed";
 
 type Level4Props = {
   state: FormState;
   setField: <K extends keyof FormState>(key: K, val: FormState[K]) => void;
+  stage: Level4Stage;
+  parentEmail: string;
+  parentFirstName: string;
+  kidFirstName: string;
+  kidDiscord: string;
   onSubmit: () => void;
-  submitting: boolean;
+  onPay: () => void;
   canSubmit: boolean;
   submitError: string | null;
 };
@@ -886,57 +1011,123 @@ type Level4Props = {
 function Level4({
   state,
   setField,
+  stage,
+  parentEmail,
+  parentFirstName,
+  kidFirstName,
+  kidDiscord,
   onSubmit,
-  submitting,
+  onPay,
   canSubmit,
   submitError,
 }: Level4Props) {
-  const firstName = state.kid_first_name.trim() || "the player";
-  return (
-    <>
-      <label className={styles.field}>
-        <span className={styles.fieldLabel}>
-          What does {firstName} want help with?
-        </span>
-        <textarea
-          className={pay.textarea}
-          value={state.what_to_help_with}
-          onChange={(e) => setField("what_to_help_with", e.target.value)}
-          rows={4}
-          maxLength={1000}
-          placeholder="Example: He gets third partied a lot when he wins fights and wants to learn how to rotate faster."
-        />
-        <span className={styles.fieldHint}>
-          One or two sentences. Tim reads this and picks the lesson from his
-          library that fits. If nothing in his library is right, he builds
-          one for the session.
-        </span>
-      </label>
+  const firstName = kidFirstName || "the player";
+  const submitting = stage === "submitting";
+  const opening = stage === "opening_stripe";
 
-      <div className={pay.payBlock}>
-        <div className={pay.payAmount}>
-          $24<span className={pay.payUnit}>· one session</span>
-        </div>
-        <p className={pay.payBody}>
-          30 minutes on Discord with Tim plus the lesson materials to keep.
-          No subscription. Stripe handles the payment securely.
-        </p>
-        <button
-          type="button"
-          className={pay.payCta}
-          onClick={onSubmit}
-          disabled={!canSubmit || submitting}
-        >
-          {submitting ? "Opening Stripe Checkout..." : "Pay $24 and continue"}
-        </button>
-        {submitError && (
-          <p className={pay.payError}>
-            Something went wrong (<code>{submitError}</code>). Try again, or
-            email <a href="mailto:tim@xplkeyed.com">tim@xplkeyed.com</a> if
-            it keeps failing.
+  // --- Sub-stage: intake (textarea + "continue to scheduling" CTA) ---
+  if (stage === "form" || stage === "submitting" || stage === "submit_failed") {
+    return (
+      <>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>
+            What does {firstName} want help with?
+          </span>
+          <textarea
+            className={pay.textarea}
+            value={state.what_to_help_with}
+            onChange={(e) => setField("what_to_help_with", e.target.value)}
+            rows={4}
+            maxLength={1000}
+            placeholder="Example: He gets third partied a lot when he wins fights and wants to learn how to rotate faster."
+          />
+          <span className={styles.fieldHint}>
+            One or two sentences. Tim reads this and picks the lesson from his
+            library that fits. If nothing in his library is right, he builds
+            one for the session.
+          </span>
+        </label>
+
+        <div className={pay.payBlock}>
+          <div className={pay.payAmount}>
+            $24<span className={pay.payUnit}>· one session</span>
+          </div>
+          <p className={pay.payBody}>
+            30 minutes on Discord with Tim plus the lesson materials to keep.
+            You&apos;ll pick the time next, then pay. No payment until you see
+            a time that works.
           </p>
-        )}
+          <button
+            type="button"
+            className={pay.payCta}
+            onClick={onSubmit}
+            disabled={!canSubmit || submitting}
+          >
+            {submitting ? "Saving..." : "Continue to scheduling"}
+          </button>
+          {submitError && (
+            <p className={pay.payError}>
+              Something went wrong (<code>{submitError}</code>). Try again, or
+              email <a href="mailto:tim@xplkeyed.com">tim@xplkeyed.com</a> if
+              it keeps failing.
+            </p>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // --- Sub-stage: scheduling (Calendly embed) ---
+  if (stage === "scheduling") {
+    return (
+      <>
+        <p className={pay.payBody} style={{ marginTop: 0 }}>
+          Pick the time that works for {firstName}. The call is 30 minutes on
+          Discord. After you book, you&apos;ll pay $24 to lock it in.
+        </p>
+        <div
+          className="calendly-inline-widget"
+          data-url={buildPaidLessonEmbedUrl(
+            parentFirstName,
+            parentEmail,
+            firstName,
+            kidDiscord,
+          )}
+          style={{ minWidth: "100%", height: "700px" }}
+        />
+        <Script
+          src="https://assets.calendly.com/assets/external/widget.js"
+          strategy="afterInteractive"
+        />
+      </>
+    );
+  }
+
+  // --- Sub-stage: ready_to_pay / opening_stripe / pay_failed ---
+  return (
+    <div className={pay.payBlock}>
+      <div className={pay.payAmount}>
+        $24<span className={pay.payUnit}>· one session</span>
       </div>
-    </>
+      <p className={pay.payBody}>
+        Time is held. Last step is the $24 charge. Stripe handles the payment
+        securely. After you pay, the time is locked and Tim gets to work.
+      </p>
+      <button
+        type="button"
+        className={pay.payCta}
+        onClick={onPay}
+        disabled={opening}
+      >
+        {opening ? "Opening Stripe Checkout..." : "Pay $24 and lock it in"}
+      </button>
+      {submitError && (
+        <p className={pay.payError}>
+          Something went wrong (<code>{submitError}</code>). Try again, or
+          email <a href="mailto:tim@xplkeyed.com">tim@xplkeyed.com</a> if
+          it keeps failing.
+        </p>
+      )}
+    </div>
   );
 }

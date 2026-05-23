@@ -42,6 +42,7 @@ export default function HomePage() {
         <a href="#how" data-close>How it works</a>
         <a href="#pricing" data-close>Pricing</a>
         <a href="#faq" data-close>FAQ</a>
+        <a href="/login" data-close>Sign in</a>
         <a href="/intake" data-close>Free trial</a>
       </div>
 

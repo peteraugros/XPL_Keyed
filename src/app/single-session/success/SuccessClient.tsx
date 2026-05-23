@@ -92,9 +92,9 @@ export default function SuccessClient({
         <div className={shell.card}>
           <div className={shell.successCard}>
             <div className={shell.unlockedKicker}>ACHIEVEMENT UNLOCKED</div>
-            <h2 className={shell.unlockedHeadline}>Session Booked</h2>
+            <h2 className={shell.unlockedHeadline}>Session Locked In</h2>
             <p className={shell.successBody}>
-              Payment received.{" "}
+              Payment received and your time is held.{" "}
               {parentEmail ? (
                 <>
                   We emailed you at <b>{parentEmail}</b> with a one tap sign
@@ -106,12 +106,11 @@ export default function SuccessClient({
                   at checkout.
                 </>
               )}{" "}
-              Tap it and your scheduling page opens.
+              Tap it and your dashboard opens with the full session details.
             </p>
             <span className={shell.successDetail}>
-              From there you pick the time that works. Tim sends the Discord
-              invite before the call. Check spam if the email isn&apos;t in
-              your inbox within a few minutes.
+              Tim sends the Discord server invite before the call. Check
+              spam if the email isn&apos;t in your inbox within a few minutes.
             </span>
           </div>
 
@@ -131,8 +130,8 @@ export default function SuccessClient({
             >
               <li>Email lands with the one tap sign in link.</li>
               <li>
-                Pick a time for the 30 minute Discord call from Tim&apos;s
-                calendar.
+                Your time is on the books. The dashboard shows the date,
+                time, and intake details.
               </li>
               <li>
                 Tim sends the Discord server invite to the player before the

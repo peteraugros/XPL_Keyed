@@ -564,16 +564,23 @@ async function handlePaidLessonCreated(
   const timeStr = formatTime(startDate, tz);
 
   if (isSingleSession) {
-    // Single-session is already paid (Stripe webhook flipped status='active'
-    // + lifecycle='SCHEDULING_IN_PROGRESS' at checkout). After the parent
-    // picks the time, we want the subscription to read ACTIVE so the
-    // portal stops nagging them to schedule. waiting_on flips back to
-    // TIM since the next action is his (the call itself + post-call note).
+    // Pre-pay scheduling flow. Parent picked the time as L5 of the
+    // single-session form; payment is still ahead of them. Flip to
+    // PENDING_PAYMENT + stamp payment_pending_at so the existing
+    // cron-payment-abandonment cron can release the slot after 24hr if
+    // they never check out. waiting_on stays PARENT — they're the next
+    // actor (paying). lifecycle moves to ACTIVE in the Stripe webhook.
+    //
+    // No branded confirmation email here. The form's L6 will redirect
+    // straight to Stripe Checkout; the confirmation lands after payment
+    // (sendSingleSessionPaidEmail). Sending a "your time is held"
+    // email before payment would confuse the parent.
     const subUpdate = await supabase
       .from("subscriptions")
       .update({
-        lifecycle_state: "ACTIVE",
-        waiting_on: "TIM",
+        lifecycle_state: "PENDING_PAYMENT",
+        waiting_on: "PARENT",
+        payment_pending_at: new Date().toISOString(),
       } as never)
       .eq("player_id", player.id);
     if (subUpdate.error) {
@@ -582,25 +589,6 @@ async function handlePaidLessonCreated(
         subUpdate.error,
       );
     }
-
-    const html = brandedEmailHtml({
-      headline: `${player.first_name}'s session is on the calendar`,
-      bodyHtml: `<p>Hi ${parent.first_name},</p>
-<p>${player.first_name}'s coaching session is set for ${fullDate} at ${timeStr}. The call happens on Discord. I'll send ${player.first_name} the server invite before we start.</p>
-<p>After the call, the slides and voiceover land in the player view so ${player.first_name} can review.</p>
-<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
-      ctaLabel: "Open dashboard",
-      ctaHref: `${APP_URL}/portal`,
-    });
-    await sendBrandedEmail({
-      to: parent.email,
-      subject: `${player.first_name}'s session is set`,
-      html,
-      trigger: "branded_booking_confirmation",
-      recipientType: "parent",
-      relatedEntityType: "curriculum_slot",
-      relatedEntityId: slot.id,
-    });
     return;
   }
 
