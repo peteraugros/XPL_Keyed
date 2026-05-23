@@ -1292,7 +1292,13 @@ function renderStep3(lesson) {
       </div>
       <button class="btn btn-ghost btn-tiny" data-action="identify-add">+ Add another</button>
 
-      ${showDependency ? renderDependencyQuestion(lesson) : `<p class="field-hint" style="margin-top:14px;">Add at least 2 items to see the next question.</p>`}
+      <!-- Both rendered always; visibility toggled by updateAdvanceButton
+           based on namedItems count so the dep question appears the
+           moment the user types a second item name. Conditional render
+           wouldn't reach here because typing names doesn't trigger
+           re-render (intentional — would steal textarea focus). -->
+      <p class="field-hint dep-hint" style="margin-top:14px;" ${showDependency ? "hidden" : ""}>Add at least 2 items to see the next question.</p>
+      <div class="dep-question-wrap" ${showDependency ? "" : "hidden"}>${renderDependencyQuestion(lesson)}</div>
 
       <div class="btn-row spread">
         <button class="btn btn-ghost" data-action="prev-step">Back</button>
@@ -1959,6 +1965,17 @@ function updateAdvanceButton() {
   const capBtn = document.querySelector('button[data-action="capstone-start-lesson-1"]');
   if (capBtn) {
     capBtn.disabled = !(Array.isArray(lesson.curriculumOrder) && lesson.curriculumOrder.length >= 2);
+  }
+
+  // Step 3 specific: as soon as 2 items are named, swap the "add at
+  // least 2 items" hint for the dependency question.
+  if (step === 3) {
+    const namedCount = (lesson.identifyList || []).filter((it) => it.name && it.name.trim()).length;
+    const showDep = namedCount >= 2;
+    const hint = document.querySelector(".dep-hint");
+    const depWrap = document.querySelector(".dep-question-wrap");
+    if (hint) hint.hidden = showDep;
+    if (depWrap) depWrap.hidden = !showDep;
   }
 }
 
