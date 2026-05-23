@@ -1,0 +1,2393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coach Keyed's Lesson Planner</title>
+<style>
+  /* ---- Design tokens ----------------------------------------------------- */
+  :root {
+    --bg: #0E1018;
+    --bg-2: #14172A;
+    --bg-3: #1C2040;
+    --bg-4: #252A55;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hi: rgba(255, 255, 255, 0.18);
+    --text: #F5F6FA;
+    --text-dim: rgba(245, 246, 250, 0.72);
+    --text-faint: rgba(245, 246, 250, 0.45);
+    --lime: #C7FF3D;
+    --lime-soft: rgba(199, 255, 61, 0.14);
+    --rare: #4C51F7;
+    --rare-soft: rgba(76, 81, 247, 0.16);
+    --legendary: #F5A623;
+    --legendary-soft: rgba(245, 166, 35, 0.14);
+    --danger: #E15467;
+    --font-sys: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --tap: 44px;
+  }
+
+  /* ---- Reset + base ------------------------------------------------------ */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font-sys); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  body { min-height: 100vh; }
+  h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; }
+  h1 { font-size: 30px; letter-spacing: -0.02em; }
+  h2 { font-size: 22px; letter-spacing: -0.015em; }
+  h3 { font-size: 17px; }
+  h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--text-faint); font-weight: 600; }
+  p { margin: 0 0 12px; }
+  a { color: var(--lime); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font-family: inherit; }
+  textarea, input, select { font-family: inherit; font-size: 15px; }
+
+  /* ---- Top bar ----------------------------------------------------------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-2), var(--bg));
+    position: relative;
+  }
+  .topbar::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--lime), transparent);
+    opacity: 0.5;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .brand-mark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  .brand-tag {
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+  .topbar-meta {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+  .topbar-meta button {
+    background: transparent;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: border 0.12s, color 0.12s;
+  }
+  .topbar-meta button:hover { border-color: var(--lime); color: var(--text); }
+
+  /* ---- Layout ------------------------------------------------------------ */
+  .shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 36px 28px 96px;
+  }
+  .row { display: flex; gap: 28px; align-items: flex-start; }
+  .rail {
+    width: 240px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 28px;
+  }
+  .main { flex: 1; min-width: 0; }
+
+  /* ---- Step rail --------------------------------------------------------- */
+  .rail-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-faint);
+    margin: 0 0 14px;
+  }
+  .step-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--text-faint);
+    cursor: default;
+    font-size: 14px;
+    border: 1px solid transparent;
+  }
+  .step-item.clickable { cursor: pointer; color: var(--text-dim); }
+  .step-item.clickable:hover { background: var(--bg-2); color: var(--text); }
+  .step-item.current {
+    background: var(--bg-2);
+    color: var(--text);
+    border-color: var(--border-hi);
+  }
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--bg-3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .step-item.current .step-num { background: var(--lime); color: var(--bg); }
+  .step-item.done .step-num { background: var(--lime); color: var(--bg); }
+  .step-item.done { color: var(--text); }
+  .step-name { flex: 1; }
+  .step-check {
+    color: var(--lime);
+    font-size: 14px;
+  }
+
+  /* ---- Cards ------------------------------------------------------------- */
+  .card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+  .card.compact { padding: 20px; }
+  .card-eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  .card-eyebrow.lime { color: var(--lime); }
+  .card-title { margin-bottom: 8px; }
+  .card-hint { color: var(--text-dim); font-size: 14px; margin-bottom: 18px; }
+
+  /* ---- Form fields ------------------------------------------------------- */
+  .field { display: block; margin-bottom: 18px; }
+  .field-label {
+    display: block;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 6px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+  }
+  .field-hint {
+    display: block;
+    font-size: 13px;
+    color: var(--text-faint);
+    margin-top: 6px;
+    line-height: 1.45;
+  }
+  .field-input, .field-textarea, .field-select {
+    display: block;
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border-hi);
+    border-radius: 8px;
+    padding: 12px 14px;
+    min-height: var(--tap);
+    transition: border 0.12s, background 0.12s;
+  }
+  .field-input:focus, .field-textarea:focus, .field-select:focus {
+    outline: none;
+    border-color: var(--lime);
+    background: #0a0c14;
+  }
+  .field-textarea { min-height: 160px; resize: vertical; line-height: 1.55; }
+  .field-textarea.tall { min-height: 240px; }
+  .field-textarea.small { min-height: 72px; }
+
+  /* ---- Buttons ----------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--bg-3);
+    color: var(--text);
+    border: 1px solid var(--border-hi);
+    border-radius: 8px;
+    padding: 13px 22px;
+    min-height: var(--tap);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: background 0.12s, border 0.12s, color 0.12s, transform 0.06s;
+  }
+  .btn:hover { background: var(--bg-4); border-color: var(--text-faint); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-primary {
+    background: var(--lime);
+    color: var(--bg);
+    border-color: var(--lime);
+  }
+  .btn-primary:hover { background: #d4ff5d; border-color: #d4ff5d; }
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border-hi);
+    color: var(--text-dim);
+  }
+  .btn-ghost:hover { color: var(--text); }
+  .btn-danger {
+    background: transparent;
+    border-color: rgba(225, 84, 103, 0.4);
+    color: var(--danger);
+  }
+  .btn-danger:hover { border-color: var(--danger); background: rgba(225, 84, 103, 0.08); }
+  .btn-tiny {
+    padding: 6px 10px;
+    min-height: 0;
+    font-size: 12px;
+    border-radius: 6px;
+    letter-spacing: 0.4px;
+  }
+  .btn-row { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  .btn-row.right { justify-content: flex-end; }
+  .btn-row.spread { justify-content: space-between; }
+
+  /* ---- Identify items list ---------------------------------------------- */
+  .identify-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+  .identify-item {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .identify-item-num {
+    width: 28px; height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--bg-3);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .identify-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .identify-name-input, .identify-desc-input {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    width: 100%;
+    font-family: inherit;
+  }
+  .identify-name-input { font-weight: 600; font-size: 15px; }
+  .identify-desc-input { font-size: 13px; color: var(--text-dim); }
+  .identify-name-input:hover, .identify-desc-input:hover { border-color: var(--border); }
+  .identify-name-input:focus, .identify-desc-input:focus {
+    outline: none;
+    border-color: var(--lime);
+    background: var(--bg-2);
+  }
+  .identify-item-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .arrow-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border 0.12s, color 0.12s;
+  }
+  .arrow-btn:hover:not(:disabled) { border-color: var(--lime); color: var(--text); }
+  .arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .x-btn {
+    background: transparent;
+    border: 1px solid rgba(225, 84, 103, 0.3);
+    color: var(--danger);
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .x-btn:hover { background: rgba(225, 84, 103, 0.1); border-color: var(--danger); }
+
+  /* ---- Dependency question ----------------------------------------------- */
+  .dep-question {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-left: 3px solid var(--lime);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-top: 8px;
+  }
+  .dep-question h4 { color: var(--lime); margin-bottom: 8px; }
+  .dep-question p { color: var(--text-dim); font-size: 14px; }
+
+  /* ---- Capstone reveal --------------------------------------------------- */
+  .capstone-reveal {
+    background: linear-gradient(135deg, var(--lime-soft), var(--rare-soft));
+    border: 1px solid var(--lime);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .capstone-reveal h3 { color: var(--lime); margin-bottom: 12px; letter-spacing: 0.5px; }
+  .capstone-list { list-style: none; margin: 14px 0 18px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .capstone-list li {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    padding: 12px 14px;
+    border-radius: 8px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  .capstone-list-num {
+    font-weight: 700;
+    color: var(--lime);
+    font-size: 13px;
+    letter-spacing: 1px;
+    min-width: 70px;
+  }
+  .capstone-list-name { font-weight: 600; }
+  .capstone-list-tag { color: var(--text-faint); font-size: 13px; margin-left: auto; }
+
+  /* ---- Narrow picker ----------------------------------------------------- */
+  .narrow-options { display: flex; flex-direction: column; gap: 10px; margin: 14px 0 4px; }
+  .narrow-option {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border 0.12s, background 0.12s;
+  }
+  .narrow-option:hover { border-color: var(--lime); background: #0a0c14; }
+  .narrow-option-name { font-weight: 600; font-size: 15px; }
+  .narrow-option-desc { color: var(--text-dim); font-size: 13px; }
+
+  /* ---- Beat sheet sections (Step 5) ------------------------------------- */
+  .beat-section {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .beat-section-header {
+    padding: 14px 18px;
+    background: var(--bg-3);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    user-select: none;
+  }
+  .beat-section-header:hover { background: var(--bg-4); }
+  .beat-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .beat-section-hint {
+    font-size: 12px;
+    color: var(--text-faint);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .beat-section-body { padding: 18px; }
+  .beat-section.collapsed .beat-section-body { display: none; }
+  .beat-chevron { color: var(--text-faint); font-family: monospace; font-size: 14px; }
+
+  .breakdown-list { display: flex; flex-direction: column; gap: 12px; }
+  .breakdown-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--bg-2);
+    display: flex;
+    gap: 10px;
+  }
+  .breakdown-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--lime-soft);
+    color: var(--lime);
+    font-weight: 600;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .breakdown-fields { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .breakdown-fields input, .breakdown-fields textarea {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+  }
+  .breakdown-fields textarea { min-height: 60px; resize: vertical; }
+  .breakdown-fields label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; display: block; }
+
+  .terms-list { display: flex; flex-direction: column; gap: 10px; }
+  .term-row {
+    display: grid;
+    grid-template-columns: 180px 1fr 32px;
+    gap: 10px;
+    align-items: start;
+  }
+  .term-row input, .term-row textarea {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    width: 100%;
+  }
+  .term-row textarea { min-height: 38px; resize: vertical; line-height: 1.5; }
+
+  /* ---- Step 6 review ---------------------------------------------------- */
+  .check-card {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .check-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .check-row input[type="checkbox"] {
+    margin-top: 4px;
+    width: 18px; height: 18px;
+    accent-color: var(--lime);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .check-body { flex: 1; }
+  .check-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .check-hint { color: var(--text-dim); font-size: 13px; margin-bottom: 10px; }
+
+  .terms-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-2);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 10px 0;
+    font-size: 13px;
+  }
+  .terms-table th {
+    background: var(--bg-3);
+    color: var(--text-faint);
+    padding: 10px 12px;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .terms-table td {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .terms-table td:first-child { font-weight: 600; color: var(--lime); width: 200px; }
+  .terms-table td:last-child { color: var(--text-dim); }
+  .term-overlap { color: var(--lime); font-weight: 600; }
+
+  .pacing-display {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--lime);
+    letter-spacing: -0.02em;
+    margin: 6px 0 4px;
+  }
+  .pacing-warn { color: var(--legendary); }
+
+  /* ---- Step 7 output ---------------------------------------------------- */
+  .output-section {
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-section:last-child { border-bottom: none; }
+  .output-eyebrow {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--lime);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .output-section h3 { font-size: 20px; margin-bottom: 14px; letter-spacing: -0.01em; }
+  .output-section p { font-size: 16px; line-height: 1.65; color: var(--text); }
+  .output-section ul { padding-left: 22px; margin: 8px 0; }
+  .output-section li { margin-bottom: 8px; font-size: 16px; line-height: 1.55; }
+  .output-section li .why { color: var(--text-dim); font-size: 14px; display: block; margin-top: 4px; }
+  .output-section li .why::before { content: "Why: "; color: var(--lime); font-weight: 600; }
+
+  .glossary-box {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-left: 3px solid var(--lime);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+  }
+  .glossary-box h4 { margin-bottom: 12px; color: var(--lime); }
+  .glossary-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .glossary-list li { font-size: 14px; color: var(--text-dim); }
+  .glossary-list strong { color: var(--text); font-weight: 600; }
+
+  .output-section-meta {
+    font-size: 12px;
+    color: var(--text-faint);
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* ---- Home screen ------------------------------------------------------- */
+  .home-hero {
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-3));
+    border: 1px solid var(--border-hi);
+    border-radius: 16px;
+    padding: 40px 36px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .home-hero::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--lime);
+    transform: skewY(-3deg) translateY(-10px);
+  }
+  .home-hero h1 { font-size: 38px; letter-spacing: -0.025em; margin-bottom: 10px; }
+  .home-hero p { color: var(--text-dim); font-size: 16px; margin-bottom: 28px; max-width: 540px; }
+  .home-hero .btn { margin-right: 12px; }
+
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .home-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    cursor: pointer;
+    transition: border 0.12s, background 0.12s;
+    text-align: left;
+    color: var(--text);
+    font-family: inherit;
+    width: 100%;
+  }
+  .home-card:hover { border-color: var(--border-hi); background: var(--bg-3); }
+  .home-card-eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+  .home-card-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  .home-card-body { font-size: 13px; color: var(--text-dim); }
+
+  /* ---- Curriculum view --------------------------------------------------- */
+  .curr-list { display: flex; flex-direction: column; gap: 10px; }
+  .curr-item {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: border 0.12s, background 0.12s;
+    text-align: left;
+    color: var(--text);
+    font-family: inherit;
+    width: 100%;
+  }
+  .curr-item:hover { border-color: var(--border-hi); background: var(--bg-3); }
+  .curr-item-status {
+    flex-shrink: 0;
+    width: 76px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 600;
+  }
+  .status-draft { background: var(--bg-3); color: var(--text-dim); }
+  .status-recorded { background: var(--lime-soft); color: var(--lime); }
+  .status-published { background: var(--lime); color: var(--bg); }
+  .curr-item-body { flex: 1; min-width: 0; }
+  .curr-item-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .curr-item-meta { font-size: 12px; color: var(--text-faint); }
+
+  /* ---- Modal ------------------------------------------------------------ */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1000;
+  }
+  .modal {
+    background: var(--bg-2);
+    border: 1px solid var(--border-hi);
+    border-radius: 14px;
+    max-width: 480px;
+    width: 100%;
+    padding: 28px;
+  }
+  .modal h2 { margin-bottom: 8px; }
+  .modal p { color: var(--text-dim); margin-bottom: 18px; }
+  .char-counter {
+    font-size: 12px;
+    color: var(--text-faint);
+    text-align: right;
+    margin-top: 4px;
+  }
+  .char-counter.over { color: var(--legendary); }
+
+  /* ---- Toast / inline alerts -------------------------------------------- */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .alert-soft { background: var(--lime-soft); color: var(--lime); border: 1px solid rgba(199, 255, 61, 0.3); }
+  .alert-warn { background: var(--legendary-soft); color: var(--legendary); border: 1px solid rgba(245, 166, 35, 0.3); }
+
+  /* ---- Future lessons queue (Step 4 standard mode) ---------------------- */
+  .future-queue {
+    margin-top: 28px;
+    padding: 18px 20px;
+    background: var(--bg);
+    border: 1px dashed var(--border-hi);
+    border-radius: 10px;
+  }
+  .future-queue h4 { margin-bottom: 10px; color: var(--text); }
+  .future-queue ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .future-queue li { font-size: 14px; color: var(--text-dim); padding: 6px 0; border-top: 1px solid var(--border); }
+  .future-queue li:first-child { border-top: none; }
+
+  /* ---- Tablet responsive ------------------------------------------------ */
+  @media (max-width: 880px) {
+    .row { flex-direction: column; }
+    .rail {
+      width: 100%;
+      position: static;
+      margin-bottom: 12px;
+    }
+    .step-list { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 8px; }
+    .step-item { white-space: nowrap; padding: 8px 10px; font-size: 12px; }
+    .step-name { display: none; }
+    .step-item.current .step-name { display: inline; }
+    .home-grid { grid-template-columns: 1fr; }
+    .home-hero { padding: 28px 24px; }
+    .home-hero h1 { font-size: 28px; }
+    .term-row { grid-template-columns: 1fr; }
+  }
+
+  /* ---- Print ------------------------------------------------------------ */
+  @media print {
+    :root {
+      --bg: #ffffff;
+      --bg-2: #ffffff;
+      --bg-3: #f4f5f7;
+      --text: #111;
+      --text-dim: #333;
+      --text-faint: #555;
+      --border: #ddd;
+      --border-hi: #aaa;
+      --lime: #2a7800;
+    }
+    body { background: #fff; color: #111; font-size: 14px; }
+    .topbar, .rail, .topbar-meta, .btn-row, .step-list, .modal-backdrop { display: none !important; }
+    .row { display: block; }
+    .shell { padding: 0; max-width: 100%; }
+    .card { border: none; padding: 0; margin: 0; background: transparent; }
+    .output-section { page-break-inside: avoid; border-color: #ddd; }
+    .glossary-box { background: #f4f5f7; border-color: #aaa; }
+    h1, h2, h3, h4 { color: #111; }
+    a { color: #2a7800; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+"use strict";
+
+// ===========================================================================
+// State management
+// ===========================================================================
+
+const STORAGE_KEY = "coachKeyedPlanner";
+const SCHEMA_VERSION = 1;
+const RETRO_CHAR_CAP = 280;
+
+const DEFAULT_BEAT_SHEET = {
+  hook: "",
+  goal: "",
+  demonstration: "",
+  breakdown: [{ bullet: "", why: "" }],
+  commonMistake: "",
+  practiceSetup: "",
+  summary: "",
+  outro: "",
+};
+
+const BEAT_SECTIONS = [
+  { key: "hook", title: "Hook", hint: 'One sentence that grabs attention. "What if you could ___?"' },
+  { key: "goal", title: "Goal", hint: '"Today I\'ll teach you ___. By the end you\'ll know how to ___."' },
+  { key: "demonstration", title: "Demonstration", hint: "Notes on the clip to show. What to point to. When to pause." },
+  { key: "breakdown", title: "Breakdown", hint: "3 to 5 bullets explaining what's happening and why." },
+  { key: "commonMistake", title: "Common Mistake", hint: "What beginners do wrong, and why the right way is better." },
+  { key: "practiceSetup", title: "Practice Setup", hint: "How to practice this in Creative mode." },
+  { key: "summary", title: "Summary", hint: "2 to 3 bullets restating the key idea." },
+  { key: "outro", title: "Outro", hint: 'Short and clean. "Next lesson: ___."' },
+];
+
+function defaultState() {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    currentLessonId: null,
+    currentView: "home",
+    currentStep: 1,
+    collapsedSections: {},
+    pendingRetrospectives: [],
+    lessons: {},
+    curriculum: [],
+    futureLessons: [],
+    lastSavedAt: null,
+  };
+}
+
+function defaultLesson(id, opts = {}) {
+  const now = Date.now();
+  return {
+    id,
+    title: opts.title || "",
+    status: "draft",
+    seriesId: opts.seriesId || null,
+    seriesRole: opts.seriesRole || null, // 'first' | 'middle' | 'capstone'
+    roughDraft: opts.roughDraft || "",
+    watchNotes: { clipDescription: "", mainGoal: "" },
+    identifyList: [
+      { id: uid(), name: "", description: "" },
+      { id: uid(), name: "", description: "" },
+    ],
+    isCapstone: false,
+    dependencyAnswered: false,
+    narrowChoice: null,
+    curriculumOrder: null,
+    assumesPrerequisites: false,
+    beatSheet: clone(DEFAULT_BEAT_SHEET),
+    terms: [{ word: "", definition: "" }],
+    reviewChecks: { oneIdea: false, definitions: false, why: false, pacing: false },
+    retrospectives: [],
+    createdAt: now,
+    updatedAt: now,
+    recordedAt: null,
+    completedAt: null,
+  };
+}
+
+let state = loadState();
+let saveTimer = null;
+let inputDebounceTimer = null;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    if (parsed.schemaVersion !== SCHEMA_VERSION) {
+      console.warn("Schema version mismatch, starting fresh");
+      return defaultState();
+    }
+    return parsed;
+  } catch (e) {
+    console.error("Failed to load state, starting fresh", e);
+    return defaultState();
+  }
+}
+
+function saveState() {
+  state.lastSavedAt = Date.now();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error("Save failed", e);
+  }
+}
+
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveState, 250);
+}
+
+function setState(updater, opts = {}) {
+  if (typeof updater === "function") updater(state);
+  else Object.assign(state, updater);
+  if (opts.skipSave !== true) saveState();
+  if (opts.rerender !== false) render();
+}
+
+function clone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function uid() {
+  return "l_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function currentLesson() {
+  if (!state.currentLessonId) return null;
+  return state.lessons[state.currentLessonId] || null;
+}
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function lessonTitle(lesson) {
+  if (!lesson) return "Untitled lesson";
+  if (lesson.title) return lesson.title;
+  const goal = lesson.watchNotes && lesson.watchNotes.mainGoal && lesson.watchNotes.mainGoal.trim();
+  if (goal) return goal.slice(0, 60);
+  if (lesson.seriesRole === "capstone") return "Putting It All Together";
+  return "Untitled lesson";
+}
+
+// ===========================================================================
+// Step gating
+// ===========================================================================
+
+function step1Complete(lesson) {
+  return !!(lesson.roughDraft && lesson.roughDraft.trim().length > 0);
+}
+function step2Complete(lesson) {
+  const wn = lesson.watchNotes || {};
+  return !!(wn.clipDescription && wn.clipDescription.trim() && wn.mainGoal && wn.mainGoal.trim());
+}
+function step3Complete(lesson) {
+  const items = (lesson.identifyList || []).filter((it) => it.name && it.name.trim());
+  return items.length >= 2 && lesson.dependencyAnswered === true;
+}
+function step4Complete(lesson) {
+  if (lesson.isCapstone) {
+    return Array.isArray(lesson.curriculumOrder) && lesson.curriculumOrder.length >= 2;
+  }
+  return !!lesson.narrowChoice;
+}
+function step5Complete(lesson) {
+  const bs = lesson.beatSheet || {};
+  const hasAllText =
+    bs.hook && bs.goal && bs.demonstration && bs.commonMistake &&
+    bs.practiceSetup && bs.summary && bs.outro;
+  const hasBreakdown = (bs.breakdown || []).some((b) => b.bullet && b.bullet.trim());
+  const hasTerms = (lesson.terms || []).some((t) => t.word && t.word.trim() && t.definition && t.definition.trim());
+  return !!(hasAllText && hasBreakdown && hasTerms);
+}
+function step6Complete(lesson) {
+  const c = lesson.reviewChecks || {};
+  return c.oneIdea && c.definitions && c.why && c.pacing;
+}
+function step7Available(lesson) {
+  return step6Complete(lesson);
+}
+
+function maxAccessibleStep(lesson) {
+  if (!lesson) return 1;
+  if (!step1Complete(lesson)) return 1;
+  if (!step2Complete(lesson)) return 2;
+  if (!step3Complete(lesson)) return 3;
+  if (!step4Complete(lesson)) return 4;
+  if (!step5Complete(lesson)) return 5;
+  if (!step6Complete(lesson)) return 6;
+  return 7;
+}
+
+// ===========================================================================
+// Word count + read time
+// ===========================================================================
+
+function wordCount(text) {
+  if (!text) return 0;
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function readMinutes(lesson) {
+  const bs = lesson.beatSheet || {};
+  let words = 0;
+  ["hook", "goal", "demonstration", "commonMistake", "practiceSetup", "summary", "outro"].forEach((k) => {
+    words += wordCount(bs[k]);
+  });
+  (bs.breakdown || []).forEach((b) => {
+    words += wordCount(b.bullet) + wordCount(b.why);
+  });
+  (lesson.terms || []).forEach((t) => {
+    words += wordCount(t.definition);
+  });
+  // Spoken WPM ~150; bullets read aloud trend faster so × 1.3 multiplier.
+  const wpm = 150;
+  return Math.max(0.5, (words / wpm) * 1.3);
+}
+
+// ===========================================================================
+// Terms table for Step 6
+// ===========================================================================
+
+function termsWithOverlap(lesson) {
+  const terms = (lesson.terms || []).filter((t) => t.word && t.word.trim());
+  const definedWords = terms.map((t) => t.word.trim().toLowerCase());
+  return terms.map((t) => {
+    const def = (t.definition || "").toLowerCase();
+    const overlaps = definedWords.filter(
+      (w) => w !== t.word.trim().toLowerCase() && def.includes(w),
+    );
+    return { word: t.word.trim(), definition: t.definition || "", overlaps };
+  });
+}
+
+// ===========================================================================
+// Render: top bar + shell
+// ===========================================================================
+
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = renderShell();
+  attachHandlers();
+  // Show retrospective modal if pending and we just landed on home.
+  if (state.currentView === "home" && state.pendingRetrospectives.length > 0) {
+    maybeShowRetrospectiveModal();
+  }
+}
+
+function renderShell() {
+  let main = "";
+  if (state.currentView === "home") main = renderHome();
+  else if (state.currentView === "lesson") main = renderLessonView();
+  else if (state.currentView === "curriculum") main = renderCurriculumView();
+  else if (state.currentView === "journal") main = renderJournalView();
+
+  return `
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">COACH KEYED'S LESSON PLANNER</div>
+        <div class="brand-tag">Turn your rough drafts into real lessons.</div>
+      </div>
+      <div class="topbar-meta">
+        ${state.currentView !== "home" ? `<button data-action="goto-home">Home</button>` : ""}
+      </div>
+    </div>
+    <div class="shell">${main}</div>
+  `;
+}
+
+// ===========================================================================
+// Home view
+// ===========================================================================
+
+function renderHome() {
+  const inProgress = currentLesson();
+  const inProgressIncomplete = inProgress && maxAccessibleStep(inProgress) < 7;
+
+  // Next-up logic: in-progress wins, else first pending from curriculum,
+  // else first item in futureLessons (which is a queue of names, not full lessons).
+  let primaryCTA = "";
+  if (inProgressIncomplete) {
+    primaryCTA = `
+      <button class="btn btn-primary" data-action="resume-lesson">
+        Continue ${escapeHtml(lessonTitle(inProgress))}
+      </button>
+      <button class="btn btn-ghost" data-action="start-new" data-confirm-new>Start a different lesson</button>
+    `;
+  } else {
+    const nextSeriesLessonId = state.curriculum.find((id) => {
+      const l = state.lessons[id];
+      return l && l.status === "draft" && l.id !== state.currentLessonId;
+    });
+    const nextFromQueue = state.futureLessons[0] || null;
+    if (nextSeriesLessonId) {
+      const nl = state.lessons[nextSeriesLessonId];
+      primaryCTA = `
+        <button class="btn btn-primary" data-action="open-lesson" data-lesson-id="${nl.id}">
+          Next up: ${escapeHtml(lessonTitle(nl))}
+        </button>
+        <button class="btn btn-ghost" data-action="start-new">Start a different lesson</button>
+      `;
+    } else if (nextFromQueue) {
+      primaryCTA = `
+        <button class="btn btn-primary" data-action="start-from-queue">
+          Next up: ${escapeHtml(nextFromQueue.name)}
+        </button>
+        <button class="btn btn-ghost" data-action="start-new">Start a different lesson</button>
+      `;
+    } else {
+      primaryCTA = `<button class="btn btn-primary" data-action="start-new">Start a new lesson</button>`;
+    }
+  }
+
+  const lessonCount = Object.keys(state.lessons).length;
+  const allRetros = collectAllRetrospectives();
+  const showJournalCard = allRetros.length >= 3;
+
+  return `
+    <div class="home-hero">
+      <h1>What are you teaching today?</h1>
+      <p>This tool helps you turn a rough draft into a clean beat sheet you can record from. Bullets, not scripts. You stay in your voice.</p>
+      ${primaryCTA}
+    </div>
+    <div class="home-grid">
+      <button class="home-card" data-action="goto-curriculum">
+        <div class="home-card-eyebrow">Curriculum</div>
+        <div class="home-card-title">${lessonCount === 0 ? "No lessons yet" : lessonCount + " lesson" + (lessonCount === 1 ? "" : "s")}</div>
+        <div class="home-card-body">${lessonCount === 0 ? "Your library shows up here as you build it." : "Open any lesson to view or edit its beat sheet."}</div>
+      </button>
+      ${
+        showJournalCard
+          ? `
+        <button class="home-card" data-action="goto-journal">
+          <div class="home-card-eyebrow">Coaching journal</div>
+          <div class="home-card-title">${allRetros.length} note${allRetros.length === 1 ? "" : "s"}</div>
+          <div class="home-card-body">What you noticed after recording. Patterns show up over time.</div>
+        </button>
+      `
+          : ""
+      }
+    </div>
+  `;
+}
+
+function collectAllRetrospectives() {
+  const all = [];
+  Object.values(state.lessons).forEach((l) => {
+    (l.retrospectives || []).forEach((r) => {
+      all.push({ ...r, lessonId: l.id, lessonTitle: lessonTitle(l) });
+    });
+  });
+  all.sort((a, b) => b.date - a.date);
+  return all;
+}
+
+// ===========================================================================
+// Lesson view (the 7-step workflow)
+// ===========================================================================
+
+function renderLessonView() {
+  const lesson = currentLesson();
+  if (!lesson) {
+    return `<p>Lesson not found. <button class="btn" data-action="goto-home">Go home</button></p>`;
+  }
+  const step = state.currentStep;
+  const maxStep = maxAccessibleStep(lesson);
+
+  return `
+    <div class="row">
+      <aside class="rail">
+        <div class="rail-title">Lesson</div>
+        ${renderStepList(lesson, step, maxStep)}
+      </aside>
+      <div class="main">
+        ${renderStepBody(lesson, step)}
+      </div>
+    </div>
+  `;
+}
+
+const STEP_LABELS = [
+  "Rough draft",
+  "Watch",
+  "Identify",
+  "Narrow",
+  "Write",
+  "Review",
+  "Re-record",
+];
+
+function renderStepList(lesson, currentStep, maxStep) {
+  return `
+    <ul class="step-list">
+      ${STEP_LABELS.map((label, i) => {
+        const n = i + 1;
+        const done = n < currentStep && (n < maxStep || n === maxStep);
+        const isCurrent = n === currentStep;
+        const accessible = n <= maxStep;
+        const cls = [
+          "step-item",
+          isCurrent ? "current" : "",
+          done && !isCurrent ? "done" : "",
+          accessible && !isCurrent ? "clickable" : "",
+        ].filter(Boolean).join(" ");
+        const dataAttr = accessible && !isCurrent ? `data-action="goto-step" data-step="${n}"` : "";
+        return `
+          <li class="${cls}" ${dataAttr}>
+            <span class="step-num">${done && !isCurrent ? "✓" : n}</span>
+            <span class="step-name">${label}</span>
+          </li>
+        `;
+      }).join("")}
+    </ul>
+  `;
+}
+
+function renderStepBody(lesson, step) {
+  if (step === 1) return renderStep1(lesson);
+  if (step === 2) return renderStep2(lesson);
+  if (step === 3) return renderStep3(lesson);
+  if (step === 4) return renderStep4(lesson);
+  if (step === 5) return renderStep5(lesson);
+  if (step === 6) return renderStep6(lesson);
+  if (step === 7) return renderStep7(lesson);
+  return "";
+}
+
+// ---------- Step 1: Rough Draft ----------
+function renderStep1(lesson) {
+  const canAdvance = step1Complete(lesson);
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 1 of 7</div>
+      <h2 class="card-title">Your rough draft</h2>
+      <p class="card-hint">What did you cover in your rough draft? Paste a transcript if you have one, or just bullet-point what you said. Doesn't need to be perfect. You just need enough raw material to look at and analyze.</p>
+      <textarea class="field-textarea tall" data-field="roughDraft" placeholder="Paste transcript or list bullets of what you said in the rough draft...">${escapeHtml(lesson.roughDraft)}</textarea>
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" data-action="goto-home">Save and go home</button>
+        <button class="btn btn-primary" data-action="next-step" ${canAdvance ? "" : "disabled"}>Lock it in</button>
+      </div>
+    </div>
+  `;
+}
+
+// ---------- Step 2: Watch ----------
+function renderStep2(lesson) {
+  const canAdvance = step2Complete(lesson);
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 2 of 7</div>
+      <h2 class="card-title">Read your rough draft back. Out loud is better.</h2>
+      <p class="card-hint">Then answer the two questions below. Hearing your own words back makes the next steps a lot easier.</p>
+      <div class="field">
+        <label class="field-label">What clip is this lesson about? What happened in the gameplay?</label>
+        <textarea class="field-textarea small" data-field="watchNotes.clipDescription" placeholder="Example: I won a 1v1 in Zero Build by holding pressure on the right side and forcing the other guy off the high ground.">${escapeHtml(lesson.watchNotes.clipDescription)}</textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">What's the main thing you were trying to teach?</label>
+        <input class="field-input" type="text" data-field="watchNotes.mainGoal" placeholder="Example: How to use diagonal pressure to win a 1v1." value="${escapeHtml(lesson.watchNotes.mainGoal)}" maxlength="120" />
+      </div>
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" data-action="prev-step">Back</button>
+        <button class="btn btn-primary" data-action="next-step" ${canAdvance ? "" : "disabled"}>Lock it in</button>
+      </div>
+    </div>
+  `;
+}
+
+// ---------- Step 3: Identify ----------
+function renderStep3(lesson) {
+  const items = lesson.identifyList || [];
+  const namedItems = items.filter((it) => it.name && it.name.trim());
+  const showDependency = namedItems.length >= 2;
+  const canAdvance = step3Complete(lesson);
+
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 3 of 7</div>
+      <h2 class="card-title">List every separate thing you ended up teaching.</h2>
+      <p class="card-hint">Look at your rough draft. Be honest. Most rough drafts end up teaching more than one thing. Name each one — short title plus a one-line description if you want.</p>
+      <div class="identify-list">
+        ${items.map((item, idx) => `
+          <div class="identify-item">
+            <div class="identify-item-num">${idx + 1}</div>
+            <div class="identify-item-body">
+              <input class="identify-name-input" type="text" placeholder="Skill name (e.g., Diagonal Pressure)" value="${escapeHtml(item.name)}" data-identify-name="${item.id}" maxlength="80" />
+              <input class="identify-desc-input" type="text" placeholder="One-line description (optional)" value="${escapeHtml(item.description)}" data-identify-desc="${item.id}" maxlength="120" />
+            </div>
+            <div class="identify-item-actions">
+              <button class="arrow-btn" data-action="identify-up" data-id="${item.id}" ${idx === 0 ? "disabled" : ""} aria-label="Move up">↑</button>
+              <button class="arrow-btn" data-action="identify-down" data-id="${item.id}" ${idx === items.length - 1 ? "disabled" : ""} aria-label="Move down">↓</button>
+              ${items.length > 2 ? `<button class="x-btn" data-action="identify-remove" data-id="${item.id}" aria-label="Remove">×</button>` : ""}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+      <button class="btn btn-ghost btn-tiny" data-action="identify-add">+ Add another</button>
+
+      ${showDependency ? renderDependencyQuestion(lesson) : `<p class="field-hint" style="margin-top:14px;">Add at least 2 items to see the next question.</p>`}
+
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" data-action="prev-step">Back</button>
+        <button class="btn btn-primary" data-action="next-step" ${canAdvance ? "" : "disabled"}>Lock it in</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderDependencyQuestion(lesson) {
+  // Resolved-from-review: lead with the concrete wording. Easier to point
+  // at than "could a beginner understand." If Tim gets stuck on this, the
+  // fallback abstract phrasing can replace it.
+  const answered = lesson.dependencyAnswered;
+  const isCapstone = lesson.isCapstone;
+  return `
+    <div class="dep-question">
+      <h4>One last question</h4>
+      <p>Look at your list. Does the first item use words or ideas from the other items?</p>
+      <div class="btn-row">
+        <button class="btn ${answered && !isCapstone ? "btn-primary" : ""}" data-action="dep-independent">No. These are independent skills.</button>
+        <button class="btn ${answered && isCapstone ? "btn-primary" : ""}" data-action="dep-dependent">Yes. They build on each other.</button>
+      </div>
+      ${answered ? `<p class="field-hint" style="margin-top:10px;">${isCapstone ? "Capstone mode: you'll build a series." : "Standard mode: you'll pick one and save the rest for later."}</p>` : ""}
+    </div>
+  `;
+}
+
+// ---------- Step 4: Narrow ----------
+function renderStep4(lesson) {
+  const items = (lesson.identifyList || []).filter((it) => it.name && it.name.trim());
+  if (lesson.isCapstone) return renderStep4Capstone(lesson, items);
+  return renderStep4Standard(lesson, items);
+}
+
+function renderStep4Standard(lesson, items) {
+  const chosen = lesson.narrowChoice;
+  const canAdvance = !!chosen;
+  const unchosen = items.filter((it) => it.id !== chosen);
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 4 of 7</div>
+      <h2 class="card-title">Pick ONE skill to teach in this video.</h2>
+      <p class="card-hint">The others get saved as future lessons. One idea per video is the rule. You can come back and make the others next.</p>
+      <div class="narrow-options">
+        ${items.map((item) => `
+          <button class="narrow-option" data-action="narrow-choose" data-id="${item.id}" style="${chosen === item.id ? "border-color: var(--lime); background: var(--lime-soft);" : ""}">
+            <span class="narrow-option-name">${escapeHtml(item.name)} ${chosen === item.id ? "✓" : ""}</span>
+            ${item.description ? `<span class="narrow-option-desc">${escapeHtml(item.description)}</span>` : ""}
+          </button>
+        `).join("")}
+      </div>
+      ${chosen && unchosen.length > 0 ? `
+        <div class="future-queue">
+          <h4>Saved for later</h4>
+          <ul>
+            ${unchosen.map((it) => `<li>${escapeHtml(it.name)}${it.description ? ` — ${escapeHtml(it.description)}` : ""}</li>`).join("")}
+          </ul>
+          <p class="field-hint" style="margin-top:10px;">These show up on your home screen as "next up" when you're ready.</p>
+        </div>
+      ` : ""}
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" data-action="prev-step">Back</button>
+        <button class="btn btn-primary" data-action="next-step" ${canAdvance ? "" : "disabled"}>Lock it in</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderStep4Capstone(lesson, items) {
+  const order = lesson.curriculumOrder || items.map((it) => it.id);
+  // Make sure curriculumOrder stays in sync with items (defensive).
+  if (!lesson.curriculumOrder) {
+    lesson.curriculumOrder = items.map((it) => it.id);
+    scheduleSave();
+  }
+  const orderedItems = order.map((id) => items.find((it) => it.id === id)).filter(Boolean);
+  const N = orderedItems.length;
+  const canAdvance = N >= 2;
+
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 4 of 7 · Capstone mode</div>
+      <h2 class="card-title">Put them in teaching order.</h2>
+      <p class="card-hint">Which one would a beginner need to learn first? Use the arrows to set the order.</p>
+      <div class="identify-list">
+        ${orderedItems.map((item, idx) => `
+          <div class="identify-item">
+            <div class="identify-item-num">${idx + 1}</div>
+            <div class="identify-item-body">
+              <div style="font-weight:600;font-size:15px;">${escapeHtml(item.name)}</div>
+              ${item.description ? `<div style="font-size:13px;color:var(--text-dim);">${escapeHtml(item.description)}</div>` : ""}
+            </div>
+            <div class="identify-item-actions">
+              <button class="arrow-btn" data-action="capstone-up" data-id="${item.id}" ${idx === 0 ? "disabled" : ""} aria-label="Move up">↑</button>
+              <button class="arrow-btn" data-action="capstone-down" data-id="${item.id}" ${idx === N - 1 ? "disabled" : ""} aria-label="Move down">↓</button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="capstone-reveal">
+        <h3>You just designed a ${N + 1}-part series.</h3>
+        <ul class="capstone-list">
+          ${orderedItems.map((it, idx) => `
+            <li>
+              <span class="capstone-list-num">LESSON ${idx + 1}</span>
+              <span class="capstone-list-name">${escapeHtml(it.name)}</span>
+              <span class="capstone-list-tag">${idx === 0 ? "foundation" : `builds on lesson ${idx}`}</span>
+            </li>
+          `).join("")}
+          <li>
+            <span class="capstone-list-num">LESSON ${N + 1}</span>
+            <span class="capstone-list-name">Putting it all together</span>
+            <span class="capstone-list-tag">your original rough draft, re-recorded</span>
+          </li>
+        </ul>
+        <p style="color:var(--text-dim); font-size:14px;">The planner will help you make Lesson 1 first. The rest are saved to your curriculum. When you finish each one, come back and the planner is ready for the next.</p>
+      </div>
+
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" data-action="prev-step">Back</button>
+        <button class="btn btn-primary" data-action="capstone-start-lesson-1" ${canAdvance ? "" : "disabled"}>Start Lesson 1</button>
+      </div>
+    </div>
+  `;
+}
+
+// ---------- Step 5: Write ----------
+function renderStep5(lesson) {
+  const canAdvance = step5Complete(lesson);
+  const collapsed = state.collapsedSections || {};
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 5 of 7</div>
+      <h2 class="card-title">Build your beat sheet.</h2>
+      <p class="card-hint">Bullets, not sentences. You're a coach — you talk in your own voice from the bullets. Click any section to collapse it.</p>
+
+      ${BEAT_SECTIONS.map((sec) => renderBeatSection(lesson, sec, collapsed[sec.key])).join("")}
+
+      ${renderTermsSection(lesson, collapsed.__terms)}
+
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" data-action="prev-step">Back</button>
+        <button class="btn btn-primary" data-action="next-step" ${canAdvance ? "" : "disabled"}>Lock it in</button>
+      </div>
+      ${!canAdvance ? `<p class="field-hint" style="margin-top:6px;">Every section needs content, the breakdown needs at least one bullet, and you need at least one term defined.</p>` : ""}
+    </div>
+  `;
+}
+
+function renderBeatSection(lesson, sec, isCollapsed) {
+  const cls = "beat-section" + (isCollapsed ? " collapsed" : "");
+  const chevron = isCollapsed ? "+" : "−";
+  let body = "";
+  if (sec.key === "breakdown") {
+    const items = lesson.beatSheet.breakdown || [];
+    body = `
+      <div class="breakdown-list">
+        ${items.map((item, idx) => `
+          <div class="breakdown-item">
+            <div class="breakdown-num">${idx + 1}</div>
+            <div class="breakdown-fields">
+              <div>
+                <label>Bullet</label>
+                <input type="text" value="${escapeHtml(item.bullet)}" data-breakdown-bullet="${idx}" placeholder="What's happening in this beat." />
+              </div>
+              <div>
+                <label>Why does this work?</label>
+                <textarea data-breakdown-why="${idx}" placeholder="The reason this works, not just what it is.">${escapeHtml(item.why)}</textarea>
+              </div>
+              ${items.length > 1 ? `<button class="btn btn-ghost btn-tiny" data-action="breakdown-remove" data-idx="${idx}" style="align-self: flex-start;">Remove</button>` : ""}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+      <button class="btn btn-ghost btn-tiny" data-action="breakdown-add" style="margin-top:10px;">+ Add bullet</button>
+    `;
+  } else {
+    body = `<textarea class="field-textarea small" data-field="beatSheet.${sec.key}" placeholder="${escapeHtml(sec.hint)}">${escapeHtml(lesson.beatSheet[sec.key])}</textarea>`;
+  }
+
+  return `
+    <div class="${cls}">
+      <div class="beat-section-header" data-action="toggle-section" data-section="${sec.key}">
+        <div>
+          <div class="beat-section-title">${escapeHtml(sec.title)}</div>
+          <div class="beat-section-hint">${escapeHtml(sec.hint)}</div>
+        </div>
+        <span class="beat-chevron">${chevron}</span>
+      </div>
+      <div class="beat-section-body">${body}</div>
+    </div>
+  `;
+}
+
+function renderTermsSection(lesson, isCollapsed) {
+  const cls = "beat-section" + (isCollapsed ? " collapsed" : "");
+  const chevron = isCollapsed ? "+" : "−";
+  const terms = lesson.terms || [];
+  return `
+    <div class="${cls}">
+      <div class="beat-section-header" data-action="toggle-section" data-section="__terms">
+        <div>
+          <div class="beat-section-title">Terms to Define</div>
+          <div class="beat-section-hint">Every Fortnite word a beginner might not know. One line per definition. Required.</div>
+        </div>
+        <span class="beat-chevron">${chevron}</span>
+      </div>
+      <div class="beat-section-body">
+        <div class="terms-list">
+          ${terms.map((t, idx) => `
+            <div class="term-row">
+              <input type="text" placeholder="Term (e.g. tunneling)" value="${escapeHtml(t.word)}" data-term-word="${idx}" maxlength="60" />
+              <textarea placeholder="Beginner-friendly definition, one line." data-term-def="${idx}">${escapeHtml(t.definition)}</textarea>
+              ${terms.length > 1 ? `<button class="x-btn" data-action="term-remove" data-idx="${idx}" aria-label="Remove">×</button>` : `<span></span>`}
+            </div>
+          `).join("")}
+        </div>
+        <button class="btn btn-ghost btn-tiny" data-action="term-add" style="margin-top:10px;">+ Add term</button>
+      </div>
+    </div>
+  `;
+}
+
+// ---------- Step 6: Review ----------
+function renderStep6(lesson) {
+  const checks = lesson.reviewChecks || {};
+  const termRows = termsWithOverlap(lesson);
+  const definedSet = new Set(termRows.map((t) => t.word.toLowerCase()));
+  const minutes = readMinutes(lesson);
+  const overTime = minutes > 5;
+  const canAdvance = step6Complete(lesson);
+
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 6 of 7</div>
+      <h2 class="card-title">Look it over before you record.</h2>
+      <p class="card-hint">The tool surfaces patterns. You decide what to do with them.</p>
+
+      <div class="check-card">
+        <div class="check-row">
+          <input type="checkbox" data-check="oneIdea" ${checks.oneIdea ? "checked" : ""} id="check-oneIdea" />
+          <div class="check-body">
+            <label for="check-oneIdea" class="check-title">One idea?</label>
+            <div class="check-hint">Does this video teach ONE thing, or did multiple things sneak back in?</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-card">
+        <div class="check-row">
+          <input type="checkbox" data-check="definitions" ${checks.definitions ? "checked" : ""} id="check-definitions" />
+          <div class="check-body">
+            <label for="check-definitions" class="check-title">Beginner-friendly definitions?</label>
+            <div class="check-hint">Look at the overlaps. If you defined a term using another term you also defined, a beginner might be lost. That's fine — just decide if this lesson assumes earlier lessons, or if you should reword.</div>
+            ${termRows.length === 0 ? `<p class="field-hint">No terms defined.</p>` : `
+              <table class="terms-table">
+                <thead><tr><th>Terms you defined</th><th>Words used inside your definitions</th></tr></thead>
+                <tbody>
+                  ${termRows.map((t) => {
+                    // Split the definition into rough words. Highlight any
+                    // word (or multi-word phrase) that matches another term
+                    // you defined — that's the lesson-prereq signal.
+                    const defLower = t.definition.toLowerCase();
+                    const tokens = defLower
+                      .split(/[\\s.,;:!?()"]+/)
+                      .map((w) => w.trim())
+                      .filter((w) => w.length > 2);
+                    const seen = new Set();
+                    const display = [];
+                    // First pass: flag overlapping defined terms (multi-word
+                    // included via substring match on the full definition).
+                    termRows.forEach((other) => {
+                      if (other.word.toLowerCase() === t.word.toLowerCase()) return;
+                      const ow = other.word.toLowerCase();
+                      if (defLower.includes(ow) && !seen.has(ow)) {
+                        seen.add(ow);
+                        display.push(`<span class="term-overlap">${escapeHtml(other.word)}</span>`);
+                      }
+                    });
+                    // Second pass: a few other content words for context.
+                    let extras = 0;
+                    for (const w of tokens) {
+                      if (seen.has(w)) continue;
+                      seen.add(w);
+                      if (extras >= 8) break;
+                      display.push(escapeHtml(w));
+                      extras++;
+                    }
+                    return `<tr><td>${escapeHtml(t.word)}</td><td>${display.join(", ") || "<em style='color:var(--text-faint)'>(none)</em>"}</td></tr>`;
+                  }).join("")}
+                </tbody>
+              </table>
+              <div class="btn-row" style="margin-top:10px;">
+                <button class="btn btn-ghost btn-tiny" data-action="goto-step" data-step="5">I'll revise</button>
+                <button class="btn btn-ghost btn-tiny ${lesson.assumesPrerequisites ? "" : ""}" data-action="toggle-assumes-prereq" style="${lesson.assumesPrerequisites ? "border-color: var(--lime); color: var(--lime);" : ""}">${lesson.assumesPrerequisites ? "✓ Assumes prerequisites" : "This lesson assumes prerequisites — that's fine"}</button>
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+
+      <div class="check-card">
+        <div class="check-row">
+          <input type="checkbox" data-check="why" ${checks.why ? "checked" : ""} id="check-why" />
+          <div class="check-body">
+            <label for="check-why" class="check-title">Why, not just what?</label>
+            <div class="check-hint">For each mechanic, did you explain why it works, not just what it is?</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-card">
+        <div class="check-row">
+          <input type="checkbox" data-check="pacing" ${checks.pacing ? "checked" : ""} id="check-pacing" />
+          <div class="check-body">
+            <label for="check-pacing" class="check-title">Pacing reasonable?</label>
+            <div class="pacing-display ${overTime ? "pacing-warn" : ""}">${minutes.toFixed(1)} min</div>
+            <div class="check-hint">${overTime ? "That's a long one. Consider trimming the bullets — five minutes is usually the right ceiling for a focused lesson." : "Estimated read-time based on the bullets. Calibration multiplier is tunable after a few real recordings."}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" data-action="prev-step">Back</button>
+        <button class="btn btn-primary" data-action="next-step" ${canAdvance ? "" : "disabled"}>I'm ready to record</button>
+      </div>
+    </div>
+  `;
+}
+
+// ---------- Step 7: Re-record (Output) ----------
+function renderStep7(lesson) {
+  const bs = lesson.beatSheet;
+  const minutes = readMinutes(lesson);
+  const terms = (lesson.terms || []).filter((t) => t.word && t.definition);
+  const isInSeries = !!lesson.seriesId;
+  const nextInSeries = isInSeries
+    ? state.curriculum.find((id) => {
+        const l = state.lessons[id];
+        return l && l.seriesId === lesson.seriesId && l.status === "draft" && l.id !== lesson.id;
+      })
+    : null;
+
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Step 7 of 7</div>
+      <h2 class="card-title">Your beat sheet.</h2>
+      <p class="card-hint">Print it, copy it, or read it from this screen. Stay in your voice — you're talking from bullets, not reading a script.</p>
+      <div class="btn-row">
+        <button class="btn" data-action="print">Print</button>
+        <button class="btn" data-action="copy-clipboard">Copy to clipboard</button>
+        <button class="btn ${lesson.status === "recorded" ? "btn-primary" : ""}" data-action="mark-recorded">${lesson.status === "recorded" ? "✓ Marked as recorded" : "Mark as recorded"}</button>
+      </div>
+    </div>
+
+    <div class="card" id="beat-sheet-output">
+      <h2 style="font-size:26px;margin-bottom:6px;">${escapeHtml(lessonTitle(lesson))}</h2>
+      <p style="color:var(--text-faint);font-size:13px;margin-bottom:24px;">Estimated read-time: ${minutes.toFixed(1)} min · ${terms.length} term${terms.length === 1 ? "" : "s"} defined</p>
+
+      ${terms.length > 0 ? `
+        <div class="glossary-box">
+          <h4>Glossary</h4>
+          <ul class="glossary-list">
+            ${terms.map((t) => `<li><strong>${escapeHtml(t.word)}.</strong> ${escapeHtml(t.definition)}</li>`).join("")}
+          </ul>
+        </div>
+      ` : ""}
+
+      ${renderOutputSection("Hook", bs.hook, wordCount(bs.hook))}
+      ${renderOutputSection("Goal", bs.goal, wordCount(bs.goal))}
+      ${renderOutputSection("Demonstration", bs.demonstration, wordCount(bs.demonstration))}
+
+      <div class="output-section">
+        <div class="output-eyebrow"><span>Breakdown</span><span class="output-section-meta">${bs.breakdown.length} beat${bs.breakdown.length === 1 ? "" : "s"}</span></div>
+        <ul>
+          ${bs.breakdown.filter((b) => b.bullet && b.bullet.trim()).map((b) => `
+            <li>
+              ${escapeHtml(b.bullet)}
+              ${b.why && b.why.trim() ? `<span class="why">${escapeHtml(b.why)}</span>` : ""}
+            </li>
+          `).join("")}
+        </ul>
+      </div>
+
+      ${renderOutputSection("Common mistake", bs.commonMistake, wordCount(bs.commonMistake))}
+      ${renderOutputSection("Practice setup", bs.practiceSetup, wordCount(bs.practiceSetup))}
+      ${renderOutputSection("Summary", bs.summary, wordCount(bs.summary))}
+      ${renderOutputSection("Outro", bs.outro, wordCount(bs.outro))}
+    </div>
+
+    <div class="btn-row spread">
+      <div>
+        <button class="btn btn-ghost" data-action="prev-step">Back to review</button>
+        <button class="btn btn-ghost" data-action="goto-step" data-step="5">Edit the bullets</button>
+      </div>
+      <div>
+        ${nextInSeries ? `<button class="btn btn-primary" data-action="open-lesson" data-lesson-id="${nextInSeries}">Start next lesson in series →</button>` : ""}
+        <button class="btn btn-primary" data-action="save-finish">Save and finish</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderOutputSection(title, body, words) {
+  return `
+    <div class="output-section">
+      <div class="output-eyebrow"><span>${escapeHtml(title)}</span><span class="output-section-meta">${words} word${words === 1 ? "" : "s"}</span></div>
+      <p>${escapeHtml(body).replace(/\\n/g, "<br/>")}</p>
+    </div>
+  `;
+}
+
+// ===========================================================================
+// Curriculum view
+// ===========================================================================
+
+function renderCurriculumView() {
+  const orderedIds = state.curriculum.slice();
+  // Append any lessons not in the curriculum list (orphans / drafts).
+  Object.keys(state.lessons).forEach((id) => {
+    if (!orderedIds.includes(id)) orderedIds.push(id);
+  });
+  const lessons = orderedIds.map((id) => state.lessons[id]).filter(Boolean);
+
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Curriculum</div>
+      <h2 class="card-title">${lessons.length === 0 ? "No lessons yet" : lessons.length + " lesson" + (lessons.length === 1 ? "" : "s")}</h2>
+      <p class="card-hint">Click any lesson to open and edit. Beat sheets stay editable forever; status is informational.</p>
+      ${lessons.length === 0 ? `
+        <p style="color:var(--text-dim);margin:18px 0;">Start a lesson from the home screen.</p>
+        <button class="btn btn-primary" data-action="start-new">Start a new lesson</button>
+      ` : `
+        <div class="curr-list">
+          ${lessons.map((l) => `
+            <button class="curr-item" data-action="open-lesson" data-lesson-id="${l.id}">
+              <div class="curr-item-status status-${l.status}">${l.status}</div>
+              <div class="curr-item-body">
+                <div class="curr-item-title">${escapeHtml(lessonTitle(l))}</div>
+                <div class="curr-item-meta">
+                  ${l.seriesId ? `Part ${seriesPosition(l)} of ${seriesTotal(l)} · ` : ""}Updated ${formatDate(l.updatedAt)}
+                  ${l.retrospectives && l.retrospectives.length ? ` · ${l.retrospectives.length} note${l.retrospectives.length === 1 ? "" : "s"}` : ""}
+                </div>
+              </div>
+            </button>
+          `).join("")}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function seriesPosition(lesson) {
+  if (!lesson.seriesId) return null;
+  const siblings = Object.values(state.lessons)
+    .filter((l) => l.seriesId === lesson.seriesId)
+    .sort((a, b) => a.createdAt - b.createdAt);
+  const idx = siblings.findIndex((l) => l.id === lesson.id);
+  return idx >= 0 ? idx + 1 : null;
+}
+
+function seriesTotal(lesson) {
+  if (!lesson.seriesId) return null;
+  return Object.values(state.lessons).filter((l) => l.seriesId === lesson.seriesId).length;
+}
+
+// ===========================================================================
+// Journal view
+// ===========================================================================
+
+function renderJournalView() {
+  const retros = collectAllRetrospectives();
+  return `
+    <div class="card">
+      <div class="card-eyebrow lime">Coaching journal</div>
+      <h2 class="card-title">${retros.length} note${retros.length === 1 ? "" : "s"} from after recording</h2>
+      <p class="card-hint">Patterns calcify here. Look for things you keep noticing across lessons — that's the meta-skill compounding.</p>
+      ${retros.length === 0 ? `<p style="color:var(--text-dim);">No notes yet.</p>` : `
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
+          ${retros.map((r) => `
+            <div style="background:var(--bg);border:1px solid var(--border-hi);border-radius:10px;padding:14px 16px;">
+              <div style="font-size:12px;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">${escapeHtml(r.lessonTitle)} · ${formatDate(r.date)}</div>
+              <div style="font-size:15px;line-height:1.55;">${escapeHtml(r.note)}</div>
+            </div>
+          `).join("")}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+// ===========================================================================
+// Retrospective modal
+// ===========================================================================
+
+let retroModalOpen = false;
+
+function maybeShowRetrospectiveModal() {
+  if (retroModalOpen) return;
+  // Find a pending retrospective that's eligible: lesson exists,
+  // status is not 'draft' (only ask "how did it go?" if he actually recorded).
+  const lessonId = state.pendingRetrospectives.find((id) => {
+    const l = state.lessons[id];
+    return l && l.status !== "draft";
+  });
+  if (!lessonId) {
+    // Clean up any drafts that snuck in.
+    if (state.pendingRetrospectives.length > 0) {
+      state.pendingRetrospectives = state.pendingRetrospectives.filter((id) => {
+        const l = state.lessons[id];
+        return l && l.status !== "draft";
+      });
+      scheduleSave();
+    }
+    return;
+  }
+  showRetroModal(lessonId);
+}
+
+function showRetroModal(lessonId) {
+  retroModalOpen = true;
+  const lesson = state.lessons[lessonId];
+  const div = document.createElement("div");
+  div.className = "modal-backdrop";
+  div.id = "retro-modal";
+  div.innerHTML = `
+    <div class="modal">
+      <h2>How did "${escapeHtml(lessonTitle(lesson))}" go?</h2>
+      <p>Anything to remember for next time? Two sentences max.</p>
+      <textarea class="field-textarea small" id="retro-note" maxlength="${RETRO_CHAR_CAP + 50}" placeholder="One thing that worked or one thing to change."></textarea>
+      <div class="char-counter" id="retro-counter">0 / ${RETRO_CHAR_CAP}</div>
+      <div class="btn-row spread">
+        <button class="btn btn-ghost" id="retro-skip">Skip</button>
+        <button class="btn btn-primary" id="retro-save">Save note</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(div);
+  const ta = div.querySelector("#retro-note");
+  const counter = div.querySelector("#retro-counter");
+  ta.focus();
+  ta.addEventListener("input", () => {
+    const len = ta.value.length;
+    counter.textContent = `${len} / ${RETRO_CHAR_CAP}`;
+    counter.className = "char-counter" + (len > RETRO_CHAR_CAP ? " over" : "");
+  });
+  div.querySelector("#retro-skip").addEventListener("click", () => closeRetroModal(lessonId, null));
+  div.querySelector("#retro-save").addEventListener("click", () => {
+    const note = ta.value.trim().slice(0, RETRO_CHAR_CAP);
+    closeRetroModal(lessonId, note || null);
+  });
+}
+
+function closeRetroModal(lessonId, note) {
+  const modal = document.getElementById("retro-modal");
+  if (modal) modal.remove();
+  retroModalOpen = false;
+  // Remove this lesson from pending regardless of whether note was saved.
+  state.pendingRetrospectives = state.pendingRetrospectives.filter((id) => id !== lessonId);
+  if (note) {
+    const lesson = state.lessons[lessonId];
+    if (lesson) {
+      lesson.retrospectives = lesson.retrospectives || [];
+      lesson.retrospectives.push({ date: Date.now(), note });
+      lesson.updatedAt = Date.now();
+    }
+  }
+  saveState();
+  // Check if there's another pending one.
+  if (state.pendingRetrospectives.length > 0) maybeShowRetrospectiveModal();
+}
+
+// ===========================================================================
+// Event handling (delegated)
+// ===========================================================================
+
+function attachHandlers() {
+  const app = document.getElementById("app");
+  app.oninput = onInput;
+  app.onclick = onClick;
+}
+
+function onInput(e) {
+  const t = e.target;
+  const lesson = currentLesson();
+  if (!lesson) return;
+
+  if (t.dataset.field) {
+    setNested(lesson, t.dataset.field, t.value);
+    lesson.updatedAt = Date.now();
+    scheduleSave();
+    return;
+  }
+  if (t.dataset.identifyName !== undefined) {
+    const item = (lesson.identifyList || []).find((it) => it.id === t.dataset.identifyName);
+    if (item) { item.name = t.value; lesson.updatedAt = Date.now(); scheduleSave(); }
+    return;
+  }
+  if (t.dataset.identifyDesc !== undefined) {
+    const item = (lesson.identifyList || []).find((it) => it.id === t.dataset.identifyDesc);
+    if (item) { item.description = t.value; lesson.updatedAt = Date.now(); scheduleSave(); }
+    return;
+  }
+  if (t.dataset.breakdownBullet !== undefined) {
+    const idx = parseInt(t.dataset.breakdownBullet, 10);
+    if (lesson.beatSheet.breakdown[idx]) {
+      lesson.beatSheet.breakdown[idx].bullet = t.value;
+      lesson.updatedAt = Date.now();
+      scheduleSave();
+    }
+    return;
+  }
+  if (t.dataset.breakdownWhy !== undefined) {
+    const idx = parseInt(t.dataset.breakdownWhy, 10);
+    if (lesson.beatSheet.breakdown[idx]) {
+      lesson.beatSheet.breakdown[idx].why = t.value;
+      lesson.updatedAt = Date.now();
+      scheduleSave();
+    }
+    return;
+  }
+  if (t.dataset.termWord !== undefined) {
+    const idx = parseInt(t.dataset.termWord, 10);
+    if (lesson.terms[idx]) {
+      lesson.terms[idx].word = t.value;
+      lesson.updatedAt = Date.now();
+      scheduleSave();
+    }
+    return;
+  }
+  if (t.dataset.termDef !== undefined) {
+    const idx = parseInt(t.dataset.termDef, 10);
+    if (lesson.terms[idx]) {
+      lesson.terms[idx].definition = t.value;
+      lesson.updatedAt = Date.now();
+      scheduleSave();
+    }
+    return;
+  }
+  if (t.dataset.check !== undefined) {
+    lesson.reviewChecks = lesson.reviewChecks || {};
+    lesson.reviewChecks[t.dataset.check] = t.checked;
+    lesson.updatedAt = Date.now();
+    scheduleSave();
+    // No re-render on each check; user can see immediately, button enables on advance attempt.
+    debouncedRerender();
+    return;
+  }
+}
+
+function debouncedRerender() {
+  if (inputDebounceTimer) clearTimeout(inputDebounceTimer);
+  inputDebounceTimer = setTimeout(() => render(), 60);
+}
+
+function onClick(e) {
+  const t = e.target.closest("[data-action]");
+  if (!t) return;
+  const action = t.dataset.action;
+  if (handleAction(action, t)) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+
+function handleAction(action, el) {
+  const lesson = currentLesson();
+  switch (action) {
+    case "goto-home":
+      state.currentView = "home";
+      saveState();
+      render();
+      return true;
+
+    case "goto-curriculum":
+      state.currentView = "curriculum";
+      saveState();
+      render();
+      return true;
+
+    case "goto-journal":
+      state.currentView = "journal";
+      saveState();
+      render();
+      return true;
+
+    case "start-new":
+      if (el.dataset.confirmNew !== undefined) {
+        const current = currentLesson();
+        if (current && maxAccessibleStep(current) < 7) {
+          if (!confirm("You have a lesson in progress. Starting a new one parks the current one. Continue?")) return true;
+        }
+      }
+      startNewLesson();
+      return true;
+
+    case "resume-lesson":
+      if (lesson) {
+        state.currentView = "lesson";
+        state.currentStep = Math.min(maxAccessibleStep(lesson), 7);
+        saveState();
+        render();
+      }
+      return true;
+
+    case "open-lesson":
+      openLesson(el.dataset.lessonId);
+      return true;
+
+    case "start-from-queue":
+      startFromQueue();
+      return true;
+
+    case "next-step":
+      if (lesson) {
+        const max = maxAccessibleStep(lesson);
+        state.currentStep = Math.min(state.currentStep + 1, max, 7);
+        // Try to auto-advance past the just-completed step.
+        if (state.currentStep > 7) state.currentStep = 7;
+        saveState();
+        render();
+      }
+      return true;
+
+    case "prev-step":
+      state.currentStep = Math.max(1, state.currentStep - 1);
+      saveState();
+      render();
+      return true;
+
+    case "goto-step":
+      const step = parseInt(el.dataset.step, 10);
+      if (lesson && step >= 1 && step <= 7) {
+        const max = maxAccessibleStep(lesson);
+        state.currentStep = Math.min(step, max);
+        saveState();
+        render();
+      }
+      return true;
+
+    case "identify-add":
+      if (lesson) {
+        lesson.identifyList.push({ id: uid(), name: "", description: "" });
+        setState({});
+      }
+      return true;
+
+    case "identify-remove":
+      if (lesson) {
+        lesson.identifyList = lesson.identifyList.filter((it) => it.id !== el.dataset.id);
+        setState({});
+      }
+      return true;
+
+    case "identify-up":
+    case "identify-down":
+      if (lesson) {
+        const id = el.dataset.id;
+        const arr = lesson.identifyList;
+        const idx = arr.findIndex((it) => it.id === id);
+        const delta = action === "identify-up" ? -1 : 1;
+        const ni = idx + delta;
+        if (ni >= 0 && ni < arr.length) {
+          [arr[idx], arr[ni]] = [arr[ni], arr[idx]];
+          setState({});
+        }
+      }
+      return true;
+
+    case "dep-independent":
+      if (lesson) {
+        lesson.isCapstone = false;
+        lesson.dependencyAnswered = true;
+        lesson.curriculumOrder = null;
+        setState({});
+      }
+      return true;
+
+    case "dep-dependent":
+      if (lesson) {
+        lesson.isCapstone = true;
+        lesson.dependencyAnswered = true;
+        lesson.curriculumOrder = lesson.identifyList
+          .filter((it) => it.name && it.name.trim())
+          .map((it) => it.id);
+        setState({});
+      }
+      return true;
+
+    case "narrow-choose":
+      if (lesson) {
+        lesson.narrowChoice = el.dataset.id;
+        // Stash unchosen items into futureLessons queue.
+        const chosen = lesson.narrowChoice;
+        lesson.identifyList.forEach((it) => {
+          if (it.id !== chosen && it.name && it.name.trim()) {
+            // Avoid duplicates by simple name + fromLesson match.
+            const exists = state.futureLessons.some(
+              (fl) => fl.name === it.name.trim() && fl.fromLessonId === lesson.id,
+            );
+            if (!exists) {
+              state.futureLessons.push({
+                id: uid(),
+                name: it.name.trim(),
+                description: (it.description || "").trim(),
+                fromLessonId: lesson.id,
+                addedAt: Date.now(),
+              });
+            }
+          }
+        });
+        // Set the lesson's title to the chosen item's name.
+        const chosenItem = lesson.identifyList.find((it) => it.id === chosen);
+        if (chosenItem) lesson.title = chosenItem.name;
+        setState({});
+      }
+      return true;
+
+    case "capstone-up":
+    case "capstone-down":
+      if (lesson && lesson.curriculumOrder) {
+        const id = el.dataset.id;
+        const arr = lesson.curriculumOrder;
+        const idx = arr.indexOf(id);
+        const delta = action === "capstone-up" ? -1 : 1;
+        const ni = idx + delta;
+        if (ni >= 0 && ni < arr.length) {
+          [arr[idx], arr[ni]] = [arr[ni], arr[idx]];
+          setState({});
+        }
+      }
+      return true;
+
+    case "capstone-start-lesson-1":
+      capstoneSpawnSeries();
+      return true;
+
+    case "toggle-section": {
+      const key = el.dataset.section;
+      state.collapsedSections = state.collapsedSections || {};
+      state.collapsedSections[key] = !state.collapsedSections[key];
+      setState({});
+      return true;
+    }
+
+    case "breakdown-add":
+      if (lesson) {
+        lesson.beatSheet.breakdown.push({ bullet: "", why: "" });
+        setState({});
+      }
+      return true;
+
+    case "breakdown-remove":
+      if (lesson) {
+        const idx = parseInt(el.dataset.idx, 10);
+        lesson.beatSheet.breakdown.splice(idx, 1);
+        if (lesson.beatSheet.breakdown.length === 0) {
+          lesson.beatSheet.breakdown.push({ bullet: "", why: "" });
+        }
+        setState({});
+      }
+      return true;
+
+    case "term-add":
+      if (lesson) {
+        lesson.terms.push({ word: "", definition: "" });
+        setState({});
+      }
+      return true;
+
+    case "term-remove":
+      if (lesson) {
+        const idx = parseInt(el.dataset.idx, 10);
+        lesson.terms.splice(idx, 1);
+        if (lesson.terms.length === 0) lesson.terms.push({ word: "", definition: "" });
+        setState({});
+      }
+      return true;
+
+    case "toggle-assumes-prereq":
+      if (lesson) {
+        lesson.assumesPrerequisites = !lesson.assumesPrerequisites;
+        setState({});
+      }
+      return true;
+
+    case "print":
+      window.print();
+      return true;
+
+    case "copy-clipboard":
+      copyBeatSheetToClipboard(lesson);
+      return true;
+
+    case "mark-recorded":
+      if (lesson) {
+        if (lesson.status === "recorded") {
+          // Allow toggling back.
+          lesson.status = "draft";
+          lesson.recordedAt = null;
+          // Remove from pending retrospectives.
+          state.pendingRetrospectives = state.pendingRetrospectives.filter((id) => id !== lesson.id);
+        } else {
+          lesson.status = "recorded";
+          lesson.recordedAt = Date.now();
+          // Queue retrospective for next home-screen visit.
+          if (!state.pendingRetrospectives.includes(lesson.id)) {
+            state.pendingRetrospectives.push(lesson.id);
+          }
+        }
+        setState({});
+      }
+      return true;
+
+    case "save-finish":
+      if (lesson) {
+        lesson.completedAt = lesson.completedAt || Date.now();
+        lesson.updatedAt = Date.now();
+        // Add to curriculum if not present.
+        if (!state.curriculum.includes(lesson.id)) state.curriculum.push(lesson.id);
+        state.currentView = "home";
+        state.currentLessonId = null;
+        setState({});
+      }
+      return true;
+  }
+  return false;
+}
+
+function setNested(obj, path, value) {
+  const parts = path.split(".");
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (cur[parts[i]] == null) cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length - 1]] = value;
+}
+
+// ===========================================================================
+// Lesson lifecycle helpers
+// ===========================================================================
+
+function startNewLesson() {
+  const id = uid();
+  state.lessons[id] = defaultLesson(id);
+  state.currentLessonId = id;
+  state.currentView = "lesson";
+  state.currentStep = 1;
+  // Curriculum entry is added on save-finish.
+  setState({});
+}
+
+function openLesson(lessonId) {
+  const l = state.lessons[lessonId];
+  if (!l) return;
+  state.currentLessonId = lessonId;
+  state.currentView = "lesson";
+  // Open at the highest accessible step so editing is one click away.
+  state.currentStep = Math.min(maxAccessibleStep(l), 7);
+  setState({});
+}
+
+function startFromQueue() {
+  const queued = state.futureLessons.shift();
+  if (!queued) return;
+  const id = uid();
+  const lesson = defaultLesson(id, { title: queued.name });
+  // Seed the rough draft with the saved description if any.
+  if (queued.description) {
+    lesson.roughDraft = `From your "saved for later" queue:\n\n${queued.name}\n\n${queued.description}\n\n(Edit this and add your rough notes.)`;
+  }
+  state.lessons[id] = lesson;
+  state.currentLessonId = id;
+  state.currentView = "lesson";
+  state.currentStep = 1;
+  setState({});
+}
+
+function capstoneSpawnSeries() {
+  const lesson = currentLesson();
+  if (!lesson || !lesson.curriculumOrder) return;
+
+  const seriesId = lesson.id;
+  // Guard against double-spawn: if children already exist for this series
+  // (user navigated back to Step 4 and clicked Start Lesson 1 again),
+  // just jump to the first incomplete child instead of creating duplicates.
+  const existingChildren = Object.values(state.lessons)
+    .filter((l) => l.seriesId === seriesId && l.id !== lesson.id)
+    .sort((a, b) => a.createdAt - b.createdAt);
+  if (existingChildren.length > 0) {
+    const firstIncomplete = existingChildren.find((l) => l.status === "draft") || existingChildren[0];
+    state.currentLessonId = firstIncomplete.id;
+    state.currentStep = Math.min(maxAccessibleStep(firstIncomplete), 7);
+    setState({});
+    return;
+  }
+
+  const orderedItemIds = lesson.curriculumOrder;
+  const items = orderedItemIds.map((id) => lesson.identifyList.find((it) => it.id === id)).filter(Boolean);
+  if (items.length === 0) return;
+
+  // Mark the current lesson as the capstone (final in series).
+  lesson.seriesId = seriesId;
+  lesson.seriesRole = "capstone";
+  lesson.title = "Putting it all together";
+
+  // Create N new placeholder lessons for items 1..N.
+  const newLessonIds = [];
+  items.forEach((it, idx) => {
+    const newId = uid();
+    const newLesson = defaultLesson(newId, {
+      title: it.name,
+      seriesId,
+      seriesRole: idx === 0 ? "first" : "middle",
+    });
+    // Pre-fill watchNotes.mainGoal from the item name.
+    newLesson.watchNotes.mainGoal = it.name;
+    if (it.description) newLesson.roughDraft = `Lesson topic: ${it.name}\n\n${it.description}\n\n(Add your rough notes for this lesson.)`;
+    state.lessons[newId] = newLesson;
+    newLessonIds.push(newId);
+  });
+
+  // Insert new lessons into curriculum in series order; capstone goes last.
+  newLessonIds.forEach((id) => {
+    if (!state.curriculum.includes(id)) state.curriculum.push(id);
+  });
+  if (!state.curriculum.includes(lesson.id)) state.curriculum.push(lesson.id);
+
+  // Jump to Lesson 1.
+  state.currentLessonId = newLessonIds[0];
+  state.currentStep = 1;
+  setState({});
+}
+
+function copyBeatSheetToClipboard(lesson) {
+  if (!lesson) return;
+  const lines = [];
+  lines.push(lessonTitle(lesson));
+  lines.push("=".repeat(Math.max(20, lessonTitle(lesson).length)));
+  lines.push("");
+  const terms = (lesson.terms || []).filter((t) => t.word && t.definition);
+  if (terms.length > 0) {
+    lines.push("GLOSSARY");
+    terms.forEach((t) => lines.push(`  ${t.word}. ${t.definition}`));
+    lines.push("");
+  }
+  const bs = lesson.beatSheet;
+  const push = (title, body) => {
+    if (!body) return;
+    lines.push(title.toUpperCase());
+    lines.push(body);
+    lines.push("");
+  };
+  push("Hook", bs.hook);
+  push("Goal", bs.goal);
+  push("Demonstration", bs.demonstration);
+  if (bs.breakdown && bs.breakdown.length) {
+    lines.push("BREAKDOWN");
+    bs.breakdown.forEach((b, i) => {
+      if (!b.bullet) return;
+      lines.push(`  ${i + 1}. ${b.bullet}`);
+      if (b.why) lines.push(`     Why: ${b.why}`);
+    });
+    lines.push("");
+  }
+  push("Common Mistake", bs.commonMistake);
+  push("Practice Setup", bs.practiceSetup);
+  push("Summary", bs.summary);
+  push("Outro", bs.outro);
+  const text = lines.join("\n");
+  navigator.clipboard.writeText(text).then(
+    () => flashTopBar("Copied to clipboard"),
+    () => alert("Copy failed. Try selecting the text manually."),
+  );
+}
+
+function flashTopBar(message) {
+  const topbar = document.querySelector(".topbar-meta");
+  if (!topbar) return;
+  const flash = document.createElement("span");
+  flash.textContent = message;
+  flash.style.color = "var(--lime)";
+  flash.style.fontSize = "13px";
+  topbar.prepend(flash);
+  setTimeout(() => flash.remove(), 2200);
+}
+
+// ===========================================================================
+// Init
+// ===========================================================================
+
+render();
+</script>
+</body>
+</html>
