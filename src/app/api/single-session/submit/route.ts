@@ -331,7 +331,10 @@ export async function POST(req: Request) {
       player_id: player.id,
       approval_token: approvalToken,
     },
-    success_url: `${APP_URL}/single-session/success`,
+    // {CHECKOUT_SESSION_ID} is replaced by Stripe at redirect time so
+    // the success page can look up customer details (email) without
+    // us leaking it through the URL ourselves.
+    success_url: `${APP_URL}/single-session/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${APP_URL}/single-session`,
   });
 

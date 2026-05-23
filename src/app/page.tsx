@@ -240,14 +240,17 @@ export default function HomePage() {
             </div>
 
             <div className="price-card featured reveal">
-              <div className="featured-badge">Best Value</div>
+              <div className="featured-badge">Best Value · Save 42%</div>
               <div className="price-tier">Monthly</div>
               <div className="price-amount">$56<span className="price-unit">/mo</span></div>
-              <div className="price-cycle">4 lessons · cancel anytime</div>
+              <div className="price-cycle">
+                4 lessons · just $14 each vs $24 single
+              </div>
               <ul className="price-features">
                 <li>Weekly lesson rhythm</li>
                 <li>Curriculum that builds week over week</li>
                 <li>24 hour cancel = full credit refund</li>
+                <li>Cancel anytime, no questions</li>
               </ul>
               <a href="/intake" className="btn btn-primary">Start with the free call</a>
             </div>
