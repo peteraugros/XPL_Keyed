@@ -1509,6 +1509,40 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         cta: "Mark outcome",
       };
     }
+    case "single_session_needs_lesson": {
+      const payload = (t.task_payload ?? {}) as {
+        intake_note?: string | null;
+        live_call_at?: string | null;
+      };
+      const note = (payload.intake_note ?? "").trim();
+      const when = payload.live_call_at ? new Date(payload.live_call_at) : null;
+      const dateLabel = when
+        ? when.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          })
+        : null;
+      const quote =
+        note.length > 0
+          ? `"${note.slice(0, 180)}${note.length > 180 ? "..." : ""}"`
+          : null;
+      let body: string;
+      if (quote && dateLabel) {
+        body = `${quote} . Call on ${dateLabel}. Pick a lesson from the library or build one.`;
+      } else if (quote) {
+        body = `${quote} . Call not scheduled yet. Pick a lesson when you're ready.`;
+      } else if (dateLabel) {
+        body = `Single session call on ${dateLabel}. Pick a lesson before then.`;
+      } else {
+        body = "Single session purchased. Pick a lesson when you're ready.";
+      }
+      return {
+        title: `${name} bought a single session. Pick a lesson.`,
+        body,
+        cta: "Open card",
+      };
+    }
     case "lesson_authoring_needed": {
       const payload = (t.task_payload ?? {}) as {
         week_number?: number;
