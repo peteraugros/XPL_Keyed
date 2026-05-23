@@ -43,10 +43,17 @@ export async function sendParentMagicLink(
   } = {},
 ): Promise<MagicLinkResult> {
   const next = safeNextPath(opts.next) ?? "/portal";
+  // Filter to parents with a live auth_user_id and take the most
+  // recent. Orphan rows (where a prior submit's auth user got rolled
+  // back but the parent row was left dangling) used to make
+  // .maybeSingle() error out — silent magic-link failures.
   const lookup = await supabase
     .from("parents")
-    .select("email, first_name")
+    .select("email, first_name, created_at")
     .ilike("email", parentEmail)
+    .not("auth_user_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (lookup.error) {
@@ -133,10 +140,18 @@ export async function sendPlayerMagicLink(
   // Multi-kid: if playerFirstName is provided, case-insensitive match
   // within the family; ties broken by oldest. If omitted, falls back
   // to the family's oldest player (single-kid families are this case).
+  //
+  // Filter out orphan parent rows (no auth_user_id) and take the
+  // newest. Without this, a prior failed-submit-then-retry can leave
+  // two rows with the same email and break maybeSingle() with 2-row
+  // errors. Same fix as sendParentMagicLink above.
   const parentRow = await supabase
     .from("parents")
-    .select("family_id, email")
+    .select("family_id, email, created_at")
     .ilike("email", parentEmail)
+    .not("auth_user_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (parentRow.error) {
