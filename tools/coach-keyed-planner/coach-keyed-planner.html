@@ -1627,8 +1627,22 @@ function renderStep6(lesson) {
         <button class="btn btn-ghost" data-action="prev-step">Back</button>
         <button class="btn btn-primary" data-action="next-step" ${canAdvance ? "" : "disabled"}>I'm ready to record</button>
       </div>
+      <p class="field-hint step6-hint" style="margin-top:6px;" ${canAdvance ? "hidden" : ""}>${renderStep6MissingHint(checks)}</p>
     </div>
   `;
+}
+
+function renderStep6MissingHint(checks) {
+  const labels = {
+    oneIdea: "One idea",
+    definitions: "Beginner-friendly definitions",
+    why: "Why, not just what",
+    pacing: "Pacing reasonable",
+  };
+  const missing = Object.keys(labels).filter((k) => !checks[k]);
+  if (missing.length === 0) return "";
+  if (missing.length === 4) return "Check all four boxes once you've looked things over.";
+  return "Still to check: " + missing.map((k) => labels[k]).join(", ") + ".";
 }
 
 // ---------- Step 7: Re-record (Output) ----------
@@ -1928,8 +1942,11 @@ function onInput(e) {
     lesson.reviewChecks[t.dataset.check] = t.checked;
     lesson.updatedAt = Date.now();
     scheduleSave();
-    // Step 6 has the pacing display + terms table that should refresh,
-    // and checkboxes don't have focus to preserve, so re-render is fine.
+    // Update the button immediately so there's no 60ms lag between
+    // ticking the 4th box and the CTA enabling. Then schedule a full
+    // re-render so the pacing display + missing-checks hint refresh.
+    updateAdvanceButton();
+    updateStep6Hint();
     debouncedRerender();
     return;
   }
@@ -1977,6 +1994,21 @@ function updateAdvanceButton() {
     if (hint) hint.hidden = showDep;
     if (depWrap) depWrap.hidden = !showDep;
   }
+}
+
+// Step 6 missing-checks hint. Updates the inline "still to check: X, Y"
+// text below the CTA each time a checkbox flips, without waiting on the
+// 60ms debouncedRerender. Paired with updateAdvanceButton in the check
+// input handler.
+function updateStep6Hint() {
+  const lesson = currentLesson();
+  if (!lesson || state.currentStep !== 6) return;
+  const hint = document.querySelector(".step6-hint");
+  if (!hint) return;
+  const checks = lesson.reviewChecks || {};
+  const complete = step6Complete(lesson);
+  hint.hidden = complete;
+  if (!complete) hint.textContent = renderStep6MissingHint(checks);
 }
 
 function debouncedRerender() {
