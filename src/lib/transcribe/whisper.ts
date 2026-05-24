@@ -29,15 +29,26 @@ export async function transcribeAudio(
   }
 
   // Whisper's officially-supported extensions: mp3, mp4, mpeg, mpga,
-  // m4a, wav, webm. .mov files are usually H.264/AAC (same codec as
-  // mp4) so they decode fine, but Whisper's parser rejects them
-  // purely on extension. Rename to .mp4 for the API call — the bytes
-  // inside the container parse identically.
+  // m4a, wav, webm. .mov files (Mac screen recordings default to this)
+  // share the ISO base media file format with mp4 at the byte level,
+  // so the data parses fine — but Whisper's parser refuses to ingest
+  // anything tagged with a QuickTime MIME. Tested 2026-05-24: even
+  // renaming the filename to .mp4 isn't enough; the Blob's `type`
+  // property (e.g. "video/quicktime") leaks into the FormData
+  // multipart header and Whisper rejects on that.
+  //
+  // Fix: repackage the blob with a video/mp4 MIME type AND a .mp4
+  // filename. The underlying bytes are unchanged; we're just changing
+  // the labels so Whisper's content-type sniff accepts it. Works for
+  // every .mov screen recording I've thrown at it.
   const ext = (filename.split(".").pop() ?? "").toLowerCase();
-  const whisperFilename = ext === "mov" ? filename.replace(/\.mov$/i, ".mp4") : filename;
+  const whisperFilename =
+    ext === "mov" ? filename.replace(/\.mov$/i, ".mp4") : filename;
+  const whisperMime = ext === "mov" ? "video/mp4" : (fileBlob.type || "video/mp4");
+  const repackaged = new Blob([await fileBlob.arrayBuffer()], { type: whisperMime });
 
   const form = new FormData();
-  form.append("file", fileBlob, whisperFilename);
+  form.append("file", repackaged, whisperFilename);
   form.append("model", WHISPER_MODEL);
   // Plain text response — no timestamps. We surface the raw text to
   // Tim; the planner textarea isn't the place for timecode metadata.
@@ -47,6 +58,8 @@ export async function transcribeAudio(
     bytes: fileBlob.size,
     filename: whisperFilename,
     original_ext: ext,
+    original_mime: fileBlob.type,
+    repackaged_mime: whisperMime,
   });
 
   try {
