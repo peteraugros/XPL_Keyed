@@ -1381,6 +1381,8 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
         </button>
         {aiState.error && aiState.kind === "parent_translation" ? (
           <p className={styles.aiError}>AI call failed ({aiState.error}). Fill the fields manually.</p>
+        ) : !fortniteLabel.trim() ? (
+          <p className={styles.fieldHint}>Type a Fortnite term above to enable the AI helper.</p>
         ) : null}
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Parent label (real-world skill name)</label>
@@ -1493,6 +1495,20 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
       </section>
     );
   }
+
+  // Step 7 pre-fill: the Fortnite term at Step 7 is just the name of
+  // the skill Tim chose at Step 4. Don't make him retype it. Auto-fill
+  // fortniteLabel from the narrow choice the first time it'd be
+  // useful, BUT only if Tim hasn't typed anything of his own —
+  // overwriting his edit silently would be worse than the empty state.
+  useEffect(() => {
+    if (fortniteLabel.trim()) return;
+    const chosen = planner.identifyList.find((it) => it.id === planner.narrowChoice);
+    if (chosen && chosen.name.trim()) {
+      setFortniteLabel(chosen.name.trim());
+      queueSave({ fortnite_label: chosen.name.trim() });
+    }
+  }, [planner.narrowChoice, planner.identifyList, fortniteLabel, queueSave]);
 
   // Flushes any pending save when unmounting — guarantees the last
   // keystroke lands even if the user navigates away fast.
