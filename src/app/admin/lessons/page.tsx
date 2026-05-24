@@ -1,15 +1,16 @@
 // /admin/lessons
 //
-// Tim's lesson library list. Coach-gated. Lists every authored lesson
-// (including stub lessons that came out of the Stage C take-on flow) so
-// Tim can see what content exists. Big CTA to author a new one at the
-// top.
+// Tim's lesson library list. Coach-gated. Lists every authored lesson.
+// Big CTA to author a new one at the top.
 //
-// Stubs surface here too. A stub lesson is one with empty slides=[] —
-// it was created automatically when Tim hit "Take Jake on" in the
-// Stage C drafter, with a topic + parent translation but no actual
-// slide content yet. Tim's job after a take-on: come here and finish
-// the lessons before the first paid Sunday delivery fires.
+// Status taxonomy (Path B video-first):
+//   - PUBLISHED — has video_url + is_published=true
+//   - NEEDS VIDEO — is_published=true but video_url is null/empty
+//     (these are legacy slide-era rows that haven't been migrated to video)
+//   - DRAFT — is_published=false (in-progress planner sessions)
+//
+// Legacy slide-era stub flag is retired; stub lessons created by old
+// Stage C take-on are now just "DRAFT" rows the planner can pick up.
 
 import { redirect as _redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -27,12 +28,12 @@ type IdLookup = { id: string };
 type LessonRow = {
   id: string;
   title: string;
-  fortnite_label: string;
-  parent_label: string;
-  topic: string;
-  difficulty_level: string;
-  duration_minutes: number;
-  slides: unknown;
+  fortnite_label: string | null;
+  parent_label: string | null;
+  topic: string | null;
+  difficulty_level: string | null;
+  duration_minutes: number | null;
+  video_url: string | null;
   is_published: boolean;
   created_at: string;
 };
@@ -70,37 +71,37 @@ export default async function AdminLessonsPage() {
 
   const lessonLookup = await supabase
     .from("lessons")
-    .select("id, title, fortnite_label, parent_label, topic, difficulty_level, duration_minutes, slides, is_published, created_at")
+    .select("id, title, fortnite_label, parent_label, topic, difficulty_level, duration_minutes, video_url, is_published, created_at")
     .order("created_at", { ascending: false });
   const lessons = (lessonLookup.data ?? []) as LessonRow[];
 
-  const stubCount = lessons.filter((l) => {
-    const slides = l.slides;
-    return Array.isArray(slides) && slides.length === 0;
-  }).length;
+  const needsVideoCount = lessons.filter(
+    (l) => l.is_published && (!l.video_url || l.video_url.trim() === ""),
+  ).length;
 
   return (
     <div className={styles.frame}>
         <section className={styles.heroBlock}>
           <h1 className={styles.heroTitle}>Lesson library</h1>
           <p className={styles.heroBody}>
-            Each lesson is a set of slide PNGs plus per slide audio, plus a
-            parent translation, plus 5 categorized parent talking points. Once
-            authored a lesson is reusable across kids in the curriculum drafter.
+            Each lesson is a recorded video plus a beat sheet, a parent
+            translation, and a glossary. Plan the lesson with the 7 step
+            planner, record the video, paste the URL, publish.
           </p>
           <a href="/admin/lessons/new" className={styles.primaryBtn}>
             + Author a new lesson
           </a>
         </section>
 
-        {stubCount > 0 ? (
+        {needsVideoCount > 0 ? (
           <section className={styles.stubWarning}>
-            <div className={styles.stubEyebrow}>{stubCount} stub lesson{stubCount === 1 ? "" : "s"}</div>
+            <div className={styles.stubEyebrow}>
+              {needsVideoCount} lesson{needsVideoCount === 1 ? "" : "s"} need{needsVideoCount === 1 ? "s" : ""} a video
+            </div>
             <p>
-              The Stage C "Take on" flow creates stub lessons (no slides yet) so
-              the curriculum can ship before content is authored. Finish those
-              lessons before the first Sunday delivery for that kid fires, or
-              the parent email goes out empty.
+              These were published before the video first switch. Open each and
+              paste a video URL at Step 7, or rebuild from scratch through the
+              planner. Sunday delivery skips them until they have a video.
             </p>
           </section>
         ) : null}
@@ -113,25 +114,25 @@ export default async function AdminLessonsPage() {
           ) : (
             <ul className={styles.lessonList}>
               {lessons.map((l) => {
-                const slideCount = Array.isArray(l.slides) ? l.slides.length : 0;
-                const isStub = slideCount === 0;
+                const hasVideo = !!(l.video_url && l.video_url.trim());
+                const needsVideo = l.is_published && !hasVideo;
+                const isDraft = !l.is_published;
                 return (
-                  <li key={l.id} className={`${styles.lessonRow} ${isStub ? styles.lessonRowStub : ""}`}>
+                  <li key={l.id} className={`${styles.lessonRow} ${needsVideo ? styles.lessonRowStub : ""}`}>
                     <div className={styles.lessonHeader}>
                       <div>
                         <div className={styles.lessonTitle}>{l.title}</div>
                         <div className={styles.lessonSub}>
-                          {l.fortnite_label} → {l.parent_label}
+                          {l.fortnite_label || "(no Fortnite label)"} → {l.parent_label || "(no parent label)"}
                         </div>
                       </div>
                       <div className={styles.lessonBadges}>
-                        <span className={styles.lessonBadge}>{l.topic}</span>
-                        <span className={styles.lessonBadge}>{l.difficulty_level}</span>
-                        <span className={styles.lessonBadge}>{l.duration_minutes}m</span>
-                        {isStub ? (
-                          <span className={`${styles.lessonBadge} ${styles.lessonBadgeStub}`}>STUB</span>
-                        ) : null}
-                        {l.is_published ? (
+                        {l.topic ? <span className={styles.lessonBadge}>{l.topic}</span> : null}
+                        {l.difficulty_level ? <span className={styles.lessonBadge}>{l.difficulty_level}</span> : null}
+                        {l.duration_minutes ? <span className={styles.lessonBadge}>{l.duration_minutes}m</span> : null}
+                        {needsVideo ? (
+                          <span className={`${styles.lessonBadge} ${styles.lessonBadgeStub}`}>NEEDS VIDEO</span>
+                        ) : l.is_published ? (
                           <span className={`${styles.lessonBadge} ${styles.lessonBadgePublished}`}>PUBLISHED</span>
                         ) : (
                           <span className={styles.lessonBadge}>DRAFT</span>
@@ -139,15 +140,16 @@ export default async function AdminLessonsPage() {
                       </div>
                     </div>
                     <div className={styles.lessonMeta}>
-                      {slideCount} slide{slideCount === 1 ? "" : "s"} ·
-                      authored {new Date(l.created_at).toLocaleDateString("en-US", {
+                      {hasVideo ? "Video on file" : isDraft ? "In planner" : "Awaiting video"}
+                      {" · authored "}
+                      {new Date(l.created_at).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
                       })}
                       {" · "}
                       <a href={`/admin/lessons/${l.id}/edit`} className={styles.lessonEditLink}>
-                        Edit
+                        Open planner
                       </a>
                     </div>
                   </li>

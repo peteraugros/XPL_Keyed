@@ -41,6 +41,7 @@ function renderLessonEmail(opts: {
   parentSkillDescription: string;
   fortniteLabel: string;
   talkingPoints: TalkingPoint[];
+  videoUrl: string;
   portalUrl: string;
 }): string {
   const bullets = opts.talkingPoints
@@ -48,8 +49,8 @@ function renderLessonEmail(opts: {
     .join("");
   return brandedEmailHtml({
     headline: `${opts.kidName}'s lesson is ready`,
-    bodyHtml: `<p>This week's lesson for ${opts.kidName} is ready in the portal.</p><p><strong>${opts.parentLabel}.</strong> ${opts.parentSkillDescription}. <em>(Fortnite term: ${opts.fortniteLabel}.)</em></p><h2 style="font-family:'Anton',Impact,sans-serif;font-size:18px;letter-spacing:1px;margin:28px 0 8px;color:#C7FF3D;">🤫 For your back pocket</h2><ul style="margin:0;padding-left:20px;">${bullets}</ul><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
-    ctaLabel: "Open lesson",
+    bodyHtml: `<p>This week's lesson for ${opts.kidName} is up. The video is 3 to 5 minutes; the talking points below are for you.</p><p><strong>${opts.parentLabel}.</strong> ${opts.parentSkillDescription}. <em>(Fortnite term: ${opts.fortniteLabel}.)</em></p><p style="text-align:center;margin:22px 0;"><a href="${opts.videoUrl}" style="display:inline-block;background:#C7FF3D;color:#0B1538;padding:14px 22px;border-radius:6px;font-weight:600;text-decoration:none;letter-spacing:0.5px;">Watch this week's lesson</a></p><h2 style="font-family:'Anton',Impact,sans-serif;font-size:18px;letter-spacing:1px;margin:28px 0 8px;color:#C7FF3D;">🤫 For your back pocket</h2><ul style="margin:0;padding-left:20px;">${bullets}</ul><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+    ctaLabel: "Open dashboard",
     ctaHref: opts.portalUrl,
   });
 }
@@ -119,7 +120,7 @@ Deno.serve(async (_req) => {
     const { data: slot } = await supabase
       .from("curriculum_slots")
       .select(
-        "id, week_number, is_vod_review, lesson_id, vod_url, vod_talking_points, lessons(parent_label, parent_skill_description, fortnite_label, parent_talking_points)",
+        "id, week_number, is_vod_review, lesson_id, vod_url, vod_talking_points, lessons(parent_label, parent_skill_description, fortnite_label, parent_talking_points, video_url, is_published)",
       )
       .eq("curriculum_id", curr.id)
       .is("delivered_at", null)
@@ -164,6 +165,14 @@ Deno.serve(async (_req) => {
         skipReasons["missing_lesson_row"] = (skipReasons["missing_lesson_row"] ?? 0) + 1;
         continue;
       }
+      // Video-first lessons require video_url + is_published. Slide-era
+      // rows or unpublished drafts skip and surface as "missing video"
+      // in admin so Tim catches them before the next Sunday.
+      if (!lesson.video_url || !String(lesson.video_url).trim() || !lesson.is_published) {
+        skipped++;
+        skipReasons["lesson_missing_video"] = (skipReasons["lesson_missing_video"] ?? 0) + 1;
+        continue;
+      }
       const tps = (lesson.parent_talking_points ?? []) as TalkingPoint[];
       html = renderLessonEmail({
         kidName,
@@ -171,7 +180,8 @@ Deno.serve(async (_req) => {
         parentSkillDescription: lesson.parent_skill_description,
         fortniteLabel: lesson.fortnite_label,
         talkingPoints: tps,
-        portalUrl: `${NEXT_PUBLIC_APP_URL}/parent/lessons/${slot.id}`,
+        videoUrl: String(lesson.video_url).trim(),
+        portalUrl: `${NEXT_PUBLIC_APP_URL}/portal`,
       });
     }
 

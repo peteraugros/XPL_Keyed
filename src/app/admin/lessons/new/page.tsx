@@ -1,55 +1,50 @@
 // /admin/lessons/new
 //
-// Tim's "Author a new lesson" form. Coach-gated Server Component shell
-// that renders the LessonForm Client Component.
+// Server-side entry point for authoring a new lesson. Creates a fresh
+// draft row, then redirects to /admin/lessons/[id]/edit which renders
+// the 7-step planner. Keeps the URL space clean: every lesson (draft
+// or published) lives at a stable /admin/lessons/[id]/edit URL.
 
-import { redirect as _redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import LessonForm from "./LessonForm";
-import styles from "../page.module.css";
-
-function redirect(url: string): never {
-  (_redirect as (u: string) => never)(url);
-  throw new Error("redirect did not throw");
-}
+import { redirect } from "next/navigation";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-type CoachLookup = { id: string; is_active: boolean };
-type IdLookup = { id: string };
-
-export default async function AdminLessonsNewPage() {
+export default async function NewLessonRedirect() {
   const supabase = await createClient();
-  const userResult = await supabase.auth.getUser();
-  const user = userResult.data.user;
-  if (!user) redirect("/login?next=/admin/lessons/new");
-
-  const coachLookup = await supabase
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/login?next=/admin/lessons/new" as never);
+  }
+  const coachRow = await supabase
     .from("coaches")
     .select("id, is_active")
-    .eq("auth_user_id", user.id)
+    .eq("auth_user_id", userData.user.id)
     .maybeSingle();
-  const coach = coachLookup.data as CoachLookup | null;
+  const coach = coachRow.data as { id: string; is_active: boolean } | null;
   if (!coach || !coach.is_active) {
-    const parentRow = await supabase
-      .from("parents")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if ((parentRow.data as IdLookup | null)?.id) redirect("/portal");
-    const playerRow = await supabase
-      .from("players")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if ((playerRow.data as IdLookup | null)?.id) redirect("/play");
-    redirect("/login?error=no_role");
+    redirect("/login?error=no_role" as never);
   }
 
-  return (
-    <div className={styles.frame}>
-      <a href="/admin/lessons" className={styles.backLink}>Back to library</a>
-      <LessonForm />
-    </div>
-  );
+  // Bypass the HTTP endpoint and insert directly. Cookie-forwarded
+  // fetch() against our own /api/admin/lessons would round-trip through
+  // the auth middleware again here for nothing.
+  const service = createServiceRoleClient();
+  const insert = await service
+    .from("lessons")
+    .insert({
+      author_id: coach.id,
+      title: "Untitled lesson",
+      is_published: false,
+    } as never)
+    .select("id")
+    .single();
+
+  if (insert.error || !insert.data) {
+    console.error("[admin/lessons/new] insert failed", insert.error);
+    redirect("/admin/lessons" as never);
+  }
+
+  const row = insert.data as { id: string };
+  redirect(`/admin/lessons/${row.id}/edit` as never);
 }

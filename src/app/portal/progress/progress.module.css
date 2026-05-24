@@ -259,6 +259,27 @@
   margin-bottom: 4px;
 }
 
+/* "Watch the lesson video" inline link on delivered slots in
+   /portal/progress. Lime accent, slight padding, opens video in a new
+   tab. Embedded video player is a future enhancement; v1 just links. */
+.watchLink {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: rgba(199, 255, 61, 0.12);
+  border: 1px solid rgba(199, 255, 61, 0.5);
+  color: var(--lime);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-decoration: none;
+}
+.watchLink:hover {
+  background: rgba(199, 255, 61, 0.2);
+  color: var(--text);
+}
+
 /* --- Trial-phase prep checklist mirror (parent view of kid's quests) --- */
 .questMirror {
   list-style: none;

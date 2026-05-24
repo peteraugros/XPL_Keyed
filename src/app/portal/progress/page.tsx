@@ -113,6 +113,7 @@ type LessonLookup = {
   id: string;
   fortnite_label: string;
   parent_label: string;
+  video_url?: string | null;
   parent_skill_description: string;
 };
 
@@ -295,7 +296,7 @@ export default async function ProgressPage() {
     if (lessonIds.length > 0) {
       const lessonsResp = await supabase
         .from("lessons")
-        .select("id, fortnite_label, parent_label, parent_skill_description")
+        .select("id, fortnite_label, parent_label, parent_skill_description, video_url")
         .in("id", lessonIds);
       for (const l of (lessonsResp.data ?? []) as LessonLookup[]) {
         lessonsById.set(l.id, l);
@@ -661,6 +662,16 @@ export default async function ProgressPage() {
                         <span className={progressStyles.coachNoteLabel}>Note from Tim</span>
                         {s.coach_note}
                       </span>
+                    ) : null}
+                    {lesson?.video_url && (status.kind === "delivered" || status.kind === "completed") ? (
+                      <a
+                        href={lesson.video_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={progressStyles.watchLink}
+                      >
+                        Watch the lesson video →
+                      </a>
                     ) : null}
                   </span>
                   <span

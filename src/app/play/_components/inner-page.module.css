@@ -216,3 +216,12 @@
     transition: none;
   }
 }
+
+/* Watch-video link in the /play/library week row. Inline lime. */
+.watchLink {
+  color: var(--lime);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 13px;
+}
+.watchLink:hover { text-decoration: underline; }

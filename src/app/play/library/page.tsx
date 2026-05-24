@@ -29,6 +29,7 @@ type SlotLookup = {
 type LessonLookup = {
   id: string;
   fortnite_label: string;
+  video_url: string | null;
 };
 
 export default async function LibraryPage() {
@@ -54,7 +55,7 @@ export default async function LibraryPage() {
   const curriculum = curriculumResp.data as CurriculumLookup | null;
 
   let slots: SlotLookup[] = [];
-  const labelById = new Map<string, string>();
+  const lessonById = new Map<string, LessonLookup>();
   if (curriculum) {
     const slotResp = await supabase
       .from("curriculum_slots")
@@ -66,10 +67,10 @@ export default async function LibraryPage() {
     if (lessonIds.length > 0) {
       const lessonResp = await supabase
         .from("lessons")
-        .select("id, fortnite_label")
+        .select("id, fortnite_label, video_url")
         .in("id", lessonIds);
       for (const l of (lessonResp.data ?? []) as LessonLookup[]) {
-        labelById.set(l.id, l.fortnite_label);
+        lessonById.set(l.id, l);
       }
     }
   }
@@ -118,16 +119,31 @@ export default async function LibraryPage() {
           <h2 className={styles.cardTitle}>What Tim is teaching</h2>
           <ul className={styles.weekList}>
             {slots.map((s) => {
+              const lesson = s.lesson_id ? lessonById.get(s.lesson_id) ?? null : null;
               const label = s.is_vod_review
                 ? "VOD review"
-                : s.lesson_id
-                  ? labelById.get(s.lesson_id) ?? "Coming"
-                  : "Coming";
+                : lesson?.fortnite_label ?? "Coming";
               const done = !!s.delivered_at;
+              const videoUrl = lesson?.video_url ?? null;
               return (
                 <li key={s.week_number} className={styles.weekRow}>
                   <span className={styles.weekNum}>Wk {s.week_number}</span>
-                  <span className={styles.weekLabel}>{label}</span>
+                  <span className={styles.weekLabel}>
+                    {label}
+                    {done && videoUrl ? (
+                      <>
+                        {" · "}
+                        <a
+                          href={videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.watchLink}
+                        >
+                          Watch →
+                        </a>
+                      </>
+                    ) : null}
+                  </span>
                   <span
                     className={`${styles.weekStatus} ${done ? styles.weekStatusDone : ""}`}
                   >
