@@ -15,6 +15,7 @@ import {
   type CurriculumSlotRow,
 } from "../AdminClient";
 import MessageThread from "@/components/MessageThread";
+import LessonPicker from "@/components/LessonPicker";
 import styles from "./clients.module.css";
 
 export type ClientItem = {
@@ -513,7 +514,6 @@ function SwapLessonModal({
 }) {
   const [loading, setLoading] = useState(true);
   const [library, setLibrary] = useState<LibraryLesson[]>([]);
-  const [filter, setFilter] = useState("");
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -571,16 +571,6 @@ function SwapLessonModal({
     }
   }
 
-  const lower = filter.trim().toLowerCase();
-  const filtered = lower
-    ? library.filter(
-        (l) =>
-          l.fortnite_label.toLowerCase().includes(lower) ||
-          l.parent_label.toLowerCase().includes(lower) ||
-          l.topic.toLowerCase().includes(lower),
-      )
-    : library;
-
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div
@@ -604,48 +594,31 @@ function SwapLessonModal({
             : `Swap ${kidFirstName}'s Week ${slot.week_number} lesson`}
         </h2>
 
-        <input
-          type="text"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Search by title, topic, or skill"
-          className={styles.modalInput}
-        />
-
         {loading ? (
           <p className={styles.modalBody}>Loading library...</p>
         ) : error ? (
           <p className={styles.modalError}>{error}</p>
-        ) : filtered.length === 0 ? (
-          <p className={styles.modalBody}>
-            No lessons match. {library.length === 0 ? "Author some at /admin/lessons/new." : null}
-          </p>
         ) : (
-          <ul className={styles.libraryList}>
-            {filtered.map((l) => (
-              <li key={l.id} className={styles.libraryItem}>
-                <button
-                  type="button"
-                  className={styles.libraryBtn}
-                  onClick={() => pick(l.id)}
-                  disabled={submitting !== null}
-                >
-                  <span className={styles.libraryTitle}>
-                    {l.fortnite_label}
-                    {l.already_done ? (
-                      <span className={styles.libraryBadge}>Already done</span>
-                    ) : null}
-                    {!l.is_published ? (
-                      <span className={styles.libraryBadgeWarn}>Draft</span>
-                    ) : null}
-                  </span>
-                  <span className={styles.librarySub}>
-                    {l.parent_label} · {l.topic} · {l.difficulty_level} · {l.duration_minutes} min
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <LessonPicker
+            lessons={library.map((l) => ({
+              id: l.id,
+              title: l.fortnite_label || l.parent_label || "Lesson",
+              fortnite_label: l.fortnite_label,
+              parent_label: l.parent_label,
+              topic: l.topic,
+              difficulty_level: l.difficulty_level,
+              duration_minutes: l.duration_minutes,
+              is_published: l.is_published,
+              already_done: l.already_done,
+            }))}
+            onPick={(id) => pick(id)}
+            submittingId={submitting}
+            emptyMessage={
+              library.length === 0
+                ? "No lessons in the library yet. Author some at /admin/lessons/new."
+                : undefined
+            }
+          />
         )}
       </div>
     </div>

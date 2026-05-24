@@ -19,6 +19,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import LessonPicker from "@/components/LessonPicker";
 import styles from "./page.module.css";
 
 type Bundle = {
@@ -407,22 +408,20 @@ function BundleMembership({
       {available.length > 0 ? (
         <>
           <h4 className={styles.bundleSectionLabel} style={{ marginTop: 18 }}>Add a lesson</h4>
-          <div className={styles.bundleAddList}>
-            {available.slice(0, 20).map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                className={styles.bundleAddItem}
-                onClick={() => add(l.id)}
-              >
-                + {l.title}
-                <span className={styles.bundleAddMeta}>{l.is_published ? "Published" : "Draft"}</span>
-              </button>
-            ))}
-            {available.length > 20 ? (
-              <p className={styles.fieldHint}>Showing 20 of {available.length}. Refresh after adding to see more.</p>
-            ) : null}
-          </div>
+          <LessonPicker
+            lessons={available.map((l) => ({
+              id: l.id,
+              title: l.title,
+              is_published: l.is_published,
+              bundle_id: l.bundle_id,
+              // Show "Already in another bundle" via the bundle badge —
+              // BundlesTab passes only lessons not in THIS bundle, but
+              // some may be in others. The picker surfaces that fact.
+              bundle_title: l.bundle_id && l.bundle_id !== bundleId ? "In another bundle" : null,
+            }))}
+            onPick={(id) => add(id)}
+            emptyMessage="No more lessons to add. Author one at /admin/lessons/new."
+          />
         </>
       ) : null}
 
