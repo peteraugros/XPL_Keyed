@@ -30,6 +30,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import TranscribeUploader from "./TranscribeUploader";
 import styles from "./planner.module.css";
 
 // ---------------------------------------------------------------------------
@@ -510,9 +511,26 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
         <div className={styles.cardEyebrow}>Step 1 of 7</div>
         <h2 className={styles.cardTitle}>Your rough draft</h2>
         <p className={styles.cardHint}>
-          What did you cover in your rough draft? Paste a transcript if you have one, or just bullet-point what you said.
-          Doesn&apos;t need to be perfect. You just need enough raw material to look at and analyze.
+          Drag in a video and we&apos;ll transcribe it for you, or paste a
+          transcript / bullet points directly into the box. Doesn&apos;t need
+          to be perfect. You just need enough raw material to look at and
+          analyze.
         </p>
+        <TranscribeUploader
+          lessonId={lessonId}
+          existingDraftLength={planner.roughDraft.length}
+          onTranscript={(text, mode) => {
+            setPlannerAndSave((p) => ({
+              ...p,
+              roughDraft:
+                mode === "replace"
+                  ? text
+                  : p.roughDraft
+                    ? `${p.roughDraft}\n\n${text}`
+                    : text,
+            }));
+          }}
+        />
         <textarea
           className={`${styles.fieldTextarea} ${styles.tall}`}
           value={planner.roughDraft}
