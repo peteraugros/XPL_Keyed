@@ -207,7 +207,12 @@ type PendingSave = {
   parent_talking_points?: ParentTalkingPoint[];
 };
 
-type AiKind = "read_summary" | "identify_breakdown" | "narrow_recommend" | "write_structure";
+type AiKind =
+  | "read_summary"
+  | "identify_breakdown"
+  | "narrow_recommend"
+  | "write_structure"
+  | "parent_translation";
 
 export default function PlannerClient({ initial }: { initial: LessonRecord }) {
   // Hydrate state from server-provided record. Missing JSONB fields
@@ -1344,6 +1349,39 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
             }}
           />
         </div>
+        {/* AI helper drafts the parent_label + parent_skill_description
+            pair from the Fortnite term. Same Anthropic endpoint as the
+            old lesson form — Tim edits whatever lands. */}
+        <button
+          type="button"
+          className={`${styles.btn} ${styles.btnAi}`}
+          disabled={(aiState.busy && aiState.kind === "parent_translation") || !fortniteLabel.trim()}
+          onClick={async () => {
+            const sug = (await askAi("parent_translation", {
+              fortnite_label: fortniteLabel.trim(),
+              topic: topic || undefined,
+              difficulty: difficultyLevel || undefined,
+            })) as
+              | { parent_label?: string; parent_skill_description?: string }
+              | null;
+            if (!sug) return;
+            if (sug.parent_label) {
+              setParentLabel(sug.parent_label);
+              queueSave({ parent_label: sug.parent_label });
+            }
+            if (sug.parent_skill_description) {
+              setParentSkillDescription(sug.parent_skill_description);
+              queueSave({ parent_skill_description: sug.parent_skill_description });
+            }
+          }}
+        >
+          {aiState.busy && aiState.kind === "parent_translation"
+            ? "Drafting parent translation..."
+            : "✨ Draft parent label + description"}
+        </button>
+        {aiState.error && aiState.kind === "parent_translation" ? (
+          <p className={styles.aiError}>AI call failed ({aiState.error}). Fill the fields manually.</p>
+        ) : null}
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Parent label (real-world skill name)</label>
           <input
@@ -1442,7 +1480,15 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
         ) : null}
 
         {/* Beat sheet preview at the bottom for reference during recording */}
-        <h3 className={styles.subhead} style={{ marginTop: 32 }}>Beat sheet (reference while recording)</h3>
+        <div className={styles.outlineHeader} style={{ marginTop: 32 }}>
+          <div>
+            <h3 className={styles.subhead} style={{ margin: 0 }}>Beat sheet (reference while recording)</h3>
+            <p className={styles.fieldHint} style={{ margin: "4px 0 0" }}>
+              Saved with this lesson. Reopen any time from the library.
+            </p>
+          </div>
+          <CopyOutlineButton beat={beatSheet} terms={terms} title={title} />
+        </div>
         <BeatSheetPreview beat={beatSheet} terms={terms} />
       </section>
     );
@@ -1484,6 +1530,73 @@ function savingLabel(s: "idle" | "pending" | "saving" | "saved" | "error"): stri
     case "error": return "Save failed";
     case "idle": default: return "";
   }
+}
+
+function buildOutlineText(title: string, beat: BeatSheet, terms: Term[]): string {
+  const lines: string[] = [];
+  lines.push(title || "Untitled lesson");
+  lines.push("=".repeat(Math.max(20, (title || "Untitled lesson").length)));
+  lines.push("");
+  const validTerms = terms.filter((t) => t.word.trim() && t.definition.trim());
+  if (validTerms.length > 0) {
+    lines.push("GLOSSARY");
+    for (const t of validTerms) lines.push(`  ${t.word.trim()}. ${t.definition.trim()}`);
+    lines.push("");
+  }
+  const push = (heading: string, body: string) => {
+    if (!body || !body.trim()) return;
+    lines.push(heading.toUpperCase());
+    lines.push(body.trim());
+    lines.push("");
+  };
+  push("Hook", beat.hook);
+  push("Goal", beat.goal);
+  push("Demonstration", beat.demonstration);
+  const breakdown = beat.breakdown.filter((b) => b.bullet.trim());
+  if (breakdown.length > 0) {
+    lines.push("BREAKDOWN");
+    breakdown.forEach((b, i) => {
+      lines.push(`  ${i + 1}. ${b.bullet.trim()}`);
+      if (b.why.trim()) lines.push(`     Why: ${b.why.trim()}`);
+    });
+    lines.push("");
+  }
+  push("Common mistake", beat.commonMistake);
+  push("Practice setup", beat.practiceSetup);
+  push("Summary", beat.summary);
+  push("Outro", beat.outro);
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+function CopyOutlineButton({
+  beat,
+  terms,
+  title,
+}: {
+  beat: BeatSheet;
+  terms: Term[];
+  title: string;
+}) {
+  const [state, setState] = useState<"idle" | "copied" | "error">("idle");
+  return (
+    <button
+      type="button"
+      className={`${styles.btn} ${styles.btnGhost}`}
+      onClick={async () => {
+        const text = buildOutlineText(title, beat, terms);
+        try {
+          await navigator.clipboard.writeText(text);
+          setState("copied");
+          setTimeout(() => setState("idle"), 1800);
+        } catch {
+          setState("error");
+          setTimeout(() => setState("idle"), 2400);
+        }
+      }}
+    >
+      {state === "copied" ? "✓ Copied" : state === "error" ? "Copy blocked. Select manually." : "Copy outline"}
+    </button>
+  );
 }
 
 function BeatSheetPreview({ beat, terms }: { beat: BeatSheet; terms: Term[] }) {
