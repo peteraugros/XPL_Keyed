@@ -1,56 +1,87 @@
-// Edge Function — twenty_min_pre_call_reminder
+// Edge Function — cron-twenty-min-pre-call-reminder
 //
-// Fired every minute by pg_cron. Finds calls starting in the 19–21 minute
-// window that haven't been pinged yet, DMs Tim with prep context, marks
-// `notified_at_20min` so the next firing doesn't double-ping.
+// Fired every minute by pg_cron. Finds calls starting in the 19 to 21 minute
+// window that have not been pinged yet, sends Tim a web push notification,
+// then marks notified_at_20min so the next firing does not double ping.
 //
-// This is a stub showing the pattern. Wire to real Discord + DB logic when
-// the codebase is hooked up.
+// Replaces the original Discord DM approach (retired per feedback_no_discord_dms).
+// All operator notifications surface in app and via web push only.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "npm:web-push";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
-const DISCORD_TIM_USER_ID = Deno.env.get("DISCORD_TIM_USER_ID")!;
+const VAPID_PUBLIC_KEY = Deno.env.get("NEXT_PUBLIC_VAPID_PUBLIC_KEY") ?? "";
+const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
+const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "";
 
-const DISCORD_API = "https://discord.com/api/v10";
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_SUBJECT) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
 
-async function dmTim(content: string) {
-  const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ recipient_id: DISCORD_TIM_USER_ID }),
-  });
-  if (!dmRes.ok) throw new Error(`Discord createDM ${dmRes.status}`);
-  const { id: channelId } = await dmRes.json();
+async function sendPushToActiveCoach(
+  supabase: ReturnType<typeof createClient>,
+  title: string,
+  body: string,
+  url: string,
+  tag: string,
+) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !VAPID_SUBJECT) {
+    console.warn("[push] VAPID keys not configured");
+    return;
+  }
 
-  const msgRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ content }),
-  });
-  if (!msgRes.ok) throw new Error(`Discord send ${msgRes.status}`);
+  // Tim is the only active non-dad coach in MVP.
+  const { data: coach } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("is_active", true)
+    .eq("is_dad", false)
+    .limit(1)
+    .maybeSingle();
+  if (!coach) return;
+
+  const { data: subs } = await supabase
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .eq("coach_id", (coach as { id: string }).id);
+  if (!subs?.length) return;
+
+  const payload = JSON.stringify({ title, body, url, tag });
+  const expired: string[] = [];
+
+  await Promise.allSettled(
+    (subs as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>).map(
+      async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload,
+          );
+        } catch (err: unknown) {
+          const code = (err as { statusCode?: number }).statusCode;
+          if (code === 410 || code === 404) expired.push(sub.id);
+          else console.error("[push] send failed", sub.endpoint, code);
+        }
+      },
+    ),
+  );
+
+  if (expired.length > 0) {
+    await supabase.from("push_subscriptions").delete().in("id", expired);
+  }
 }
 
 Deno.serve(async (_req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  // Window: 19–21 minutes from now. pg_cron fires every minute, so any given
-  // call enters this window for ~2 firings — `notified_at_20min IS NULL`
-  // prevents duplicate DMs.
-  const lowerMinutes = 19;
-  const upperMinutes = 21;
-
+  // Window: 19 to 21 minutes from now. pg_cron fires every minute, so any
+  // given call enters this window for about 2 firings. notified_at_20min
+  // prevents duplicate pushes.
   const now = new Date();
-  const lower = new Date(now.getTime() + lowerMinutes * 60_000).toISOString();
-  const upper = new Date(now.getTime() + upperMinutes * 60_000).toISOString();
+  const lower = new Date(now.getTime() + 19 * 60_000).toISOString();
+  const upper = new Date(now.getTime() + 21 * 60_000).toISOString();
 
   const { data: slots, error } = await supabase
     .from("curriculum_slots")
@@ -66,11 +97,17 @@ Deno.serve(async (_req) => {
   if (!slots?.length) return new Response("no_slots", { status: 200 });
 
   for (const slot of slots) {
-    // TODO: enrich with prep-completion stats, VOD link, channel link.
     // deno-lint-ignore no-explicit-any
     const player = (slot as any).curricula?.players;
     const firstName = player?.first_name ?? "Unknown";
-    await dmTim(`Call with ${firstName} starts in 20 minutes.`);
+
+    await sendPushToActiveCoach(
+      supabase,
+      `${firstName}'s lesson in 20 min`,
+      "Open the calendar to review prep.",
+      "/admin/calendar",
+      `pre-call-${slot.id}`,
+    );
 
     await supabase
       .from("curriculum_slots")

@@ -24,6 +24,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { brandedEmailHtml } from "@/lib/email/template";
 import { sendBrandedEmail } from "@/lib/email/send";
 import { sendDirectMessage } from "@/lib/discord/bot";
+import { sendPushToCoach, getActiveCoachId } from "@/lib/push/sendTo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -432,6 +433,18 @@ async function handleInviteeCreated(payload: InviteePayload, supabase: Supa) {
     recipientType: "parent",
     relatedEntityType: "trial_call",
   });
+
+  // Notify Tim about the new trial booking via web push.
+  const coachId = await getActiveCoachId();
+  if (coachId) {
+    const kidName = kidFirstName ?? "Someone";
+    await sendPushToCoach(coachId, {
+      title: `New trial: ${kidName}`,
+      body: `${subjectDate} at ${timeStr}`,
+      url: "/admin/calendar",
+      tag: "new-trial",
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -637,6 +650,23 @@ ${closingLine}
     relatedEntityType: "curriculum_slot",
     relatedEntityId: slot.id,
   });
+
+  // Push Tim: a lesson slot was just booked.
+  const coachId = await getActiveCoachId();
+  if (coachId) {
+    const weekday = new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: tz,
+    }).format(startDate);
+    await sendPushToCoach(coachId, {
+      title: `${player.first_name} booked Week ${slot.week_number}`,
+      body: `${weekday} at ${timeStr}`,
+      url: "/admin/calendar",
+      tag: `slot-booked-${slot.id}`,
+    });
+  }
 }
 
 function formatFullDate(date: Date, tz: string): string {

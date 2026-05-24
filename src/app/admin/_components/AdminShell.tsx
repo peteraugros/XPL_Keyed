@@ -6,12 +6,14 @@
 // lives on the Home page itself since it only affects Home content;
 // other pages are mode-agnostic.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./admin-shell.module.css";
 import { getSoundEnabled, setSoundEnabled, SOUND_PREF_EVENT } from "@/lib/sound/prefs";
 import { playChime } from "@/lib/sound/chime";
+
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
 type NavItem = { href: string; label: string; soon?: boolean };
 
@@ -38,9 +40,83 @@ export default function AdminShell({
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showIosBanner, setShowIosBanner] = useState(false);
+  const subscribed = useRef(false);
 
   function closeDrawer() {
     setDrawerOpen(false);
+  }
+
+  // Subscribe to web push on first mount. Silently skips if:
+  //   - browser doesn't support push or service worker
+  //   - permission was explicitly denied
+  //   - already subscribed this session (ref guard)
+  //
+  // iOS Safari requires the PWA to be installed (Add to Home Screen, display:
+  // standalone) for push to work. If we're on iOS Safari in the browser (not
+  // standalone), show a gentle install nudge instead.
+  useEffect(() => {
+    if (subscribed.current) return;
+    if (typeof window === "undefined") return;
+
+    // Detect iOS Safari running outside standalone mode.
+    const isIos =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window);
+    const isStandalone =
+      "standalone" in window.navigator &&
+      (window.navigator as { standalone?: boolean }).standalone === true;
+    if (isIos && !isStandalone) {
+      setShowIosBanner(true);
+      return;
+    }
+
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (Notification.permission === "denied") return;
+    if (!VAPID_PUBLIC_KEY) return;
+
+    subscribed.current = true;
+
+    (async () => {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") return;
+
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+
+        let sub = existing;
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as BufferSource,
+          });
+        }
+
+        const json = sub.toJSON() as {
+          endpoint: string;
+          keys: { p256dh: string; auth: string };
+        };
+
+        await fetch("/api/admin/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint: json.endpoint,
+            keys: json.keys,
+            userAgent: navigator.userAgent,
+          }),
+        });
+      } catch (err) {
+        console.warn("[push] subscribe failed", err);
+      }
+    })();
+  }, []);
+
+  function urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    return new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));
   }
 
   async function onSignOut() {
@@ -139,6 +215,18 @@ export default function AdminShell({
           <div className={styles.topBarTitle}>Coach admin</div>
           <SoundToggle />
         </header>
+        {showIosBanner ? (
+          <div className={styles.iosBanner}>
+            <span>Add to Home Screen for call reminders</span>
+            <button
+              type="button"
+              className={styles.iosBannerDismiss}
+              onClick={() => setShowIosBanner(false)}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
         <main className={styles.content}>{children}</main>
       </div>
     </div>
