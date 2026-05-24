@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 type SubLookup = {
   id: string;
   status: string;
+  tier: string | null;
   lifecycle_state: string;
   cycle_lessons_delivered: number;
   cycle_skips_used: number;
@@ -247,7 +248,7 @@ export default async function ProgressPage() {
   const subResp = await supabase
     .from("subscriptions")
     .select(
-      "id, status, lifecycle_state, cycle_lessons_delivered, cycle_skips_used, cycle_started_at, auto_renew_enabled, trial_call_at",
+      "id, status, tier, lifecycle_state, cycle_lessons_delivered, cycle_skips_used, cycle_started_at, auto_renew_enabled, trial_call_at",
     )
     .eq("player_id", player.id)
     .maybeSingle();
@@ -580,7 +581,63 @@ export default async function ProgressPage() {
             cards. Past cycle history + attendance also surface for
             the history phase so wrapped-up families can look back.
           ----------------------------------------------------------- */}
-      {phase === "active" && sub ? (
+      {/* Single-session families: render a focused "Your session" card
+          instead of the cycle counter. tier='single_lesson' means there's
+          no 4-of-4 progression, no cancel allowance, no auto-renew —
+          surfacing those stats would be wrong + confusing. */}
+      {phase === "active" && sub?.tier === "single_lesson" ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>Single session</div>
+          <h2 className={styles.cardTitle}>
+            {(() => {
+              const slot = activeSlots[0];
+              const lesson = slot?.lesson_id ? lessonsById.get(slot.lesson_id) ?? null : null;
+              if (lesson?.parent_label) return lesson.parent_label;
+              if (slot?.live_call_at) return "Your coaching session";
+              return "Tim is preparing your session";
+            })()}
+          </h2>
+          <p className={styles.cardBody}>
+            {(() => {
+              const slot = activeSlots[0];
+              const lesson = slot?.lesson_id ? lessonsById.get(slot.lesson_id) ?? null : null;
+              if (lesson?.parent_skill_description) {
+                return (
+                  <>
+                    {lesson.parent_skill_description}
+                    {lesson.fortnite_label ? (
+                      <>
+                        {" "}
+                        <em className={progressStyles.fortniteTerm}>
+                          (Fortnite term: {lesson.fortnite_label}.)
+                        </em>
+                      </>
+                    ) : null}
+                  </>
+                );
+              }
+              return "One coaching call with Tim plus a lesson he picks based on what you told him. Once it's assigned, both you and your kid can rewatch it any time.";
+            })()}
+          </p>
+          {(() => {
+            const slot = activeSlots[0];
+            const lesson = slot?.lesson_id ? lessonsById.get(slot.lesson_id) ?? null : null;
+            const videoUrl = lesson?.video_url;
+            if (!videoUrl) return null;
+            return (
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={progressStyles.watchLink}
+                style={{ marginTop: 8 }}
+              >
+                Watch the lesson video →
+              </a>
+            );
+          })()}
+        </section>
+      ) : phase === "active" && sub ? (
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>This cycle</div>
           <h2 className={styles.cardTitle}>
@@ -607,7 +664,7 @@ export default async function ProgressPage() {
         </section>
       ) : null}
 
-      {phase === "active" && activeCurriculum && activeSlots.length > 0 ? (
+      {phase === "active" && sub?.tier !== "single_lesson" && activeCurriculum && activeSlots.length > 0 ? (
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>Current plan</div>
           <h2 className={styles.cardTitle}>4 week curriculum</h2>

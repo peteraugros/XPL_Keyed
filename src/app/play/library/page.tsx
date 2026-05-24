@@ -76,6 +76,39 @@ export default async function LibraryPage() {
     }
   }
 
+  // Archive: every delivered lesson the kid has ever received, across
+  // ALL curricula (current + completed cycles + past single-sessions).
+  // Drives the "Your library" rewatch section. Joins lessons via a
+  // second roundtrip to keep the per-row typing simple.
+  type ArchiveSlot = {
+    delivered_at: string;
+    lesson_id: string | null;
+    curricula: { id: string; player_id: string; status: string } | null;
+  };
+  const archiveResp = await supabase
+    .from("curriculum_slots")
+    .select("delivered_at, lesson_id, curricula!inner(id, player_id, status)")
+    .eq("curricula.player_id", player.id)
+    .not("delivered_at", "is", null)
+    .not("lesson_id", "is", null)
+    .order("delivered_at", { ascending: false });
+  const archiveSlots = (archiveResp.data ?? []) as unknown as ArchiveSlot[];
+  // Fetch any archive lesson rows not already loaded (active curriculum
+  // shares some — dedupe via the existing map).
+  const archiveLessonIds = Array.from(
+    new Set(archiveSlots.map((s) => s.lesson_id).filter((id): id is string => !!id)),
+  );
+  const missingIds = archiveLessonIds.filter((id) => !lessonById.has(id));
+  if (missingIds.length > 0) {
+    const more = await supabase
+      .from("lessons")
+      .select("id, fortnite_label, video_url")
+      .in("id", missingIds);
+    for (const l of (more.data ?? []) as LessonLookup[]) {
+      lessonById.set(l.id, l);
+    }
+  }
+
   const isSingleSession = sub?.tier === "single_lesson" && sub?.status === "active";
   const phase =
     sub?.status === "active"
@@ -211,6 +244,59 @@ export default async function LibraryPage() {
           </p>
         </section>
       )}
+
+      {/* Archive: every lesson the kid has ever received, in reverse
+          chronological order, with watch links. Persistent rewatch
+          surface — the current-plan section above shows what's
+          happening now, this section is the long-term library.
+          Hidden if there's nothing yet. */}
+      {archiveSlots.length > 0 ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>Your library</div>
+          <h2 className={styles.cardTitle}>
+            {archiveSlots.length} lesson{archiveSlots.length === 1 ? "" : "s"} to rewatch
+          </h2>
+          <p className={styles.cardBody}>
+            Every lesson Tim has shipped you. Rewatch anything, anytime.
+          </p>
+          <ul className={styles.weekList}>
+            {archiveSlots.map((s, idx) => {
+              const lesson = s.lesson_id ? lessonById.get(s.lesson_id) ?? null : null;
+              if (!lesson) return null;
+              const dateLabel = new Intl.DateTimeFormat("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                timeZone: "America/Los_Angeles",
+              }).format(new Date(s.delivered_at));
+              return (
+                <li key={`${s.lesson_id}-${idx}`} className={styles.weekRow}>
+                  <span className={styles.weekNum}>{archiveSlots.length - idx}</span>
+                  <span className={styles.weekLabel}>
+                    {lesson.fortnite_label}
+                    {lesson.video_url ? (
+                      <>
+                        {" · "}
+                        <a
+                          href={lesson.video_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.watchLink}
+                        >
+                          Watch →
+                        </a>
+                      </>
+                    ) : null}
+                  </span>
+                  <span className={styles.weekStatus} style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                    {dateLabel}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       {/* "How a lesson works" copy is cycle-specific (Sunday drops,
           4-week rhythm). Don't show it on single-session — that
