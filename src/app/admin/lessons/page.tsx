@@ -15,6 +15,7 @@
 import { redirect as _redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import styles from "./page.module.css";
+import LessonActionsMenu from "./LessonActionsMenu";
 
 function redirect(url: string): never {
   (_redirect as (u: string) => never)(url);
@@ -126,17 +127,20 @@ export default async function AdminLessonsPage() {
                           {l.fortnite_label || "(no Fortnite label)"} → {l.parent_label || "(no parent label)"}
                         </div>
                       </div>
-                      <div className={styles.lessonBadges}>
-                        {l.topic ? <span className={styles.lessonBadge}>{l.topic}</span> : null}
-                        {l.difficulty_level ? <span className={styles.lessonBadge}>{l.difficulty_level}</span> : null}
-                        {l.duration_minutes ? <span className={styles.lessonBadge}>{l.duration_minutes}m</span> : null}
-                        {needsVideo ? (
-                          <span className={`${styles.lessonBadge} ${styles.lessonBadgeStub}`}>NEEDS VIDEO</span>
-                        ) : l.is_published ? (
-                          <span className={`${styles.lessonBadge} ${styles.lessonBadgePublished}`}>PUBLISHED</span>
-                        ) : (
-                          <span className={styles.lessonBadge}>DRAFT</span>
-                        )}
+                      <div className={styles.lessonHeaderRight}>
+                        <div className={styles.lessonBadges}>
+                          {l.topic ? <span className={styles.lessonBadge}>{l.topic}</span> : null}
+                          {l.difficulty_level ? <span className={styles.lessonBadge}>{l.difficulty_level}</span> : null}
+                          {l.duration_minutes ? <span className={styles.lessonBadge}>{l.duration_minutes}m</span> : null}
+                          {needsVideo ? (
+                            <span className={`${styles.lessonBadge} ${styles.lessonBadgeStub}`}>NEEDS VIDEO</span>
+                          ) : l.is_published ? (
+                            <span className={`${styles.lessonBadge} ${styles.lessonBadgePublished}`}>PUBLISHED</span>
+                          ) : (
+                            <span className={styles.lessonBadge}>DRAFT</span>
+                          )}
+                        </div>
+                        <LessonActionsMenu lessonId={l.id} lessonTitle={l.title} />
                       </div>
                     </div>
                     <div className={styles.lessonMeta}>

@@ -178,3 +178,120 @@
 .lessonEditLink:hover {
   text-decoration: underline;
 }
+
+/* Kebab menu (3 dots) on each lesson row in the library list.
+   Opens a small dropdown with Edit + Delete. Two-step inline confirm
+   for delete; click-outside or Escape closes. */
+.lessonHeaderRight {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.kebabWrap {
+  position: relative;
+  display: inline-block;
+}
+.kebabBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  padding: 0;
+  transition: background 0.12s, border 0.12s, color 0.12s;
+}
+.kebabBtn:hover {
+  background: var(--bg-3);
+  border-color: var(--border-hi);
+  color: var(--text);
+}
+.kebabMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-hi);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  padding: 6px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kebabItem {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.kebabItem:hover {
+  background: var(--bg-3);
+}
+.kebabItemDanger {
+  color: #E15467;
+}
+.kebabItemDanger:hover {
+  background: rgba(225, 84, 103, 0.1);
+}
+.kebabConfirm {
+  padding: 10px 12px;
+}
+.kebabConfirmText {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.kebabConfirmActions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.kebabCancel, .kebabDelete {
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid var(--border-hi);
+}
+.kebabCancel {
+  background: transparent;
+  color: var(--text-dim);
+}
+.kebabCancel:hover { color: var(--text); }
+.kebabDelete {
+  background: #E15467;
+  color: #fff;
+  border-color: #E15467;
+}
+.kebabDelete:hover:not(:disabled) { background: #d04457; }
+.kebabDelete:disabled { opacity: 0.6; cursor: not-allowed; }
+.kebabError {
+  font-size: 12px;
+  color: #E15467;
+  margin-bottom: 8px;
+  background: rgba(225, 84, 103, 0.08);
+  padding: 6px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
