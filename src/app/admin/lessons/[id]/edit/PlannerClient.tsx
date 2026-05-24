@@ -61,6 +61,10 @@ export type PlannerStateJson = {
   curriculumOrder: string[] | null;
   assumesPrerequisites: boolean;
   reviewChecks: { oneIdea: boolean; definitions: boolean; why: boolean; pacing: boolean };
+  // Standard Mode tracker. Set after spawn-independent runs; presence
+  // marks "already spawned" so the UI can show the done state instead
+  // of letting Tim re-spawn and create duplicates.
+  spawnedIndependentLessonIds?: string[];
 };
 export type LessonRecord = {
   id: string;
@@ -756,15 +760,18 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
 
         {showDep ? (
           <div className={styles.depQuestion}>
-            <h4>One last question</h4>
-            <p>Look at your list. Does the first item use words or ideas from the other items?</p>
-            <p className={styles.coreLockHint}>
-              You answer this one yourself — no AI. This is the call that decides whether you&apos;ve really planned one lesson or several.
+            <h4>How do these relate to each other?</h4>
+            <p>
+              This is the call that shapes everything downstream. Be honest
+              about whether your skills depend on each other or not.
             </p>
-            <div className={styles.btnRow}>
+            <p className={styles.coreLockHint}>
+              You answer this one yourself. No AI.
+            </p>
+            <div className={styles.depOptions}>
               <button
                 type="button"
-                className={`${styles.btn} ${planner.dependencyAnswered && !planner.isCapstone ? styles.btnPrimary : ""}`}
+                className={`${styles.depOption} ${planner.dependencyAnswered && !planner.isCapstone ? styles.depOptionChosen : ""}`}
                 onClick={() =>
                   setPlannerAndSave((p) => ({
                     ...p,
@@ -774,11 +781,14 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
                   }))
                 }
               >
-                No. These are independent skills.
+                <div className={styles.depOptionTitle}>Independent skills</div>
+                <div className={styles.depOptionBody}>
+                  Each of these can stand alone. A player could watch any one in any order. No prerequisites between them.
+                </div>
               </button>
               <button
                 type="button"
-                className={`${styles.btn} ${planner.dependencyAnswered && planner.isCapstone ? styles.btnPrimary : ""}`}
+                className={`${styles.depOption} ${planner.dependencyAnswered && planner.isCapstone ? styles.depOptionChosen : ""}`}
                 onClick={() =>
                   setPlannerAndSave((p) => ({
                     ...p,
@@ -790,16 +800,12 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
                   }))
                 }
               >
-                Yes. They build on each other.
+                <div className={styles.depOptionTitle}>They build on each other</div>
+                <div className={styles.depOptionBody}>
+                  Each one uses ideas from the previous. A beginner has to watch them in order. The last lesson pulls everything together.
+                </div>
               </button>
             </div>
-            {planner.dependencyAnswered ? (
-              <p className={styles.fieldHint}>
-                {planner.isCapstone
-                  ? "Capstone mode: you've planned a series. Step 4 will help you put them in teaching order."
-                  : "Standard mode: pick one for this video, the rest get saved as future lesson ideas."}
-              </p>
-            ) : null}
           </div>
         ) : (
           <p className={styles.fieldHint}>Add at least 2 items to see the next question.</p>
@@ -837,10 +843,13 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
 
     return (
       <section className={styles.card}>
-        <div className={styles.cardEyebrow}>Step 4 of 7</div>
+        <div className={styles.cardEyebrow}>Step 4 of 7 · Independent skills</div>
         <h2 className={styles.cardTitle}>Pick ONE skill to teach in this video.</h2>
         <p className={styles.cardHint}>
-          The others get saved as future lessons. One idea per video is the rule. Tap the AI button if you want a recommendation on which to teach first.
+          Each skill on your list stands on its own. Pick the one to focus
+          on now. Below, you can spawn the rest as their own independent
+          draft lessons (they won&apos;t be tied together — Tim can group them later
+          under a bundle if he wants).
         </p>
         <button
           type="button"
@@ -897,7 +906,7 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
 
         {chosen && unchosen.length > 0 ? (
           <div className={styles.futureQueue}>
-            <h4>Saved for later</h4>
+            <h4>The other {unchosen.length} skill{unchosen.length === 1 ? "" : "s"}</h4>
             <ul>
               {unchosen.map((it) => (
                 <li key={it.id}>
@@ -907,8 +916,24 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
               ))}
             </ul>
             <p className={styles.fieldHint}>
-              These don&apos;t auto-spawn new lessons yet. Start each as a new lesson from the library when you&apos;re ready.
+              Spawn these as independent draft lessons now, or come back
+              later. Either way each one stands on its own — no implied
+              order, no series binding.
             </p>
+            <SpawnIndependentButton
+              lessonId={lessonId}
+              count={unchosen.length}
+              alreadySpawned={
+                Array.isArray(planner.spawnedIndependentLessonIds) &&
+                planner.spawnedIndependentLessonIds.length > 0
+              }
+              onSpawned={(ids) => {
+                setPlannerAndSave((p) => ({
+                  ...p,
+                  spawnedIndependentLessonIds: ids,
+                }));
+              }}
+            />
           </div>
         ) : null}
 
@@ -937,10 +962,12 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
 
     return (
       <section className={styles.card}>
-        <div className={styles.cardEyebrow}>Step 4 of 7 · Capstone mode</div>
+        <div className={styles.cardEyebrow}>Step 4 of 7 · Sequential series</div>
         <h2 className={styles.cardTitle}>Put them in teaching order.</h2>
         <p className={styles.cardHint}>
-          Which one would a beginner need to learn first? Use the arrows to set the order.
+          Order them so each one scaffolds the next. The first lesson covers
+          what a beginner needs before they can grasp the second; the last
+          synthesizes the whole series. This lesson becomes the capstone.
         </p>
         <div className={styles.identifyList}>
           {orderedItems.map((item, idx) => (
@@ -1047,12 +1074,30 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
     const canAdvance = stepComplete(5);
     const busy = aiState.busy && aiState.kind === "write_structure";
     const chosen = planner.identifyList.find((it) => it.id === planner.narrowChoice);
+    const isCapstone = planner.isCapstone;
     return (
       <section className={styles.card}>
-        <div className={styles.cardEyebrow}>Step 5 of 7</div>
-        <h2 className={styles.cardTitle}>Build your beat sheet.</h2>
+        <div className={styles.cardEyebrow}>
+          Step 5 of 7{isCapstone ? " · Capstone synthesis" : ""}
+        </div>
+        <h2 className={styles.cardTitle}>
+          {isCapstone ? "Plan the capstone." : "Build your beat sheet."}
+        </h2>
         <p className={styles.cardHint}>
-          Bullets, not sentences. You talk in your own voice from the bullets. Tap the AI button to draft a starting structure, then edit every section.
+          {isCapstone ? (
+            <>
+              This is the lesson that ties everything together. Reference the
+              foundation lessons your viewer should have watched first; don&apos;t
+              re-teach those mechanics from scratch — synthesize them into
+              the bigger play. Bullets, not sentences.
+            </>
+          ) : (
+            <>
+              Bullets, not sentences. You talk in your own voice from the
+              bullets. Tap the AI button to draft a starting structure, then
+              edit every section.
+            </>
+          )}
         </p>
         <button
           type="button"
@@ -1559,6 +1604,77 @@ function savingLabel(s: "idle" | "pending" | "saving" | "saved" | "error"): stri
     case "error": return "Save failed";
     case "idle": default: return "";
   }
+}
+
+function SpawnIndependentButton({
+  lessonId,
+  count,
+  alreadySpawned,
+  onSpawned,
+}: {
+  lessonId: string;
+  count: number;
+  alreadySpawned: boolean;
+  onSpawned: (createdIds: string[]) => void;
+}) {
+  const [state, setState] = useState<"idle" | "spawning" | "done" | "error">(
+    alreadySpawned ? "done" : "idle",
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  if (state === "done") {
+    return (
+      <div className={styles.spawnDone}>
+        ✓ {count} independent draft lesson{count === 1 ? "" : "s"} created. Find them in{" "}
+        <a href="/admin/lessons?tab=drafts">/admin/lessons → Drafts</a>. Bundle
+        them together later from the Bundles tab if they belong as a group.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <button
+        type="button"
+        className={`${styles.btn} ${styles.btnPrimary}`}
+        disabled={state === "spawning"}
+        onClick={async () => {
+          setState("spawning");
+          setError(null);
+          try {
+            const res = await fetch(`/api/admin/lessons/${lessonId}/spawn-independent`, {
+              method: "POST",
+            });
+            const body = (await res.json().catch(() => ({}))) as {
+              ok?: boolean;
+              created_ids?: string[];
+              error?: string;
+              detail?: string;
+            };
+            if (!res.ok || !body.ok) {
+              setError(body.detail ?? body.error ?? "spawn_failed");
+              setState("error");
+              return;
+            }
+            onSpawned(body.created_ids ?? []);
+            setState("done");
+          } catch {
+            setError("network");
+            setState("error");
+          }
+        }}
+      >
+        {state === "spawning"
+          ? "Spawning..."
+          : `Spawn ${count} independent lesson${count === 1 ? "" : "s"}`}
+      </button>
+      {state === "error" ? (
+        <p className={styles.aiError}>
+          Spawn failed ({error}). You can retry or create each lesson manually from the library.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function SpawnSeriesButton({
