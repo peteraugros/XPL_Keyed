@@ -28,12 +28,26 @@ export async function transcribeAudio(
     return { ok: false, code: "file_too_large", detail: `${(fileBlob.size / 1024 / 1024).toFixed(1)}MB exceeds the 25MB Whisper limit.` };
   }
 
+  // Whisper's officially-supported extensions: mp3, mp4, mpeg, mpga,
+  // m4a, wav, webm. .mov files are usually H.264/AAC (same codec as
+  // mp4) so they decode fine, but Whisper's parser rejects them
+  // purely on extension. Rename to .mp4 for the API call — the bytes
+  // inside the container parse identically.
+  const ext = (filename.split(".").pop() ?? "").toLowerCase();
+  const whisperFilename = ext === "mov" ? filename.replace(/\.mov$/i, ".mp4") : filename;
+
   const form = new FormData();
-  form.append("file", fileBlob, filename);
+  form.append("file", fileBlob, whisperFilename);
   form.append("model", WHISPER_MODEL);
   // Plain text response — no timestamps. We surface the raw text to
   // Tim; the planner textarea isn't the place for timecode metadata.
   form.append("response_format", "text");
+
+  console.log("[whisper] posting to Whisper", {
+    bytes: fileBlob.size,
+    filename: whisperFilename,
+    original_ext: ext,
+  });
 
   try {
     const res = await fetch(WHISPER_ENDPOINT, {
@@ -43,18 +57,22 @@ export async function transcribeAudio(
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      console.error("[whisper] non-2xx response", res.status, errText);
+      console.error("[whisper] non-2xx response", {
+        status: res.status,
+        body: errText.slice(0, 500),
+      });
       return {
         ok: false,
         code: res.status === 401 ? "invalid_key" : "whisper_api_error",
-        detail: `${res.status} ${errText.slice(0, 200)}`,
+        detail: `Whisper ${res.status}: ${errText.slice(0, 300)}`,
       };
     }
     const raw = await res.text();
+    console.log("[whisper] success", { transcript_chars: raw.length });
     return { ok: true, transcript: postProcess(raw) };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
-    console.error("[whisper] fetch threw", msg);
+    console.error("[whisper] fetch threw", { msg, err });
     return { ok: false, code: "network", detail: msg };
   }
 }

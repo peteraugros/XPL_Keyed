@@ -107,17 +107,22 @@ export default function TranscribeUploader({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ storage_path: objectPath }),
       });
-      const body = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        transcript?: string;
-        error?: string;
-        detail?: string;
-      };
+      // Read body once. JSON parse failure → fall back to status code +
+      // a hint so the UI never shows the bare "Transcription failed."
+      // string. That string used to hide Railway gateway errors that
+      // had HTML bodies instead of our JSON.
+      let body: { ok?: boolean; transcript?: string; error?: string; detail?: string } = {};
+      const raw = await res.text();
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        body = { error: `gateway_${res.status}`, detail: raw.slice(0, 200) };
+      }
       if (!res.ok || !body.ok || !body.transcript) {
         const reason =
           body.error === "openai_not_configured"
             ? "Transcription is not configured yet. Paste manually for now."
-            : body.detail || body.error || "Transcription failed.";
+            : body.detail || body.error || `Transcription failed (HTTP ${res.status}).`;
         setPhase({
           kind: "transcribe_failed",
           filename: file.name,
@@ -156,18 +161,19 @@ export default function TranscribeUploader({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ storage_path: phase.storagePath }),
       });
-      const body = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        transcript?: string;
-        error?: string;
-        detail?: string;
-      };
+      let body: { ok?: boolean; transcript?: string; error?: string; detail?: string } = {};
+      const raw = await res.text();
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        body = { error: `gateway_${res.status}`, detail: raw.slice(0, 200) };
+      }
       if (!res.ok || !body.ok || !body.transcript) {
         setPhase({
           kind: "transcribe_failed",
           filename: phase.filename,
           storagePath: phase.storagePath,
-          reason: body.detail || body.error || "Transcription failed.",
+          reason: body.detail || body.error || `Transcription failed (HTTP ${res.status}).`,
         });
         return;
       }

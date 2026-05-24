@@ -63,6 +63,8 @@ export async function POST(
     );
   }
 
+  console.log("[transcribe] start", { lessonId, storage_path: body.storage_path });
+
   const service = createServiceRoleClient();
   const dl = await service.storage.from("lesson-assets").download(body.storage_path);
   if (dl.error || !dl.data) {
@@ -74,6 +76,11 @@ export async function POST(
   }
 
   const blob = dl.data;
+  console.log("[transcribe] downloaded", {
+    bytes: blob.size,
+    mime: blob.type,
+  });
+
   if (blob.size > WHISPER_MAX_BYTES) {
     return NextResponse.json(
       {
@@ -87,16 +94,30 @@ export async function POST(
   // Whisper accepts the path's basename as the filename hint. Strip the
   // UUID prefix and keep just the visible file name.
   const basename = body.storage_path.split("/").pop() ?? "audio.mp4";
-  const result = await transcribeAudio(blob, basename);
 
-  if (!result.ok) {
-    // Don't delete the file on failure — Tim can retry without
-    // re-uploading. The 24hr cleanup cron will purge eventually.
+  try {
+    const result = await transcribeAudio(blob, basename);
+    if (!result.ok) {
+      console.error("[transcribe] whisper returned not-ok", result);
+      // Don't delete the file on failure — Tim can retry without
+      // re-uploading. The 24hr cleanup cron will purge eventually.
+      return NextResponse.json(
+        { error: result.code, detail: result.detail ?? "" },
+        { status: result.code === "openai_not_configured" ? 503 : 502 },
+      );
+    }
+    console.log("[transcribe] success", { chars: result.transcript.length });
+    return NextResponse.json({ ok: true, transcript: result.transcript });
+  } catch (err) {
+    // Last-resort catch so the handler never lets an unhandled throw
+    // propagate up to Railway (which would return its own 502 with an
+    // HTML body, masking the real cause).
+    const msg = err instanceof Error ? err.message : "unknown";
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("[transcribe] unhandled throw", { msg, stack });
     return NextResponse.json(
-      { error: result.code, detail: result.detail ?? "" },
-      { status: result.code === "openai_not_configured" ? 503 : 502 },
+      { error: "handler_threw", detail: msg },
+      { status: 500 },
     );
   }
-
-  return NextResponse.json({ ok: true, transcript: result.transcript });
 }
