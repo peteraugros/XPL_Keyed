@@ -41,7 +41,7 @@ export default async function PlayHQ() {
     supabase
       .from("subscriptions")
       .select(
-        "status, cycle_lessons_delivered, cycle_started_at, trial_call_at",
+        "status, tier, cycle_lessons_delivered, cycle_started_at, trial_call_at",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -62,11 +62,71 @@ export default async function PlayHQ() {
   const subscription = subscriptionLookup.data as
     | {
         status: string;
+        tier: string | null;
         cycle_lessons_delivered: number;
         cycle_started_at: string | null;
         trial_call_at: string | null;
       }
     | null;
+  const isSingleSession = subscription?.tier === "single_lesson";
+
+  // Single-session lookup: the one assigned lesson + its video URL.
+  // Drives the kid's "Coach assigned you a lesson" card. Bypasses the
+  // 4-week curriculum machinery entirely.
+  let singleSessionLesson: {
+    fortnite_label: string;
+    video_url: string | null;
+    delivered_at: string | null;
+    live_call_at: string | null;
+  } | null = null;
+  if (isSingleSession) {
+    const ssCurriculum = await supabase
+      .from("curricula")
+      .select("id")
+      .eq("player_id", player.id)
+      .eq("curriculum_type" as never, "single_session")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const ssCurrId = (ssCurriculum.data as { id: string } | null)?.id;
+    if (ssCurrId) {
+      const slotResp = await supabase
+        .from("curriculum_slots")
+        .select("lesson_id, live_call_at, delivered_at")
+        .eq("curriculum_id", ssCurrId)
+        .limit(1)
+        .maybeSingle();
+      const slot = slotResp.data as
+        | { lesson_id: string | null; live_call_at: string | null; delivered_at: string | null }
+        | null;
+      if (slot?.lesson_id) {
+        const lessonResp = await supabase
+          .from("lessons")
+          .select("fortnite_label, video_url")
+          .eq("id", slot.lesson_id)
+          .maybeSingle();
+        const lesson = lessonResp.data as
+          | { fortnite_label: string; video_url: string | null }
+          | null;
+        if (lesson) {
+          singleSessionLesson = {
+            fortnite_label: lesson.fortnite_label,
+            video_url: lesson.video_url,
+            delivered_at: slot.delivered_at,
+            live_call_at: slot.live_call_at,
+          };
+        }
+      } else if (slot) {
+        // Lesson not assigned yet but the slot exists.
+        singleSessionLesson = {
+          fortnite_label: "",
+          video_url: null,
+          delivered_at: null,
+          live_call_at: slot.live_call_at,
+        };
+      }
+    }
+  }
 
   // Pull the kid's private Discord channel URL so the trial-call CTA
   // can deep-link there once the call window opens.
@@ -120,10 +180,12 @@ export default async function PlayHQ() {
       initialCompletedQuests={Array.from(completed)}
       initialVodUrl={vod?.url ?? null}
       subscriptionStatus={subscription?.status ?? "trial"}
+      subscriptionTier={subscription?.tier ?? null}
       cycleLessonsDelivered={subscription?.cycle_lessons_delivered ?? 0}
       curriculumWeeks={curriculumWeeks}
       trialCallAt={subscription?.trial_call_at ?? null}
       discordChannelUrl={discordChannelUrl}
+      singleSessionLesson={singleSessionLesson}
       initialPrep={
         prep
           ? {

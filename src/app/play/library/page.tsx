@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 type SubLookup = {
   status: string;
+  tier: string | null;
   cycle_lessons_delivered: number;
 };
 type CurriculumLookup = { id: string };
@@ -38,7 +39,7 @@ export default async function LibraryPage() {
   const [subResp, curriculumResp] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("status, cycle_lessons_delivered")
+      .select("status, tier, cycle_lessons_delivered")
       .eq("player_id", player.id)
       .maybeSingle(),
     supabase
@@ -75,6 +76,7 @@ export default async function LibraryPage() {
     }
   }
 
+  const isSingleSession = sub?.tier === "single_lesson" && sub?.status === "active";
   const phase =
     sub?.status === "active"
       ? "active"
@@ -90,17 +92,62 @@ export default async function LibraryPage() {
         <div className={styles.eyebrow}>Library</div>
         <h1 className={styles.title}>Lesson library</h1>
         <p className={styles.intro}>
-          {phase === "active"
-            ? "Tim drops a lesson every Sunday. Watch when you have time before the live call that week."
-            : phase === "paused"
-              ? "Library is paused. Lessons will resume when your subscription is back."
-              : phase === "ended"
-                ? "Library is closed. Your past lessons stay here for reference."
-                : "Locked until your first paid cycle starts. Here is what it looks like."}
+          {isSingleSession
+            ? "Tim picked one lesson for you. Watch when you have time."
+            : phase === "active"
+              ? "Tim drops a lesson every Sunday. Watch when you have time before the live call that week."
+              : phase === "paused"
+                ? "Library is paused. Lessons will resume when your subscription is back."
+                : phase === "ended"
+                  ? "Library is closed. Your past lessons stay here for reference."
+                  : "Locked until your first paid cycle starts. Here is what it looks like."}
         </p>
       </section>
 
-      {phase === "trial" ? (
+      {isSingleSession ? (
+        (() => {
+          const slot = slots[0];
+          const lesson = slot?.lesson_id ? lessonById.get(slot.lesson_id) ?? null : null;
+          const videoUrl = lesson?.video_url ?? null;
+          if (!slot || !lesson) {
+            return (
+              <section className={styles.card}>
+                <div className={styles.cardEyebrow}>Single session</div>
+                <h2 className={styles.cardTitle}>Tim is picking your lesson</h2>
+                <p className={styles.cardBody}>
+                  He&apos;s building it around what you said you wanted help
+                  with. The watch link shows up here as soon as he picks it.
+                </p>
+              </section>
+            );
+          }
+          return (
+            <section className={styles.card}>
+              <div className={styles.cardEyebrow}>Single session</div>
+              <h2 className={styles.cardTitle}>{lesson.fortnite_label}</h2>
+              <p className={styles.cardBody}>
+                Tim picked this for you. Watch it whenever. Your live call with
+                him is on the schedule.
+              </p>
+              {videoUrl ? (
+                <a
+                  href={videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.watchLink}
+                  style={{ display: "inline-block", marginTop: 8 }}
+                >
+                  Watch the lesson →
+                </a>
+              ) : (
+                <p className={styles.subtle} style={{ marginTop: 8 }}>
+                  Tim still has to attach the video. It&apos;ll show up here.
+                </p>
+              )}
+            </section>
+          );
+        })()
+      ) : phase === "trial" ? (
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>Coming after conversion</div>
           <h2 className={styles.cardTitle}>What unlocks here</h2>
@@ -165,39 +212,45 @@ export default async function LibraryPage() {
         </section>
       )}
 
-      <section className={styles.card}>
-        <div className={styles.cardEyebrow}>How a lesson works</div>
-        <ul className={styles.weekList}>
-          <li className={styles.weekRow}>
-            <span className={styles.weekNum}>1</span>
-            <span className={styles.weekLabel}>
-              Tim drops slides plus a voiceover here on Sunday.
-            </span>
-            <span />
-          </li>
-          <li className={styles.weekRow}>
-            <span className={styles.weekNum}>2</span>
-            <span className={styles.weekLabel}>
-              You watch when you have time before the live call.
-            </span>
-            <span />
-          </li>
-          <li className={styles.weekRow}>
-            <span className={styles.weekNum}>3</span>
-            <span className={styles.weekLabel}>
-              Mid week, 30 min live call on Discord. Tim watches you play.
-            </span>
-            <span />
-          </li>
-          <li className={styles.weekRow}>
-            <span className={styles.weekNum}>4</span>
-            <span className={styles.weekLabel}>
-              Repeat for 4 weeks. Then the next cycle starts.
-            </span>
-            <span />
-          </li>
-        </ul>
-      </section>
+      {/* "How a lesson works" copy is cycle-specific (Sunday drops,
+          4-week rhythm). Don't show it on single-session — that
+          rhythm doesn't apply, and we'd contradict the "no schedule,
+          watch whenever" framing above. */}
+      {!isSingleSession ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>How a lesson works</div>
+          <ul className={styles.weekList}>
+            <li className={styles.weekRow}>
+              <span className={styles.weekNum}>1</span>
+              <span className={styles.weekLabel}>
+                Tim drops the lesson video here on Sunday.
+              </span>
+              <span />
+            </li>
+            <li className={styles.weekRow}>
+              <span className={styles.weekNum}>2</span>
+              <span className={styles.weekLabel}>
+                You watch when you have time before the live call.
+              </span>
+              <span />
+            </li>
+            <li className={styles.weekRow}>
+              <span className={styles.weekNum}>3</span>
+              <span className={styles.weekLabel}>
+                Mid week, 30 min live call on Discord. Tim watches you play.
+              </span>
+              <span />
+            </li>
+            <li className={styles.weekRow}>
+              <span className={styles.weekNum}>4</span>
+              <span className={styles.weekLabel}>
+                Repeat for 4 weeks. Then the next cycle starts.
+              </span>
+              <span />
+            </li>
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

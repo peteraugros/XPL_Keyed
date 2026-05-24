@@ -70,21 +70,30 @@ export default function PlayClient({
   initialVodUrl,
   initialPrep,
   subscriptionStatus,
+  subscriptionTier,
   cycleLessonsDelivered,
   curriculumWeeks,
   trialCallAt,
   discordChannelUrl,
+  singleSessionLesson,
 }: {
   playerFirstName: string;
   fortniteUsername: string | null;
   initialCompletedQuests: string[];
   initialVodUrl: string | null;
   subscriptionStatus: string;
+  subscriptionTier: string | null;
   cycleLessonsDelivered: number;
   curriculumWeeks: CurriculumWeek[];
   initialPrep: PrepState;
   trialCallAt: string | null;
   discordChannelUrl: string | null;
+  singleSessionLesson: {
+    fortnite_label: string;
+    video_url: string | null;
+    delivered_at: string | null;
+    live_call_at: string | null;
+  } | null;
 }) {
   const router = useRouter();
 
@@ -124,7 +133,11 @@ export default function PlayClient({
           ? "ended"
           : "trial";
   const isTrial = phase === "trial";
-  const isActive = phase === "active";
+  const isSingleSession = subscriptionTier === "single_lesson" && phase === "active";
+  // Cycle-active is the "subscription progression" branch (1 of 4
+  // incoming Sunday, cycle counter, etc). Single-session is active
+  // too but doesn't render through cycle UI.
+  const isActive = phase === "active" && !isSingleSession;
   const isPaused = phase === "paused";
   const isEnded = phase === "ended";
   const totalQuests = 4;
@@ -235,23 +248,29 @@ export default function PlayClient({
     <div className={styles.hq}>
       <section className={styles.hero}>
         <div className={styles.heroEyebrow}>
-          {isActive
-            ? "HQ. Active."
-            : isPaused
-              ? "HQ. On hold."
-              : isEnded
-                ? "HQ."
-                : "HQ. Free trial."}
+          {isSingleSession
+            ? "HQ. Single session."
+            : isActive
+              ? "HQ. Active."
+              : isPaused
+                ? "HQ. On hold."
+                : isEnded
+                  ? "HQ."
+                  : "HQ. Free trial."}
         </div>
         <h1 className={styles.heroTitle}>What up, {playerFirstName}.</h1>
         <p className={styles.heroBody}>
-          {isActive
-            ? `Lesson ${cycleLessonsDelivered + 1} of 4 incoming Sunday. Hit Tim in Comms for anything between drops.`
-            : isPaused
-              ? "Lessons are on a brief hold. Your parents are sorting it. Tim still sees your messages in Comms."
-              : isEnded
-                ? "Coaching wrapped for now. Your thread with Tim is still open from Comms."
-                : "Your free call is locked in. Finish your prep so we can hit the ground running."}
+          {isSingleSession
+            ? singleSessionLesson?.video_url
+              ? "Tim assigned a lesson. Watch it whenever. The live call is on your dashboard."
+              : "Tim's picking your lesson. It'll show up here as soon as he does."
+            : isActive
+              ? `Lesson ${cycleLessonsDelivered + 1} of 4 incoming Sunday. Hit Tim in Comms for anything between drops.`
+              : isPaused
+                ? "Lessons are on a brief hold. Your parents are sorting it. Tim still sees your messages in Comms."
+                : isEnded
+                  ? "Coaching wrapped for now. Your thread with Tim is still open from Comms."
+                  : "Your free call is locked in. Finish your prep so we can hit the ground running."}
         </p>
         {fortniteUsername ? (
           <div className={styles.heroIgn}>
@@ -265,6 +284,41 @@ export default function PlayClient({
           trialCallAt={trialCallAt}
           discordChannelUrl={discordChannelUrl}
         />
+      ) : null}
+
+      {isSingleSession ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>Your lesson</div>
+          {singleSessionLesson?.video_url ? (
+            <>
+              <h2 className={styles.cardTitle}>
+                {singleSessionLesson.fortnite_label || "Your coaching lesson"}
+              </h2>
+              <p className={styles.cardBody}>
+                Tim picked this for you. Watch when you have time. The live
+                call with him is on your dashboard schedule.
+              </p>
+              <a
+                href={singleSessionLesson.video_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.discordBtn}
+                style={{ display: "inline-block", marginTop: 6 }}
+              >
+                Watch the lesson →
+              </a>
+            </>
+          ) : (
+            <>
+              <h2 className={styles.cardTitle}>Tim is picking your lesson</h2>
+              <p className={styles.cardBody}>
+                He&apos;s building this around what you said you wanted help
+                with. It shows up here the moment he picks it. No waiting
+                until Sunday.
+              </p>
+            </>
+          )}
+        </section>
       ) : null}
 
       {isActive ? (
