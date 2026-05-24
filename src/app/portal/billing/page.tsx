@@ -82,9 +82,10 @@ export default async function BillingPage() {
   const pastDueSince = formatDate(sub?.past_due_started_at ?? null);
   const cancelsBy = formatDate(sub?.pending_cancel_auto_confirm_at ?? null);
 
+  const isSingleSession = sub?.tier === "single_lesson";
   const tierLabel = (() => {
     if (sub?.tier === "monthly") return "Monthly subscription";
-    if (sub?.tier === "single") return "Single lesson";
+    if (sub?.tier === "single_lesson") return "Single session";
     return "Free trial";
   })();
 
@@ -116,7 +117,7 @@ export default async function BillingPage() {
               <dd className={styles.dd}>{cycleStarted}</dd>
             </>
           ) : null}
-          {isPaying ? (
+          {isPaying && !isSingleSession ? (
             <>
               <dt className={styles.dt}>Lessons this cycle</dt>
               <dd className={styles.dd}>
@@ -130,6 +131,14 @@ export default async function BillingPage() {
               <dd className={styles.dd}>
                 {sub?.auto_renew_enabled ? "On" : "Off"}
               </dd>
+            </>
+          ) : null}
+          {isSingleSession ? (
+            <>
+              <dt className={styles.dt}>Charge</dt>
+              <dd className={styles.dd}>$24 one time</dd>
+              <dt className={styles.dt}>Recurring</dt>
+              <dd className={styles.dd}>None</dd>
             </>
           ) : null}
           {sub?.status === "past_due" && pastDueSince ? (
@@ -168,7 +177,11 @@ export default async function BillingPage() {
         )}
       </section>
 
-      {sub?.status === "active" ? (
+      {/* Cancellation / auto-renew controls only apply to the monthly
+          cycle subscription. Single-session is a one-time purchase —
+          there's no cycle to renew or cancel, so the whole section
+          hides rather than offering a button that does nothing useful. */}
+      {sub?.status === "active" && !isSingleSession ? (
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>Cancellation</div>
           <h2 className={styles.cardTitle}>
@@ -201,28 +214,68 @@ export default async function BillingPage() {
         </section>
       ) : null}
 
+      {isSingleSession ? (
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>Single session</div>
+          <h2 className={styles.cardTitle}>One time purchase</h2>
+          <p className={styles.cardBody}>
+            You bought one coaching session for $24. There&apos;s no
+            subscription, no recurring charge, and nothing to cancel.
+            The lesson stays in {player.first_name}&apos;s library to rewatch
+            any time.
+          </p>
+          <p className={styles.cardBody}>
+            Want another lesson with Tim?
+          </p>
+          <a
+            href="/single-session"
+            className={styles.outlineCta}
+          >
+            Book another single session →
+          </a>
+        </section>
+      ) : null}
+
       <section className={styles.card}>
         <div className={styles.cardEyebrow}>How billing works</div>
-        <ul className={styles.bullets}>
-          <li>$56 for 4 lessons. One lesson drops every Sunday.</li>
-          <li>
-            The next $56 charge fires after the 4th lesson lands, not every 30
-            days.
-          </li>
-          <li>
-            If a week is paused (illness, vacation, coach time off), the cycle
-            pauses too. You are never charged for lessons you did not get.
-          </li>
-          <li>
-            Up to 2 skips per 4 lesson cycle. A 3rd skip turns off auto renew
-            automatically.
-          </li>
-          <li>
-            If a card declines, the cycle freezes. Stripe retries automatically.
-            No new lessons run until payment is sorted.
-          </li>
-          <li>Cancel any time from this page. Current cycle still completes.</li>
-        </ul>
+        {isSingleSession ? (
+          <ul className={styles.bullets}>
+            <li>$24 for one coaching session. One time charge, paid at booking.</li>
+            <li>
+              No subscription, no recurring billing, nothing to cancel. The
+              charge is complete.
+            </li>
+            <li>
+              The lesson stays in {player.first_name}&apos;s library
+              permanently. Rewatch any time.
+            </li>
+            <li>
+              Want another session later? Book it from the link above; same
+              $24 flat each time.
+            </li>
+          </ul>
+        ) : (
+          <ul className={styles.bullets}>
+            <li>$56 for 4 lessons. One lesson drops every Sunday.</li>
+            <li>
+              The next $56 charge fires after the 4th lesson lands, not every 30
+              days.
+            </li>
+            <li>
+              If a week is paused (illness, vacation, coach time off), the cycle
+              pauses too. You are never charged for lessons you did not get.
+            </li>
+            <li>
+              Up to 2 skips per 4 lesson cycle. A 3rd skip turns off auto renew
+              automatically.
+            </li>
+            <li>
+              If a card declines, the cycle freezes. Stripe retries automatically.
+              No new lessons run until payment is sorted.
+            </li>
+            <li>Cancel any time from this page. Current cycle still completes.</li>
+          </ul>
+        )}
       </section>
     </div>
   );
