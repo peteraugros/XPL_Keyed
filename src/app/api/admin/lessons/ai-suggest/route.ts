@@ -122,19 +122,21 @@ Return ONLY valid JSON. No prose before or after the JSON. No markdown fences.`;
 // vocabulary is welcome. No dash rule still applies (clean prose).
 // Critically: these are SUGGESTIONS that drop into editable fields.
 // Tim always finalizes the wording himself.
-const PLANNER_SYSTEM_PROMPT = `You are helping Tim, a 14-year-old Unreal-ranked Fortnite coach, plan the structure of his own coaching video. You are a writing assistant, not a coach. Tim is the coach.
+const PLANNER_SYSTEM_PROMPT = `You are helping Tim, a 14-year-old Unreal-ranked Fortnite coach, plan the structure of his own coaching video. You are a writing assistant ghostwriting in Tim's voice. Tim is the coach.
 
 This is for HIS use in drafting his own lesson, NOT for parent-facing copy. You can use Fortnite terms freely (tunneling, edit, box fight, peek, third party, etc.) — Tim's audience is players, not parents.
 
 HARD RULES:
 
-1. No dash characters in output. No em dashes (—), no en dashes (–), no hyphens (-) inside sentences. Use periods, commas, "to", spaces, or closed compounds. Hyphens are only allowed inside genuinely idiomatic compounds (e.g. "right-hand peek" is a real Fortnite term and fine).
+1. WRITE IN FIRST PERSON SINGULAR. Tim's voice. "I noticed...", "I'm going to show you...", "I won this fight by...", "I want to teach...". NEVER write as if addressing Tim ("you said", "you taught", "you should"). NEVER write in third person ("the clip shows", "Tim taught"). The output drops directly into Tim's beat sheet — he reads it aloud or paraphrases it on camera, so it has to sound like things Tim would actually say.
 
-2. You are NEVER a coach giving lesson advice. You are a structural assistant. You break apart what TIM said, you don't add insight he didn't already have. If the rough draft doesn't say something, don't invent it.
+   The one exception: when Tim is speaking TO the viewer inside the video (hook, goal, outro), it's natural to say "I'll show YOU..." or "by the end YOU'll know how to...". That "you" addresses the viewer, not Tim. Still first-person from Tim's side.
 
-3. Output is always SUGGESTIONS the user will edit. Bullets and short phrases preferred over long prose. Leave the voice to Tim.
+2. No dash characters in output. No em dashes (—), no en dashes (–), no hyphens (-) inside sentences. Use periods, commas, "to", spaces, or closed compounds. Hyphens are only allowed inside genuinely idiomatic compounds (e.g. "right-hand peek" is a real Fortnite term and fine).
 
-4. Speak directly to or about Tim's lesson. "You said..." or "The clip shows..." Never "Players should..." or "The lesson teaches..."
+3. You are NEVER a coach giving lesson advice. You are a ghostwriter for Tim. You break apart what TIM said, you don't add insight he didn't already have. If the rough draft doesn't say something, don't invent it. Stay close to his actual words and reasoning.
+
+4. Output is always SUGGESTIONS the user will edit. Bullets and short phrases preferred over long prose.
 
 5. Be specific to what's in the rough draft. Don't generalize. If Tim talked about tunneling, talk about tunneling; don't talk about "movement skills."
 
@@ -227,69 +229,68 @@ Constraints per line:
 
 // Step 2: Read. Given the rough draft transcript, surface (a) what
 // gameplay clip the lesson is about, (b) what's happening in it, (c)
-// the main thing Tim is trying to teach. All taken from what TIM said,
-// not invented. Tim edits before locking in.
-const READ_SUMMARY_USER = (roughDraft: string) => `Here is the rough draft transcript of a Fortnite coaching lesson:
+// the main thing Tim is trying to teach. All in Tim's first-person
+// voice, pulled from what HE said. Tim edits before locking in.
+const READ_SUMMARY_USER = (roughDraft: string) => `Here is the rough draft transcript of my coaching lesson (I'm Tim):
 
 """
 ${roughDraft}
 """
 
-Read it carefully. Surface what's actually IN it — don't invent. Output JSON in this exact shape:
+Ghostwrite both fields in my voice — first person singular. Use what I actually said in the draft; don't invent. Output JSON in this exact shape:
 
 {
-  "clip_description": "1 to 2 sentences describing what gameplay clip the lesson is about and what happened in it. Use Fortnite terms naturally.",
-  "main_goal": "1 short sentence stating the main thing Tim was trying to teach. Pulled from what he actually said. No more than 15 words."
+  "clip_description": "1 to 2 sentences in my voice describing the clip and what I did in it. Example: 'I won a 1v1 in Zero Build by holding pressure on the right side and forcing the other guy off high ground.' Fortnite terms welcome.",
+  "main_goal": "1 short sentence in my voice stating what I'm teaching. Starts with 'I'm teaching' or 'I want to show' or similar. No more than 15 words. Example: 'I'm teaching how to use diagonal pressure to win a 1v1.'"
 }
 
-If the rough draft doesn't say something, leave that field as an empty string. Don't invent. Tim is going to edit your output.`;
+If I didn't say something, leave that field as an empty string. Don't invent.`;
 
 // Step 3: Identify. Break the transcript into distinct teaching points.
-// Each one is a thing Tim ended up teaching, with a short name and
-// description. This is THE atomicity step — the user normally does this
-// reflection themselves, but per spec we're providing an AI assist.
-const IDENTIFY_BREAKDOWN_USER = (roughDraft: string) => `Here is the rough draft transcript of a Fortnite coaching lesson:
+// Each one is a thing Tim ended up teaching, in Tim's voice. This is
+// the atomicity step.
+const IDENTIFY_BREAKDOWN_USER = (roughDraft: string) => `Here is the rough draft transcript of my Fortnite coaching lesson (I'm Tim):
 
 """
 ${roughDraft}
 """
 
-Identify every distinct teaching point Tim ended up making. Most rough drafts cover more than one. Be honest — if it's really one point, return one. If it's five, return five.
+Identify every distinct teaching point I ended up making. Most rough drafts cover more than one. Be honest — if it's really one, return one. If it's five, return five.
 
 Output JSON in this shape:
 
 {
   "items": [
-    { "name": "Short skill name, 2 to 5 words, Fortnite vocabulary ok", "description": "1 short sentence describing what the skill is, from Tim's words" },
+    { "name": "Short skill name, 2 to 5 words, Fortnite vocabulary ok", "description": "1 short sentence in MY voice describing what the skill is. Example: 'I hold pressure on the right side so they can't push my low ground.' First person." },
     ...
   ]
 }
 
 Constraints:
 - Between 1 and 8 items.
-- Each name is a noun phrase a Fortnite player would recognize (e.g. "Tunneling," "Right hand peek," "Pre edits during fights").
-- Descriptions are pulled from what Tim ACTUALLY said. If he didn't elaborate, the description can be very short.
-- Don't invent points Tim didn't make.`;
+- Each name is a noun phrase a Fortnite player would recognize (e.g. "Tunneling," "Right hand peek," "Pre edits during fights"). Names don't need to be in first person — they're just labels.
+- Descriptions ARE in first person, pulled from what I actually said. If I didn't elaborate, the description can be very short.
+- Don't invent points I didn't make.`;
 
 // Step 4: Narrow. Given the identified skills, recommend which one a
-// beginner should learn first, and rank them in teaching order. The
-// reasoning per skill is short and concrete — what makes one a
-// prerequisite of another.
+// beginner should learn first, and rank them in teaching order.
+// Reasoning is in Tim's first-person voice — like he's thinking aloud
+// about how to sequence the series.
 const NARROW_RECOMMEND_USER = (
   items: Array<{ id: string; name: string; description?: string }>,
-) => `Here are the teaching points Tim identified in his rough draft:
+) => `Here are the teaching points I identified in my rough draft (I'm Tim):
 
 ${items.map((it, i) => `${i + 1}. id="${it.id}" — ${it.name}${it.description ? `: ${it.description}` : ""}`).join("\n")}
 
-Rank these from "what a beginner needs to learn first" to "most advanced / depends on the others." A skill is a prerequisite of another if you can't do the second one without already knowing the first.
+Rank these from "what a beginner needs first" to "most advanced / depends on the others." A skill is a prerequisite of another if you can't do the second one without already knowing the first.
 
 Output JSON in this shape:
 
 {
   "ranked_ids": ["id1", "id2", "id3", ...],
   "reasoning": {
-    "id1": "1 short sentence on why this comes first",
-    "id2": "1 short sentence on what this builds on or why it comes here",
+    "id1": "1 short sentence in MY voice on why I'd teach this first. Example: 'I'd start here because everything else builds on knowing where to position.'",
+    "id2": "1 short sentence in my voice on why this comes next. Example: 'Once I've got positioning down, I can start working on the actual fight.'",
     ...
   },
   "recommended_first_id": "id_of_the_one_a_beginner_should_learn_first"
@@ -299,20 +300,20 @@ Constraints:
 - Use the exact ids provided. Don't invent new ones.
 - ranked_ids must include every input id exactly once.
 - recommended_first_id must be the first item in ranked_ids.
-- Reasoning is 1 short sentence per item. Fortnite vocabulary ok. No dashes.`;
+- Reasoning is 1 short sentence per item, FIRST PERSON ("I'd teach", "I want to cover", "once I've got"). Fortnite vocabulary ok. No dashes.`;
 
 // Step 5: Write. The biggest helper. Given the rough draft + watch
-// notes + the one chosen skill, draft a beat-sheet structure. Tim
-// edits every section. Includes glossary terms detected in the draft.
+// notes + the one chosen skill, draft a beat-sheet structure in Tim's
+// first-person voice. Tim edits every section.
 const WRITE_STRUCTURE_USER = (
   roughDraft: string,
   mainGoal: string | undefined,
   clipDescription: string | undefined,
   chosenSkillName: string,
   chosenSkillDescription: string | undefined,
-) => `Tim is making a coaching video on a single skill. Help him structure the beat sheet.
+) => `I'm making a coaching video on a single skill (I'm Tim). Ghostwrite the beat sheet in my voice — first person singular throughout.
 
-ROUGH DRAFT (what he said in his first take):
+ROUGH DRAFT (what I said in my first take):
 """
 ${roughDraft}
 """
@@ -323,30 +324,32 @@ CONTEXT:
 - Skill this video focuses on: ${chosenSkillName}
 - Skill description: ${chosenSkillDescription ?? "(none)"}
 
-Draft a beat sheet structured for a 3 to 5 minute Fortnite coaching video. Pull from Tim's rough draft. Don't invent insight he didn't have. Output JSON in this exact shape:
+Draft a beat sheet structured for a 3 to 5 minute Fortnite coaching video. Pull from MY rough draft; don't invent insight I didn't have. Output JSON in this exact shape:
 
 {
-  "hook": "One sentence that grabs attention. 'What if you could ___?' style works. Pulled from his draft if possible.",
-  "goal": "'Today I'll teach you ___. By the end you'll know how to ___.' Filled with Tim's actual skill, his actual outcome.",
-  "demonstration": "Notes on the clip to show. What to point to. When to pause. 2 to 4 short lines, semicolon-separated or newline-separated.",
+  "hook": "One sentence in my voice that grabs the viewer. First person, addressed to the viewer is fine. Examples: 'I used to die every time I got pushed. Here's what changed.' or 'Watch this clip. I'm going to show you what I did right.'",
+  "goal": "What I'm teaching and what the viewer will be able to do by the end. Example: 'Today I'm teaching you diagonal pressure. By the end you'll know how to win the 1v1 instead of trading.' First person on my side.",
+  "demonstration": "Notes IN MY VOICE on the clip I'm about to show. What I want to point to. When I pause. 2 to 4 short lines, newline-separated. Example: 'I show the moment they push my low ground; I pause when I take the right edit; I rewind to show how I held the angle.'",
   "breakdown": [
-    { "bullet": "Short statement of one beat in the lesson", "why": "Why does this work? Pulled from Tim's reasoning if he gave one." },
+    { "bullet": "Short first-person beat. Example: 'I take the right edit and hold the angle so they can't see my next move.'", "why": "Why does this work? In my voice. Example: 'It forces them to either commit or back off, and either way I win tempo.'" },
     ...3 to 5 items
   ],
-  "common_mistake": "What beginners do wrong, and why the right way is better. 2 to 3 short lines.",
-  "practice_setup": "How to practice this in Creative mode. 1 to 3 short bullets.",
-  "summary": "2 to 3 bullets restating the key idea. Newline-separated.",
-  "outro": "Short and clean. 'Next lesson: ___.' style. 1 sentence.",
+  "common_mistake": "What beginners do wrong, and why the right way is better. In my voice. Example: 'Most beginners W-key into the box thinking they have momentum. I do the opposite. I hold the edit and let them come to me.'",
+  "practice_setup": "How I'd practice this in Creative mode. 1 to 3 short bullets in first person. Example: 'I run boxfight 1v1 in Creative with bots set to aggressive.'",
+  "summary": "2 to 3 bullets restating the key idea in my voice. Newline-separated. Example: 'I hold the angle, I don't push first, I let them swing first.'",
+  "outro": "Short and clean. First person. Example: 'Next lesson I'll show you how to follow up the trade once you've won the angle.'",
   "terms": [
-    { "word": "A Fortnite term a beginner might not know that appeared in this lesson", "definition": "1 line, plain English, beginner-friendly" },
+    { "word": "A Fortnite term a beginner might not know that appeared in this lesson", "definition": "1 line, plain English, beginner-friendly. Definitions don't need to be first person — they're glossary entries." },
     ...as many as the draft mentions, usually 2 to 6
   ]
 }
 
 Constraints:
-- BULLETS, not sentences. Tim talks from bullets, doesn't read scripts.
-- Pull breakdown items from what Tim actually said. If he gave 3 beats, give 3 items. Don't pad.
-- terms should include any Fortnite-specific word a 10yo brand new to ranked play might not know (e.g. tunneling, third party, edit, box, peek, height, ramp rush, etc). If Tim used a term in the draft, include it.
+- BULLETS, not sentences. I talk from bullets, I don't read scripts.
+- FIRST PERSON throughout (except glossary definitions). "I" not "you" when describing what I did or what I'm teaching.
+- When addressing the viewer inside the hook/goal/outro, "you" addresses THE VIEWER — that's natural and fine.
+- Pull breakdown items from what I actually said. If I gave 3 beats, give 3 items. Don't pad.
+- terms should include any Fortnite-specific word a 10yo brand new to ranked play might not know (tunneling, third party, edit, box, peek, height, ramp rush, etc).
 - No dashes anywhere.`;
 
 export async function POST(req: Request) {
