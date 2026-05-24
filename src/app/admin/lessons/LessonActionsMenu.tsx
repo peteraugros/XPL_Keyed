@@ -99,6 +99,13 @@ export default function LessonActionsMenu({
       {open ? (
         <div className={styles.kebabMenu} role="menu">
           <a
+            href={`/admin/lessons/${lessonId}/preview`}
+            className={styles.kebabItem}
+            role="menuitem"
+          >
+            Preview as student
+          </a>
+          <a
             href={`/admin/lessons/${lessonId}/edit`}
             className={styles.kebabItem}
             role="menuitem"

@@ -249,7 +249,10 @@ export default async function AdminLessonsPage({
                             <span className={styles.lessonBadge}>DRAFT</span>
                           )}
                         </div>
-                        <LessonActionsMenu lessonId={l.id} lessonTitle={l.title} />
+                        <LessonActionsMenu
+                          lessonId={l.id}
+                          lessonTitle={l.title}
+                        />
                       </div>
                     </div>
                     <div className={styles.lessonMeta}>
@@ -261,9 +264,19 @@ export default async function AdminLessonsPage({
                         year: "numeric",
                       })}
                       {" · "}
-                      <a href={`/admin/lessons/${l.id}/edit`} className={styles.lessonEditLink}>
-                        Open planner
-                      </a>
+                      {/* Published lessons land in the student-facing
+                          preview by default; drafts land in the planner.
+                          The kebab menu offers the other surface either
+                          way. */}
+                      {l.is_published ? (
+                        <a href={`/admin/lessons/${l.id}/preview`} className={styles.lessonEditLink}>
+                          View as student
+                        </a>
+                      ) : (
+                        <a href={`/admin/lessons/${l.id}/edit`} className={styles.lessonEditLink}>
+                          Open planner
+                        </a>
+                      )}
                     </div>
                   </li>
                 );
