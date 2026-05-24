@@ -441,3 +441,453 @@
   margin-top: 6px;
   cursor: pointer;
 }
+
+/* ===========================================================================
+   View toggle + date nav (Round 2)
+   =========================================================================== */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  padding: 2px;
+}
+
+.viewToggle {
+  display: inline-flex;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.viewToggleBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: background 0.15s, color 0.15s;
+}
+.viewToggleBtn:hover {
+  color: var(--text);
+}
+.viewToggleBtnActive {
+  background: var(--lime);
+  color: var(--bg);
+}
+.viewToggleBtnActive:hover {
+  color: var(--bg);
+}
+
+.dateNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dateNavBtn {
+  font-family: var(--font-display);
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dateNavBtn:hover {
+  border-color: var(--lime);
+}
+.dateNavToday {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.dateNavToday:hover {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+.dateNavLabel {
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  margin-left: 4px;
+}
+
+/* ===========================================================================
+   Grid views (Day + Week share most of this)
+   =========================================================================== */
+
+.gridCard {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.hourLabels {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+  flex: 0 0 64px;
+}
+.hourLabel {
+  height: 48px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: lowercase;
+  letter-spacing: 0.5px;
+  padding-right: 8px;
+  text-align: right;
+  border-top: 1px dashed var(--border);
+  margin-top: -1px;
+}
+.hourLabel:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
+/* Day view ----------------------------------------------------------------- */
+.dayGrid {
+  display: flex;
+  gap: 0;
+  min-width: 360px;
+}
+.dayColumn {
+  flex: 1;
+  position: relative;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: calc(48px * 14);
+}
+.hourSlot {
+  height: 48px;
+  border-bottom: 1px solid var(--border);
+}
+.hourSlot:last-child {
+  border-bottom: none;
+}
+.gridEmpty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+/* Week view ---------------------------------------------------------------- */
+.weekHeaderRow {
+  display: grid;
+  grid-template-columns: 64px repeat(7, 1fr);
+  gap: 0;
+  margin-bottom: 4px;
+  min-width: 720px;
+}
+.weekHeaderCorner {
+  /* Empty corner above the hour labels */
+}
+.weekHeaderCell {
+  font-family: var(--font-body);
+  text-align: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+.weekHeaderCellToday {
+  border-bottom: 2px solid var(--lime);
+}
+.weekHeaderDow {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.weekHeaderDate {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--text);
+}
+.weekHeaderCellToday .weekHeaderDate {
+  color: var(--lime);
+}
+.weekGrid {
+  display: grid;
+  grid-template-columns: 64px repeat(7, 1fr);
+  gap: 0;
+  min-width: 720px;
+}
+.weekDayColumn {
+  position: relative;
+  background: var(--bg-3);
+  border-left: 1px solid var(--border);
+  min-height: calc(48px * 14);
+}
+.weekDayColumn:last-child {
+  border-right: 1px solid var(--border);
+}
+
+/* Positioned event blocks (Day + Week) ------------------------------------ */
+.gridEvent {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  transition: filter 0.12s, border-color 0.12s;
+}
+.gridEvent:hover {
+  filter: brightness(1.15);
+}
+.gridEventCompact {
+  font-size: 11px;
+  padding: 3px 6px;
+}
+.gridEventTime {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+}
+.gridEventTitle {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gridEventPaid {
+  background: rgba(199, 255, 61, 0.16);
+  border-color: rgba(199, 255, 61, 0.55);
+  color: var(--text);
+}
+.gridEventVod {
+  background: rgba(76, 81, 247, 0.18);
+  border-color: rgba(76, 81, 247, 0.55);
+  color: #d8dcff;
+}
+.gridEventTrial {
+  background: rgba(245, 166, 35, 0.18);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: #ffe2b0;
+}
+.gridEventCancelled {
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.gridEventPast {
+  opacity: 0.55;
+}
+
+.nowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ff5f5f;
+  z-index: 2;
+  box-shadow: 0 0 6px rgba(255, 95, 95, 0.6);
+}
+.nowLine::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ff5f5f;
+  border-radius: 50%;
+}
+
+/* ===========================================================================
+   Month view
+   =========================================================================== */
+.monthHeaderRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+  gap: 0;
+}
+.monthHeaderCell {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  padding: 8px 6px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, minmax(96px, auto));
+  gap: 0;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+.monthCell {
+  background: var(--bg-3);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 96px;
+}
+.monthCellOutside {
+  background: var(--bg-2);
+  opacity: 0.55;
+}
+.monthCellToday {
+  background: rgba(199, 255, 61, 0.07);
+  border-right-color: rgba(199, 255, 61, 0.4);
+  border-bottom-color: rgba(199, 255, 61, 0.4);
+}
+.monthCellNum {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+}
+.monthCellToday .monthCellNum {
+  color: var(--lime);
+  font-weight: 700;
+}
+.monthCellChips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.monthChip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 10.5px;
+  text-align: left;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  transition: filter 0.12s;
+}
+.monthChip:hover {
+  filter: brightness(1.15);
+}
+.monthChipTime {
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  letter-spacing: 0.3px;
+  opacity: 0.85;
+  flex: 0 0 auto;
+}
+.monthChipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.monthChipPaid {
+  background: rgba(199, 255, 61, 0.16);
+  border-color: rgba(199, 255, 61, 0.55);
+}
+.monthChipVod {
+  background: rgba(76, 81, 247, 0.18);
+  border-color: rgba(76, 81, 247, 0.55);
+  color: #d8dcff;
+}
+.monthChipTrial {
+  background: rgba(245, 166, 35, 0.18);
+  border-color: rgba(245, 166, 35, 0.55);
+  color: #ffe2b0;
+}
+.monthChipCancelled {
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.monthChipPast {
+  opacity: 0.55;
+}
+.monthCellMore {
+  font-size: 10px;
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+
+/* Mobile / narrow viewport tweaks ----------------------------------------- */
+@media (max-width: 767px) {
+  .toolbar {
+    gap: 8px 10px;
+  }
+  .viewToggleBtn {
+    padding: 7px 10px;
+    font-size: 12.5px;
+  }
+  .dateNavLabel {
+    font-size: 13px;
+  }
+  .monthCell {
+    min-height: 72px;
+    padding: 3px 4px 4px;
+  }
+  .monthCellChips {
+    gap: 1px;
+  }
+  .monthChip {
+    font-size: 9.5px;
+    padding: 1px 4px;
+  }
+  .monthChipTime {
+    font-size: 8.5px;
+  }
+}

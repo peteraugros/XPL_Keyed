@@ -1,16 +1,16 @@
-// /admin/calendar — Tim's schedule.
-//
-// Round 1: list view only. Day/Week/Month grids land in Round 2.
+// /admin/calendar — Tim's schedule. List + Day + Week + Month views.
 //
 // Two event sources:
 //   1. Paid lesson live calls (curriculum_slots.live_call_at) — for
 //      active subscriptions, not yet delivered/cancelled.
 //   2. Trial intro calls (subscriptions.trial_call_at) — for trial
-//      subscriptions where the call is upcoming or today.
+//      subscriptions.
 //
-// Past events (anything before "earlier today") are hidden from the
-// list for now; if Tim wants the audit trail, the client card has full
-// history. A future "Show past" toggle can layer on cheaply.
+// Fetch window: 90 days back, 180 days forward. List view filters to
+// today-forward in the client; grid views render the full window so
+// past Mondays don't appear empty when Tim navigates back. Window cap
+// keeps the page from dragging at 100+ active clients (well above MVP
+// scale).
 
 import { requireCoachSession } from "../_lib/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -67,11 +67,18 @@ export default async function CalendarPage() {
   await requireCoachSession();
   const supabase = createServiceRoleClient();
 
-  // Cutoff: show events from earlier today onward (anything before
-  // start-of-today is past).
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const cutoffIso = startOfToday.toISOString();
+  // Window: 90 days back through 180 days forward. Wide enough for any
+  // realistic grid-view navigation; small enough to keep one page-fetch
+  // fast even at operator-pair scale (100+ kids × 1 lesson/week =
+  // ~12000 slots over 90 days, well within Postgres comfort).
+  const startOfWindow = new Date();
+  startOfWindow.setHours(0, 0, 0, 0);
+  startOfWindow.setDate(startOfWindow.getDate() - 90);
+  const endOfWindow = new Date();
+  endOfWindow.setHours(23, 59, 59, 999);
+  endOfWindow.setDate(endOfWindow.getDate() + 180);
+  const windowStartIso = startOfWindow.toISOString();
+  const windowEndIso = endOfWindow.toISOString();
 
   // 1. Paid lesson live calls.
   //    Includes BOTH live (not delivered, not cancelled) AND cancelled
@@ -86,16 +93,14 @@ export default async function CalendarPage() {
       "id, curriculum_id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id, delivered_at",
     )
     .not("live_call_at", "is", null)
-    .gte("live_call_at", cutoffIso)
+    .gte("live_call_at", windowStartIso)
+    .lte("live_call_at", windowEndIso)
     .order("live_call_at", { ascending: true });
   const allSlots = (slotsResp.data ?? []) as Array<SlotRow & { delivered_at: string | null }>;
-  // A slot is "still on the calendar" if:
-  //   - It's not delivered yet (future call), OR
-  //   - It's been cancelled (we want the strikethrough to show)
-  const slots = allSlots.filter((s) => {
-    const isCancelled = (s.live_call_event_id ?? "").startsWith("cancelled:");
-    return isCancelled || !s.delivered_at;
-  });
+  // A slot is "on the calendar" if it has a live_call_at. Past delivered
+  // slots stay visible (grid views render them at reduced opacity as
+  // historical record); cancelled slots stay visible with strikethrough.
+  const slots = allSlots;
 
   // Pull curricula + verify status='active' (we only want live calls
   // for active cycles; pending_approval slots aren't real bookings yet)
@@ -187,7 +192,8 @@ export default async function CalendarPage() {
     .select("id, player_id, trial_call_at, trial_call_event_uri")
     .eq("status", "trial")
     .not("trial_call_at", "is", null)
-    .gte("trial_call_at", cutoffIso)
+    .gte("trial_call_at", windowStartIso)
+    .lte("trial_call_at", windowEndIso)
     .order("trial_call_at", { ascending: true });
   const trialSubs = (trialResp.data ?? []) as TrialSubRow[];
 
@@ -236,6 +242,7 @@ export default async function CalendarPage() {
       id: `slot:${s.id}`,
       kind: "paid_lesson",
       when_iso: s.live_call_at,
+      delivered_at: s.delivered_at,
       week_number: s.week_number,
       is_vod_review: s.is_vod_review,
       slot_id: s.id,
@@ -264,6 +271,7 @@ export default async function CalendarPage() {
       id: `trial:${t.id}`,
       kind: "trial_call",
       when_iso: t.trial_call_at,
+      delivered_at: null,
       subscription_id: t.id,
       player_id: player.id,
       kid_first_name: player.first_name,

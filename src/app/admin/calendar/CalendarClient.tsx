@@ -1,21 +1,26 @@
 "use client";
 
-// /admin/calendar — list view (Round 1).
+// /admin/calendar — List / Day / Week / Month views.
 //
-// Events grouped by date bucket (Today / Tomorrow / This week / Next
-// week / Later). Click any event to open the detail modal. Detail
-// modal shows everything Tim might want at a glance + a Coach cancel
-// form with the locked 3-reason dropdown and type-CANCEL verification.
+// View toggle persists in local state (no URL plumbing, no DB column);
+// defaults to List on every load. Date nav (Prev / Today / Next) only
+// shows for Day/Week/Month — List doesn't have a focal date.
+//
+// Click any event in any view → same EventModal at the top level.
+// Cancel + outcome forms live inside the modal unchanged.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./calendar.module.css";
+
+type ViewMode = "list" | "day" | "week" | "month";
 
 export type CalendarEvent =
   | {
       id: string;
       kind: "paid_lesson";
       when_iso: string;
+      delivered_at: string | null;
       week_number: number;
       is_vod_review: boolean;
       slot_id: string;
@@ -38,6 +43,7 @@ export type CalendarEvent =
       id: string;
       kind: "trial_call";
       when_iso: string;
+      delivered_at: string | null; // always null for trial; unifies the shape
       subscription_id: string;
       player_id: string;
       kid_first_name: string;
@@ -96,19 +102,100 @@ function hoursUntil(iso: string): number {
   return (new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60);
 }
 
+// ---------------------------------------------------------------------------
+// Grid helpers
+// ---------------------------------------------------------------------------
+
+const HOUR_START = 8; // 8am
+const HOUR_END = 22; // 10pm exclusive
+const HOUR_COUNT = HOUR_END - HOUR_START; // 14
+const PX_PER_HOUR = 48;
+
+function startOfDay(d: Date): Date {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+function startOfWeek(d: Date): Date {
+  // Sunday start. getDay(): Sun=0..Sat=6
+  const r = startOfDay(d);
+  r.setDate(r.getDate() - r.getDay());
+  return r;
+}
+function startOfMonth(d: Date): Date {
+  const r = startOfDay(d);
+  r.setDate(1);
+  return r;
+}
+function addMonths(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setMonth(r.getMonth() + n);
+  return r;
+}
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+function isPast(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now();
+}
+function fmtMonthYear(d: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(d);
+}
+function fmtWeekRange(d: Date): string {
+  const start = startOfWeek(d);
+  const end = addDays(start, 6);
+  const sameMonth = start.getMonth() === end.getMonth();
+  const startFmt = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(start);
+  const endFmt = new Intl.DateTimeFormat("en-US", {
+    month: sameMonth ? undefined : "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(end);
+  return `${startFmt} to ${endFmt}`;
+}
+function fmtDayHeading(d: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+}
+
+// ---------------------------------------------------------------------------
+// Top-level orchestrator
+// ---------------------------------------------------------------------------
+
 export default function CalendarClient({ events }: { events: CalendarEvent[] }) {
+  const [view, setView] = useState<ViewMode>("list");
+  const [focalDate, setFocalDate] = useState<Date>(() => startOfDay(new Date()));
   const [openEventId, setOpenEventId] = useState<string | null>(null);
 
-  const buckets = useMemo(() => {
-    const map = new Map<Bucket, CalendarEvent[]>();
-    for (const b of BUCKET_ORDER) map.set(b, []);
-    for (const e of events) {
-      map.get(bucketFor(e.when_iso))?.push(e);
-    }
-    return map;
-  }, [events]);
-
   const openEvent = events.find((e) => e.id === openEventId) ?? null;
+
+  function shiftDate(dir: -1 | 1): void {
+    setFocalDate((prev) => {
+      if (view === "day") return addDays(prev, dir);
+      if (view === "week") return addDays(prev, dir * 7);
+      if (view === "month") return addMonths(prev, dir);
+      return prev; // list view has no focal date
+    });
+  }
 
   return (
     <div className={styles.wrap}>
@@ -117,41 +204,489 @@ export default function CalendarClient({ events }: { events: CalendarEvent[] }) 
         <h1 className={styles.title}>Calendar</h1>
         <p className={styles.intro}>
           Every upcoming live call. Tap an event for full details and to
-          cancel if you need to. Day, week, and month views are next.
+          cancel if you need to.
         </p>
       </section>
 
-      {events.length === 0 ? (
-        <section className={styles.card}>
-          <p className={styles.empty}>
-            Nothing scheduled. As trials get booked and active cycles fill in,
-            calls land here.
-          </p>
-        </section>
+      <div className={styles.toolbar}>
+        <ViewToggle current={view} onChange={setView} />
+        {view !== "list" ? (
+          <DateNav
+            view={view}
+            focalDate={focalDate}
+            onPrev={() => shiftDate(-1)}
+            onNext={() => shiftDate(1)}
+            onToday={() => setFocalDate(startOfDay(new Date()))}
+          />
+        ) : null}
+      </div>
+
+      {view === "list" ? (
+        <ListView events={events} onOpen={(id) => setOpenEventId(id)} />
+      ) : view === "day" ? (
+        <DayView events={events} focalDate={focalDate} onOpen={(id) => setOpenEventId(id)} />
+      ) : view === "week" ? (
+        <WeekView events={events} focalDate={focalDate} onOpen={(id) => setOpenEventId(id)} />
       ) : (
-        BUCKET_ORDER.map((b) => {
-          const list = buckets.get(b) ?? [];
-          if (list.length === 0) return null;
-          return (
-            <section key={b} className={styles.card}>
-              <div className={styles.cardEyebrow}>{b}</div>
-              <ul className={styles.list}>
-                {list.map((e) => (
-                  <EventRow key={e.id} event={e} onOpen={() => setOpenEventId(e.id)} />
-                ))}
-              </ul>
-            </section>
-          );
-        })
+        <MonthView events={events} focalDate={focalDate} onOpen={(id) => setOpenEventId(id)} />
       )}
 
       {openEvent ? (
-        <EventModal
-          event={openEvent}
-          onClose={() => setOpenEventId(null)}
-        />
+        <EventModal event={openEvent} onClose={() => setOpenEventId(null)} />
       ) : null}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// View toggle + date nav
+// ---------------------------------------------------------------------------
+
+function ViewToggle({
+  current,
+  onChange,
+}: {
+  current: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
+  const opts: Array<{ value: ViewMode; label: string }> = [
+    { value: "list", label: "List" },
+    { value: "day", label: "Day" },
+    { value: "week", label: "Week" },
+    { value: "month", label: "Month" },
+  ];
+  return (
+    <div className={styles.viewToggle} role="tablist" aria-label="Calendar view">
+      {opts.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="tab"
+          aria-selected={current === o.value}
+          className={`${styles.viewToggleBtn} ${
+            current === o.value ? styles.viewToggleBtnActive : ""
+          }`}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function DateNav({
+  view,
+  focalDate,
+  onPrev,
+  onNext,
+  onToday,
+}: {
+  view: ViewMode;
+  focalDate: Date;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+}) {
+  const label =
+    view === "day"
+      ? fmtDayHeading(focalDate)
+      : view === "week"
+        ? fmtWeekRange(focalDate)
+        : fmtMonthYear(focalDate);
+  return (
+    <div className={styles.dateNav}>
+      <button
+        type="button"
+        onClick={onPrev}
+        aria-label="Previous"
+        className={styles.dateNavBtn}
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        onClick={onToday}
+        className={styles.dateNavToday}
+      >
+        Today
+      </button>
+      <button
+        type="button"
+        onClick={onNext}
+        aria-label="Next"
+        className={styles.dateNavBtn}
+      >
+        ›
+      </button>
+      <span className={styles.dateNavLabel}>{label}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// List view (preserves Round 1 behavior — future + cancelled past only)
+// ---------------------------------------------------------------------------
+
+function ListView({
+  events,
+  onOpen,
+}: {
+  events: CalendarEvent[];
+  onOpen: (id: string) => void;
+}) {
+  const visibleEvents = useMemo(() => {
+    const cutoff = startOfDay(new Date()).getTime();
+    return events.filter((e) => {
+      const t = new Date(e.when_iso).getTime();
+      if (t >= cutoff) return true;
+      // Past: include cancelled paid lessons so the strikethrough surfaces
+      return e.kind === "paid_lesson" && e.cancelled;
+    });
+  }, [events]);
+
+  const buckets = useMemo(() => {
+    const map = new Map<Bucket, CalendarEvent[]>();
+    for (const b of BUCKET_ORDER) map.set(b, []);
+    for (const e of visibleEvents) {
+      map.get(bucketFor(e.when_iso))?.push(e);
+    }
+    return map;
+  }, [visibleEvents]);
+
+  if (visibleEvents.length === 0) {
+    return (
+      <section className={styles.card}>
+        <p className={styles.empty}>
+          Nothing scheduled. As trials get booked and active cycles fill in,
+          calls land here.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <>
+      {BUCKET_ORDER.map((b) => {
+        const list = buckets.get(b) ?? [];
+        if (list.length === 0) return null;
+        return (
+          <section key={b} className={styles.card}>
+            <div className={styles.cardEyebrow}>{b}</div>
+            <ul className={styles.list}>
+              {list.map((e) => (
+                <EventRow key={e.id} event={e} onOpen={() => onOpen(e.id)} />
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Day view — single column, 8am to 10pm hour rows, events absolutely
+// positioned by time. Current-time line redraws every minute.
+// ---------------------------------------------------------------------------
+
+function DayView({
+  events,
+  focalDate,
+  onOpen,
+}: {
+  events: CalendarEvent[];
+  focalDate: Date;
+  onOpen: (id: string) => void;
+}) {
+  const dayEvents = useMemo(
+    () => events.filter((e) => sameDay(new Date(e.when_iso), focalDate)),
+    [events, focalDate],
+  );
+  const today = sameDay(focalDate, new Date());
+
+  return (
+    <section className={styles.gridCard}>
+      <div className={styles.dayGrid}>
+        <HourLabels />
+        <div className={styles.dayColumn}>
+          {Array.from({ length: HOUR_COUNT }).map((_, i) => (
+            <div key={i} className={styles.hourSlot} />
+          ))}
+          {today ? <NowLine /> : null}
+          {dayEvents.map((e) => (
+            <PositionedEvent key={e.id} event={e} onOpen={() => onOpen(e.id)} />
+          ))}
+          {dayEvents.length === 0 ? (
+            <div className={styles.gridEmpty}>No calls this day.</div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Week view — 7 columns × hour rows. Sunday start.
+// ---------------------------------------------------------------------------
+
+function WeekView({
+  events,
+  focalDate,
+  onOpen,
+}: {
+  events: CalendarEvent[];
+  focalDate: Date;
+  onOpen: (id: string) => void;
+}) {
+  const weekStart = startOfWeek(focalDate);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const now = new Date();
+
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const d of days) map.set(d.toDateString(), []);
+    for (const e of events) {
+      const key = startOfDay(new Date(e.when_iso)).toDateString();
+      map.get(key)?.push(e);
+    }
+    return map;
+  }, [events, days]);
+
+  return (
+    <section className={styles.gridCard}>
+      <div className={styles.weekHeaderRow}>
+        <div className={styles.weekHeaderCorner} />
+        {days.map((d) => {
+          const today = sameDay(d, now);
+          return (
+            <div
+              key={d.toISOString()}
+              className={`${styles.weekHeaderCell} ${today ? styles.weekHeaderCellToday : ""}`}
+            >
+              <span className={styles.weekHeaderDow}>
+                {new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(d)}
+              </span>
+              <span className={styles.weekHeaderDate}>{d.getDate()}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className={styles.weekGrid}>
+        <HourLabels />
+        {days.map((d) => {
+          const dayList = eventsByDay.get(d.toDateString()) ?? [];
+          const today = sameDay(d, now);
+          return (
+            <div key={d.toISOString()} className={styles.weekDayColumn}>
+              {Array.from({ length: HOUR_COUNT }).map((_, i) => (
+                <div key={i} className={styles.hourSlot} />
+              ))}
+              {today ? <NowLine /> : null}
+              {dayList.map((e) => (
+                <PositionedEvent key={e.id} event={e} onOpen={() => onOpen(e.id)} compact />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Month view — 6 rows × 7 cols. Each cell has day number + up to 3 event
+// chips + "+N more" overflow indicator.
+// ---------------------------------------------------------------------------
+
+const MAX_CHIPS_PER_CELL = 3;
+
+function MonthView({
+  events,
+  focalDate,
+  onOpen,
+}: {
+  events: CalendarEvent[];
+  focalDate: Date;
+  onOpen: (id: string) => void;
+}) {
+  const monthStart = startOfMonth(focalDate);
+  const gridStart = startOfWeek(monthStart);
+  // 6 weeks always — handles months that span 6 weeks (rare but real).
+  const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+  const now = new Date();
+
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const e of events) {
+      const key = startOfDay(new Date(e.when_iso)).toDateString();
+      const arr = map.get(key) ?? [];
+      arr.push(e);
+      map.set(key, arr);
+    }
+    // Sort each day's events chronologically
+    for (const arr of map.values()) {
+      arr.sort((a, b) => a.when_iso.localeCompare(b.when_iso));
+    }
+    return map;
+  }, [events]);
+
+  const dayHeaderLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <section className={styles.gridCard}>
+      <div className={styles.monthHeaderRow}>
+        {dayHeaderLabels.map((d) => (
+          <div key={d} className={styles.monthHeaderCell}>{d}</div>
+        ))}
+      </div>
+      <div className={styles.monthGrid}>
+        {cells.map((d) => {
+          const inMonth = d.getMonth() === monthStart.getMonth();
+          const today = sameDay(d, now);
+          const dayList = eventsByDay.get(d.toDateString()) ?? [];
+          const visible = dayList.slice(0, MAX_CHIPS_PER_CELL);
+          const overflow = dayList.length - visible.length;
+          return (
+            <div
+              key={d.toISOString()}
+              className={`${styles.monthCell} ${
+                inMonth ? "" : styles.monthCellOutside
+              } ${today ? styles.monthCellToday : ""}`}
+            >
+              <div className={styles.monthCellNum}>{d.getDate()}</div>
+              <div className={styles.monthCellChips}>
+                {visible.map((e) => (
+                  <MonthChip key={e.id} event={e} onOpen={() => onOpen(e.id)} />
+                ))}
+                {overflow > 0 ? (
+                  <div className={styles.monthCellMore}>+{overflow} more</div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MonthChip({
+  event,
+  onOpen,
+}: {
+  event: CalendarEvent;
+  onOpen: () => void;
+}) {
+  const isPaid = event.kind === "paid_lesson";
+  const isVod = isPaid && event.is_vod_review;
+  const isCancelled = isPaid && event.cancelled;
+  const past = isPast(event.when_iso);
+  const cls = isCancelled
+    ? styles.monthChipCancelled
+    : isPaid
+      ? isVod
+        ? styles.monthChipVod
+        : styles.monthChipPaid
+      : styles.monthChipTrial;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`${styles.monthChip} ${cls} ${past ? styles.monthChipPast : ""}`}
+      title={`${fmtTime(event.when_iso)} · ${event.kid_first_name}`}
+    >
+      <span className={styles.monthChipTime}>{fmtTime(event.when_iso)}</span>
+      <span className={styles.monthChipName}>{event.kid_first_name}</span>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared grid pieces — hour labels column, current-time line, positioned
+// event block (used by Day + Week).
+// ---------------------------------------------------------------------------
+
+function HourLabels() {
+  return (
+    <div className={styles.hourLabels}>
+      {Array.from({ length: HOUR_COUNT }).map((_, i) => {
+        const hour = HOUR_START + i;
+        const display =
+          hour === 12 ? "12pm" : hour > 12 ? `${hour - 12}pm` : `${hour}am`;
+        return (
+          <div key={hour} className={styles.hourLabel}>
+            {display}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NowLine() {
+  // Re-render every minute so the line tracks live.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const now = new Date();
+  const hourFloat = now.getHours() + now.getMinutes() / 60;
+  if (hourFloat < HOUR_START || hourFloat >= HOUR_END) return null;
+  const offsetPx = (hourFloat - HOUR_START) * PX_PER_HOUR;
+  return (
+    <div
+      className={styles.nowLine}
+      style={{ top: `${offsetPx}px` }}
+      aria-hidden
+    />
+  );
+}
+
+function PositionedEvent({
+  event,
+  onOpen,
+  compact,
+}: {
+  event: CalendarEvent;
+  onOpen: () => void;
+  compact?: boolean;
+}) {
+  const d = new Date(event.when_iso);
+  const hourFloat = d.getHours() + d.getMinutes() / 60;
+  // Clamp into the visible band so off-hours events still render at the edge
+  const visible = hourFloat >= HOUR_START && hourFloat < HOUR_END;
+  if (!visible) return null;
+  const top = (hourFloat - HOUR_START) * PX_PER_HOUR;
+  const isPaid = event.kind === "paid_lesson";
+  const isVod = isPaid && event.is_vod_review;
+  const isCancelled = isPaid && event.cancelled;
+  const past = isPast(event.when_iso);
+  const cls = isCancelled
+    ? styles.gridEventCancelled
+    : isPaid
+      ? isVod
+        ? styles.gridEventVod
+        : styles.gridEventPaid
+      : styles.gridEventTrial;
+  const title = isPaid
+    ? (event.lesson_fortnite_label ?? (isVod ? "VOD review" : "Lesson"))
+    : "Free trial call";
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`${styles.gridEvent} ${cls} ${past ? styles.gridEventPast : ""} ${
+        compact ? styles.gridEventCompact : ""
+      }`}
+      style={{ top: `${top}px`, height: `${PX_PER_HOUR - 4}px` }}
+    >
+      <span className={styles.gridEventTime}>{fmtTime(event.when_iso)}</span>
+      <span className={styles.gridEventTitle}>
+        {compact ? event.kid_first_name : `${title} · ${event.kid_first_name}`}
+      </span>
+    </button>
   );
 }
 
