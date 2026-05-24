@@ -29,6 +29,12 @@ export default async function NewLessonRedirect() {
   // Bypass the HTTP endpoint and insert directly. Cookie-forwarded
   // fetch() against our own /api/admin/lessons would round-trip through
   // the auth middleware again here for nothing.
+  //
+  // We seed every column that used to be NOT NULL with a placeholder
+  // value. This keeps the insert working whether or not the
+  // 20260524000000_lessons_video_planner.sql migration has been
+  // applied yet. Once the migration is applied the planner clears
+  // these as Tim fills in the real values.
   const service = createServiceRoleClient();
   const insert = await service
     .from("lessons")
@@ -36,13 +42,21 @@ export default async function NewLessonRedirect() {
       author_id: coach.id,
       title: "Untitled lesson",
       is_published: false,
+      fortnite_label: "",
+      parent_label: "",
+      parent_skill_description: "",
+      topic: "game_sense",
+      difficulty_level: "beginner",
+      duration_minutes: 1,
+      slides: [],
+      parent_talking_points: [],
     } as never)
     .select("id")
     .single();
 
   if (insert.error || !insert.data) {
     console.error("[admin/lessons/new] insert failed", insert.error);
-    redirect("/admin/lessons" as never);
+    redirect("/admin/lessons?error=create_failed" as never);
   }
 
   const row = insert.data as { id: string };
