@@ -77,6 +77,8 @@ export type LessonRecord = {
   terms: Term[] | null;
   plannerState: PlannerStateJson | null;
   parentTalkingPoints: ParentTalkingPoint[] | null;
+  seriesId: string | null;
+  seriesPosition: number | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -1001,9 +1003,17 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
             </li>
           </ul>
           <p className={styles.fieldHint}>
-            v1 doesn&apos;t auto-spawn the series for you. Build this lesson (Lesson 1) first, then start each remaining lesson from the library. The plan is saved here so you don&apos;t lose it.
+            Tap &ldquo;Spawn series stubs&rdquo; below to create the {N} foundation lessons
+            now. Each lands in your library as a draft with its name + a head start in the planner.
+            This lesson becomes the capstone at position {N + 1}.
           </p>
         </div>
+
+        <SpawnSeriesButton
+          lessonId={lessonId}
+          itemCount={N}
+          alreadySpawned={initial.seriesId === initial.id}
+        />
 
         <div className={styles.btnRowSpread}>
           <button type="button" className={`${styles.btn} ${styles.btnGhost}`} onClick={() => goToStep(3)}>
@@ -1014,8 +1024,11 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
             className={`${styles.btn} ${styles.btnPrimary}`}
             disabled={!canAdvance}
             onClick={() => {
-              // For v1 capstone: treat as "narrow chose first item" so
-              // Step 5 onward operates on the first ordered skill.
+              // After spawning OR if Tim wants to skip spawning and work on
+              // the capstone directly: pretend "narrow chose first item" so
+              // Step 5 onward operates on something. If he spawned children
+              // the capstone's beat sheet ends up being the "putting it all
+              // together" review.
               const firstId = orderedItems[0]?.id;
               if (firstId) {
                 setPlannerAndSave((p) => ({ ...p, narrowChoice: firstId }));
@@ -1023,7 +1036,7 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
               goToStep(5);
             }}
           >
-            Plan Lesson 1
+            Plan capstone lesson →
           </button>
         </div>
       </section>
@@ -1546,6 +1559,78 @@ function savingLabel(s: "idle" | "pending" | "saving" | "saved" | "error"): stri
     case "error": return "Save failed";
     case "idle": default: return "";
   }
+}
+
+function SpawnSeriesButton({
+  lessonId,
+  itemCount,
+  alreadySpawned,
+}: {
+  lessonId: string;
+  itemCount: number;
+  alreadySpawned: boolean;
+}) {
+  const [state, setState] = useState<"idle" | "spawning" | "done" | "error">(
+    alreadySpawned ? "done" : "idle",
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [createdCount, setCreatedCount] = useState<number>(0);
+
+  if (state === "done") {
+    return (
+      <div className={styles.spawnDone}>
+        ✓ Series stubs are in your library. Open each from{" "}
+        <a href="/admin/lessons">/admin/lessons</a> to plan it.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        className={`${styles.btn} ${styles.btnPrimary}`}
+        disabled={state === "spawning"}
+        onClick={async () => {
+          setState("spawning");
+          setError(null);
+          try {
+            const res = await fetch(`/api/admin/lessons/${lessonId}/spawn-series`, {
+              method: "POST",
+            });
+            const body = (await res.json().catch(() => ({}))) as {
+              ok?: boolean;
+              created_ids?: string[];
+              error?: string;
+              detail?: string;
+            };
+            if (!res.ok || !body.ok) {
+              setError(body.detail ?? body.error ?? "spawn_failed");
+              setState("error");
+              return;
+            }
+            setCreatedCount(body.created_ids?.length ?? 0);
+            setState("done");
+          } catch {
+            setError("network");
+            setState("error");
+          }
+        }}
+      >
+        {state === "spawning"
+          ? "Spawning..."
+          : `Spawn ${itemCount} series stubs`}
+      </button>
+      {state === "error" ? (
+        <p className={styles.aiError}>
+          Spawn failed ({error}). The capstone plan is still saved here — you can retry or build each lesson manually from the library.
+        </p>
+      ) : null}
+      {createdCount > 0 ? (
+        <p className={styles.fieldHint}>{createdCount} stub lesson(s) created.</p>
+      ) : null}
+    </div>
+  );
 }
 
 function buildOutlineText(title: string, beat: BeatSheet, terms: Term[]): string {

@@ -26,6 +26,8 @@ type DbLessonRow = {
   terms: unknown;
   planner_state: unknown;
   parent_talking_points: unknown;
+  series_id: string | null;
+  series_position: number | null;
 };
 
 export default async function LessonEditPage({
@@ -40,7 +42,7 @@ export default async function LessonEditPage({
   const lookup = await service
     .from("lessons")
     .select(
-      "id, title, fortnite_label, parent_label, parent_skill_description, topic, difficulty_level, duration_minutes, is_published, video_url, beat_sheet, terms, planner_state, parent_talking_points",
+      "id, title, fortnite_label, parent_label, parent_skill_description, topic, difficulty_level, duration_minutes, is_published, video_url, beat_sheet, terms, planner_state, parent_talking_points, series_id, series_position",
     )
     .eq("id", id)
     .maybeSingle();
@@ -63,6 +65,8 @@ export default async function LessonEditPage({
     plannerState: (row.planner_state as LessonRecord["plannerState"]) ?? null,
     parentTalkingPoints:
       (row.parent_talking_points as LessonRecord["parentTalkingPoints"]) ?? null,
+    seriesId: row.series_id,
+    seriesPosition: row.series_position,
   };
 
   return <PlannerClient initial={initial} />;

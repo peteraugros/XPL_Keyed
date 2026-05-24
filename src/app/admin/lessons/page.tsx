@@ -37,6 +37,8 @@ type LessonRow = {
   video_url: string | null;
   is_published: boolean;
   created_at: string;
+  series_id: string | null;
+  series_position: number | null;
 };
 
 export default async function AdminLessonsPage() {
@@ -72,7 +74,7 @@ export default async function AdminLessonsPage() {
 
   const lessonLookup = await supabase
     .from("lessons")
-    .select("id, title, fortnite_label, parent_label, topic, difficulty_level, duration_minutes, video_url, is_published, created_at")
+    .select("id, title, fortnite_label, parent_label, topic, difficulty_level, duration_minutes, video_url, is_published, created_at, series_id, series_position")
     .order("created_at", { ascending: false });
   const lessons = (lessonLookup.data ?? []) as LessonRow[];
 
@@ -118,8 +120,21 @@ export default async function AdminLessonsPage() {
                 const hasVideo = !!(l.video_url && l.video_url.trim());
                 const needsVideo = l.is_published && !hasVideo;
                 const isDraft = !l.is_published;
+                const isInSeries = !!l.series_id;
+                const isCapstone = isInSeries && l.series_id === l.id;
+                // series total = max series_position among siblings.
+                const seriesTotal = isInSeries
+                  ? Math.max(
+                      ...lessons
+                        .filter((sib) => sib.series_id === l.series_id)
+                        .map((sib) => sib.series_position ?? 0),
+                    )
+                  : 0;
                 return (
-                  <li key={l.id} className={`${styles.lessonRow} ${needsVideo ? styles.lessonRowStub : ""}`}>
+                  <li
+                    key={l.id}
+                    className={`${styles.lessonRow} ${needsVideo ? styles.lessonRowStub : ""} ${isInSeries && !isCapstone ? styles.lessonRowSeries : ""}`}
+                  >
                     <div className={styles.lessonHeader}>
                       <div>
                         <div className={styles.lessonTitle} title={l.title}>{l.title}</div>
@@ -132,6 +147,13 @@ export default async function AdminLessonsPage() {
                       </div>
                       <div className={styles.lessonHeaderRight}>
                         <div className={styles.lessonBadges}>
+                          {isInSeries ? (
+                            <span className={`${styles.lessonBadge} ${styles.lessonBadgeSeries}`}>
+                              {isCapstone
+                                ? `CAPSTONE · ${seriesTotal}/${seriesTotal}`
+                                : `PART ${l.series_position}/${seriesTotal}`}
+                            </span>
+                          ) : null}
                           {l.topic ? <span className={styles.lessonBadge}>{l.topic}</span> : null}
                           {l.difficulty_level ? <span className={styles.lessonBadge}>{l.difficulty_level}</span> : null}
                           {l.duration_minutes ? <span className={styles.lessonBadge}>{l.duration_minutes}m</span> : null}

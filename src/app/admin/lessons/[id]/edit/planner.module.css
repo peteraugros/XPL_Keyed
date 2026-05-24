@@ -354,6 +354,18 @@
 .capstoneLessonName { font-weight: 600; }
 .capstoneLessonTag { color: rgba(255, 255, 255, 0.45); font-size: 12px; margin-left: auto; }
 
+/* "✓ Spawned" success state after Tim clicks Spawn series stubs. */
+.spawnDone {
+  background: rgba(199, 255, 61, 0.08);
+  border: 1px solid rgba(199, 255, 61, 0.4);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--lime);
+  margin: 6px 0 18px;
+}
+.spawnDone a { color: var(--lime); text-decoration: underline; }
+
 /* Narrow */
 .narrowOptions { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 4px; }
 .narrowOption {

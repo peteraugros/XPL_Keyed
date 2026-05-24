@@ -7,11 +7,14 @@
   padding: 24px 20px 80px;
 }
 .frame {
-  max-width: 960px;
+  /* Match /admin/money's wrap width (1080px) so the lessons page
+     aligns with the rest of the admin surfaces. Was 960px which
+     created a visible inward shift vs other pages. */
+  max-width: 1080px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
 .topBar {
@@ -310,4 +313,19 @@
   padding: 6px 8px;
   border-radius: 4px;
   line-height: 1.4;
+}
+
+/* Series binding visuals in the library list.
+   - PART X/N or CAPSTONE badge: rare-blue accent so it reads as
+     structural (different from the published/draft state colors).
+   - Foundation rows (non-capstone in a series) get a subtle left
+     border tint so the series grouping is visible at a glance.
+   Sort isn't grouped by series in the SQL; the badges are the cue. */
+.lessonBadgeSeries {
+  background: rgba(76, 81, 247, 0.18);
+  color: #b9bcff;
+  border-color: rgba(76, 81, 247, 0.5);
+}
+.lessonRowSeries {
+  border-left: 3px solid rgba(76, 81, 247, 0.55);
 }
