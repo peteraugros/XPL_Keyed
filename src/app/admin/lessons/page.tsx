@@ -122,8 +122,11 @@ export default async function AdminLessonsPage() {
                   <li key={l.id} className={`${styles.lessonRow} ${needsVideo ? styles.lessonRowStub : ""}`}>
                     <div className={styles.lessonHeader}>
                       <div>
-                        <div className={styles.lessonTitle}>{l.title}</div>
-                        <div className={styles.lessonSub}>
+                        <div className={styles.lessonTitle} title={l.title}>{l.title}</div>
+                        <div
+                          className={styles.lessonSub}
+                          title={`${l.fortnite_label ?? ""} → ${l.parent_label ?? ""}`}
+                        >
                           {l.fortnite_label || "(no Fortnite label)"} → {l.parent_label || "(no parent label)"}
                         </div>
                       </div>

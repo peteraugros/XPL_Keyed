@@ -130,15 +130,31 @@
   gap: 12px;
   flex-wrap: wrap;
 }
+/* Left side of the row (title + sub). min-width:0 lets it shrink so
+   ellipsis can actually trigger on overflow. Without min-width:0 a
+   flex child defaults to min-content, which keeps the title at full
+   width and breaks ellipsis. */
+.lessonHeader > div:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
 .lessonTitle {
   font-family: var(--font-display);
   font-size: 17px;
   letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 .lessonSub {
   font-size: 13px;
   color: var(--text-faint);
   margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 .lessonBadges {
   display: flex;
