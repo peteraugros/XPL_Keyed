@@ -767,10 +767,16 @@ Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or oper
 
 #### Single-session / cycle UX gaps still open
 
-- **`/portal/progress` single-session sweep** — main `/portal` dashboard already branches on `tier` via `LiveSingleSessionCards`, but `/portal/progress` (the standalone progress page) still uses cycle-phase rendering and could leak "Lesson 0 of 4" framing for single-session subs. Sweep when usage hits.
 - **Admin + `/play` timezone formatters** — `src/lib/datetime.ts` PT-pinned sweep covered all `/portal/*` Server Components + the post-payment email. `/admin/*` and `/play/*` formatters still call `Intl.DateTimeFormat` without `timeZone`. Tim's browser is on PT so admin renders correctly for him in practice; lower blast radius. Sweep when a non-PT viewer matters.
 - **Public lesson viewer routes** (`/portal/lessons/[id]`, `/play/lessons/[id]`) — the `LessonView` component built for `/admin/lessons/[id]/preview` was designed to drop into these routes unchanged. Not wired yet; today the Sunday email + `/portal/progress` "Watch" links jump straight to the video URL (YouTube/etc) in a new tab. If we want an in-app viewer with the beat sheet + glossary alongside the video, the component is ready.
 - **Capstone series spawning UX**: today Tim can spawn N foundation lessons + the planner-current-lesson becomes the capstone. There's no UI for jumping between siblings in a series; he has to navigate via the library list. Low priority unless he builds several series.
+
+#### Transcribe-from-video v2 (Step 1 shipped 2026-05-24, future enhancements)
+
+- **Chunked upload + true upload-percentage progress bar**. Supabase JS upload doesn't expose progress; v1 shows an indeterminate spinner. For a 25MB upload over slow wifi this is the only real friction left in the flow.
+- **Files >25MB**. Whisper's hard cap. Would need client-side audio extraction via `ffmpeg.wasm` to strip video before upload, or a different provider with no size cap. Tim's screen-recordings under ~25 min stay under the cap; revisit if he starts recording longer.
+- **Async job queue / background transcription**. Today the request blocks for up to 2 min (maxDuration=120s). Fine for sub-25MB / under-15-min clips; a longer model run would benefit from polling-based status.
+- **Whisper timestamp preservation, chapter markers, highlight extraction, searchable transcript memory** — all listed as "out of scope" in the original Step 1 spec. Each adds product value; none are blocking.
 
 #### `/portal/progress` v2 (deferred, design notes in "What's NOT built" #11)
 
@@ -809,6 +815,36 @@ Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or oper
 This section is the running source of truth for what's on Peter's plate. Update it at the end of each session — done items move to "✅ Done", new items get added under the right group. Claude maintains it; Peter executes against it.
 
 #### ✅ Done
+
+- **Transcribe-from-video Step 1 shipped (2026-05-24).** Replaces the manual transcript-paste at planner Step 1. Tim drags an MP4 (or click-picks one), file lands in Supabase Storage, server posts it to OpenAI Whisper, transcript drops into the rough draft textarea automatically. Pasting still works — drag/drop is additive. Verified working with native `.mp4` by Peter 2026-05-24 after the two follow-up fixes below.
+  - **Architecture (lean v1):**
+    - **Client `TranscribeUploader.tsx`** — drag-drop zone + file picker, accepts mp4/mov/webm/m4a/mp3/wav. Client-side 25MB guard (fails fast before upload). Direct browser upload to Supabase Storage via existing coach RLS on `lesson-assets`; path `rough-drafts/<lesson_id>/<uuid>.<ext>`. Separate `upload / transcribe / ready / upload_failed / transcribe_failed` phases so each error message can be specific. Indeterminate spinner during upload (chunked-with-percent is v2). Non-destructive insertion: if `rough_draft` already has content, prompts "Replace / Append / Discard." Retry button on transcribe failure (file stays in storage for 24hr).
+    - **Server `POST /api/admin/lessons/[id]/transcribe`** — body `{ storage_path }`. Coach-gated. Defensive: `storage_path` must start with `rough-drafts/<lesson_id>/` so a leak can't repurpose the endpoint against arbitrary bucket objects. Downloads via service role, hands to Whisper, returns text. 25MB hard guard before the API call. `maxDuration=120s`.
+    - **Whisper helper `src/lib/transcribe/whisper.ts`** — one fetch to `https://api.openai.com/v1/audio/transcriptions`, model `whisper-1`, `response_format=text`. Post-processing: strips leaked timestamp markers (`[00:30]` etc), normalizes whitespace, preserves paragraph breaks. Cost: $0.006/min audio (~$0.03 for a 5 min clip).
+    - **Storage retention** — `cron-rough-draft-cleanup` Edge Function lists files under `rough-drafts/` and removes anything older than 24hr. Scheduled at 18:00 UTC daily. Migration `20260524000300_rough_draft_cleanup_cron.sql`. 24hr window lets Tim retry a bad transcription without re-uploading.
+    - **Bucket migration `20260524000400_lesson_assets_video_support.sql`** — file size limit 10MB → 26MB (just over Whisper's 25MB cap so boundary uploads fail at the Whisper layer with a clear message, not at the storage layer with a cryptic one). MIME types extended with `video/mp4`, `video/quicktime`, `video/webm`, `video/x-m4v`.
+    - **New env var `OPENAI_API_KEY`** — needs to be set in Railway + locally before transcription works. Whisper returns 401 with `invalid_key` if missing.
+  - **Two follow-up bug fixes after Peter's first live test (11MB .mov screen recording surfaced both):**
+    1. **`.mov` rename → `.mp4` for Whisper.** Whisper's docs list mp3/mp4/mpeg/mpga/m4a/wav/webm; `.mov` is not on the list even though the underlying H.264/AAC bytes decode fine. `whisper.ts` renames the filename hint from `.mov` → `.mp4` before posting. Bytes unchanged.
+    2. **MIME type repackaging for `.mov`.** Logs showed Whisper still rejecting with "Invalid file format" after the rename — turns out the Blob's `type` property (set by Supabase Storage to `video/quicktime` on `.mov` download) was leaking into the FormData multipart header, and Whisper sniffs Content-Type for format detection (not just the filename). Fix: when source ext is `.mov`, read bytes out of the Blob and wrap in a new `Blob({ type: "video/mp4" })`. MP4 and MOV share the ISO base media container so the wrapper change is safe. Logging now includes `original_mime` + `repackaged_mime` for Railway-log confirmation.
+    3. **Error masking fix bundled in.** Client was doing `res.json().catch(() => ({}))` — when Railway returned a 502 with HTML body (unhandled handler throw), JSON parse failed silently and UI rendered the bare "Transcription failed." fallback. Now server wraps Whisper call in try/catch + returns `{ error: "handler_threw", detail }` on throw + logs every stage (download started, blob size+mime, whisper post, whisper response, success/fail). Client parses with `res.text()` + `JSON.parse`, falls back to `{ error: "gateway_<status>", detail: <first 200 chars> }`. Surfaces HTTP status in the failure reason.
+  - **Out of scope for v1 (captured as Open TODO):** chunked upload + true progress %, files >25MB (would need ffmpeg.wasm), async job queue, Whisper timestamp preservation, chapter markers, highlight extraction, searchable transcript memory.
+
+- **Lesson archive on `/play/library` + `/portal/progress` single-session branch (2026-05-24).** Two related gaps closed.
+  - **Player long-term archive (`/play/library`).** Was only fetching the ACTIVE curriculum — past completed cycles + past single-sessions disappeared the moment they rolled over. Now that lessons are videos (not PDFs glued to a cycle counter), the kid needs a persistent rewatch surface. New "Your library" archive section below the current-plan block queries every `curriculum_slot` for this player where `delivered_at IS NOT NULL AND lesson_id IS NOT NULL`, joins `lessons` for title + `video_url`, renders chronologically (newest first) with date stamps and Watch → links. Hidden when empty so trial families don't see noise.
+  - **Parent `/portal/progress` branched on `sub.tier`.** Was rendering subscription cycle UI for single-session families (Lesson 1 of 4, skips used, cycle started, 4-week curriculum block — all wrong for a one-shot purchase). Now branches:
+    - `tier='single_lesson'` active: focused "Single session" card showing the assigned lesson's `parent_label` as title, skill description with Fortnite term in italicized parens (Hard rule #4), Watch link when the lesson has a video. Falls back to "Tim is preparing your session" when no lesson assigned yet.
+    - `tier='monthly'` active: original "This cycle" + 4-week curriculum cards, unchanged.
+    - Cycle history + attendance sections still render for both — naturally additive (a family could have a prior subscription cycle AND a later single-session purchase).
+  - Closes the "`/portal/progress` single-session sweep" item that was on Open TODO.
+
+- **`/portal/billing` single-session branch (2026-05-24).** Peter caught the dead "Re enable auto renew" button on the billing page for a single-session purchase — single-session is a one-time $24 charge with no cycle, no skips, no auto-renew state that matters. Branched `/portal/billing` on `sub.tier === 'single_lesson'`:
+  - **Tier label** — `"single_lesson"` was being mistyped as `"single"` so the tier pill showed "Free trial" instead of "Single session." Fixed.
+  - **Current state dl** — cycle stats (Lessons this cycle, Skips used, Auto renew) hide for single-session. Replaced with "Charge: $24 one time" + "Recurring: None" so the parent sees confirmation, not subscription metadata.
+  - **Cancellation card with the `AutoRenewToggle`** — hides entirely for single-session.
+  - **New "Single session" card replaces it** — "One time purchase / no subscription / nothing to cancel / lesson stays in [kid]'s library." Plus a "Book another single session →" outline CTA linking to `/single-session` — the graceful path for parents who want another lesson.
+  - **"How billing works" bullets branch too** — single-session gets single-session-specific copy (flat $24, no recurring, lesson stays in library) instead of the cycle's $56/4-lessons/Sunday bullets.
+  - Net effect: focused, accurate billing page that matches the product. No dead button, no confusing cycle counters, easy path to repeat.
 
 - **Path B lesson planner shipped + polished + bug-hunted across the stack (2026-05-23 → 05-24).** Tim's lesson production now flows through the in-app 7-step planner. The Coach Keyed Lesson Planner (originally a standalone HTML tool at `tools/coach-keyed-planner/`) is now the live `/admin/lessons/[id]/edit` surface with autosave, AI helpers, video-first delivery, and dedicated student-facing preview. Big arc — collapsed here so future sessions can read the full thread.
   - **Migrations** (`20260524000000_lessons_video_planner.sql`, `20260524000100_lesson_series.sql`, `20260524000200_lesson_bundles.sql`):
@@ -1778,6 +1814,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
 - ✅ `CALENDLY_WEBHOOK_SECRET` (64-char hex, generated locally via `openssl rand -hex 32` and passed to Calendly as a request param when creating the subscription — see Done entry for full context). Durable across ngrok URL changes; only rotate if security demands it.
 - 🚫 `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_TIM_USER_ID` — **reserved but not used.** Bot architecture retired per `feedback_no_discord_dms.md`. Leave in `.env.local.example` for future operator-pair pattern; do not populate.
 - ✅ `ANTHROPIC_API_KEY` (for `/admin/lessons/new` AI-assist suggest buttons)
+- ✅ `OPENAI_API_KEY` (for Whisper transcription at planner Step 1 — `/api/admin/lessons/[id]/transcribe`). Needs to be set in Railway + locally before drag/drop transcription works.
 
 #### ⚙️ Post-deploy DB config (when the live Supabase project exists)
 
