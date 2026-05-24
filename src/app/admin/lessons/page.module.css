@@ -329,3 +329,314 @@
 .lessonRowSeries {
   border-left: 3px solid rgba(76, 81, 247, 0.55);
 }
+
+/* ---- Tabs (Published / Drafts / Bundles) ----------------------------- */
+.tabNav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-top: 4px;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-dim);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.tab:hover { color: var(--text); }
+.tabActive {
+  color: var(--lime);
+  border-bottom-color: var(--lime);
+}
+.tabCount {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--text-dim);
+  letter-spacing: 0;
+}
+.tabActive .tabCount { background: rgba(199, 255, 61, 0.18); color: var(--lime); }
+
+/* ---- Bundles tab ----------------------------------------------------- */
+.bundlesToolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+.bundleCreate {
+  background: var(--bg-2);
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.bundleCreateTitle {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--lime);
+  margin: 0 0 12px;
+}
+.field { display: block; margin-bottom: 12px; }
+.fieldLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 4px;
+}
+.fieldInput, .fieldTextarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-hi);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+}
+.fieldInput:focus, .fieldTextarea:focus {
+  outline: none;
+  border-color: var(--lime);
+}
+.fieldTextarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+
+.bundleList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bundleRow {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.bundleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bundleHeaderMain {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bundleHeaderMain:hover .bundleTitle { color: var(--lime); }
+.bundleTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  transition: color 0.12s;
+}
+.bundleDesc {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+.bundleMeta {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 6px;
+}
+.bundleChevron {
+  font-size: 18px;
+  color: var(--text-faint);
+  margin-left: 8px;
+  font-family: monospace;
+  line-height: 1;
+}
+.bundleHeaderActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.bundleEdit { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.bundleActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.bundleGhostBtn {
+  background: transparent;
+  border: 1px solid var(--border-hi);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.bundleGhostBtn:hover { color: var(--text); border-color: var(--text-dim); }
+.bundleGhostBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.bundleDangerBtn {
+  background: transparent;
+  border: 1px solid rgba(225, 84, 103, 0.4);
+  color: #E15467;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.bundleDangerBtn:hover { background: rgba(225, 84, 103, 0.08); border-color: #E15467; }
+.bundleError {
+  font-size: 12px;
+  color: #E15467;
+  margin: 6px 0 0;
+}
+.bundleSaved {
+  font-size: 12px;
+  color: var(--lime);
+  font-weight: 600;
+}
+
+.bundleMembership {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.bundleSectionLabel {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.bundleEmpty {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+}
+.bundleMembers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bundleMember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-hi);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.bundleMemberNum {
+  font-weight: 700;
+  color: var(--lime);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  min-width: 22px;
+}
+.bundleMemberTitle {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bundleMemberMeta {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.bundleMemberActions {
+  display: flex;
+  gap: 4px;
+}
+.bundleArrowBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: transparent;
+  border: 1px solid var(--border-hi);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+}
+.bundleArrowBtn:hover:not(:disabled) { border-color: var(--lime); color: var(--text); }
+.bundleArrowBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+.bundleRemoveBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: transparent;
+  border: 1px solid rgba(225, 84, 103, 0.3);
+  color: #E15467;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+}
+.bundleRemoveBtn:hover { background: rgba(225, 84, 103, 0.08); }
+.bundleAddList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.bundleAddItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+.bundleAddItem:hover { border-color: var(--lime); background: var(--bg-3); }
+.bundleAddMeta {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.fieldHint {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 6px 0 0;
+}

@@ -16,6 +16,7 @@ import { redirect as _redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import styles from "./page.module.css";
 import LessonActionsMenu from "./LessonActionsMenu";
+import BundlesTab from "./BundlesTab";
 
 function redirect(url: string): never {
   (_redirect as (u: string) => never)(url);
@@ -39,9 +40,23 @@ type LessonRow = {
   created_at: string;
   series_id: string | null;
   series_position: number | null;
+  bundle_id: string | null;
+  bundle_position: number | null;
 };
 
-export default async function AdminLessonsPage() {
+type Tab = "published" | "drafts" | "bundles";
+
+export default async function AdminLessonsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab: tabParam } = await searchParams;
+  const tab: Tab =
+    tabParam === "drafts" || tabParam === "bundles"
+      ? (tabParam as Tab)
+      : "published";
+
   const supabase = await createClient();
   const userResult = await supabase.auth.getUser();
   const user = userResult.data.user;
@@ -74,13 +89,42 @@ export default async function AdminLessonsPage() {
 
   const lessonLookup = await supabase
     .from("lessons")
-    .select("id, title, fortnite_label, parent_label, topic, difficulty_level, duration_minutes, video_url, is_published, created_at, series_id, series_position")
+    .select("id, title, fortnite_label, parent_label, topic, difficulty_level, duration_minutes, video_url, is_published, created_at, series_id, series_position, bundle_id, bundle_position")
     .order("created_at", { ascending: false });
-  const lessons = (lessonLookup.data ?? []) as LessonRow[];
+  const allLessons = (lessonLookup.data ?? []) as LessonRow[];
 
-  const needsVideoCount = lessons.filter(
+  // Bundles + their member lessons (for the Bundles tab).
+  const bundleLookup = await supabase
+    .from("lesson_bundles" as never)
+    .select("id, title, description, is_published, created_at, updated_at")
+    .order("updated_at", { ascending: false });
+  const bundles = (bundleLookup.data ?? []) as Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    is_published: boolean;
+    created_at: string;
+    updated_at: string;
+  }>;
+
+  // Tab counts ALWAYS computed against the full list so the tab labels
+  // don't get out of sync with the filter. visibleLessons is the tab-
+  // filtered list rendered below.
+  const publishedCount = allLessons.filter((l) => l.is_published).length;
+  const draftsCount = allLessons.filter((l) => !l.is_published).length;
+  const needsVideoCount = allLessons.filter(
     (l) => l.is_published && (!l.video_url || l.video_url.trim() === ""),
   ).length;
+
+  const visibleLessons =
+    tab === "published"
+      ? allLessons.filter((l) => l.is_published)
+      : tab === "drafts"
+        ? allLessons.filter((l) => !l.is_published)
+        : []; // bundles tab is a different content shape (see render)
+
+  // Kept for legacy `lessons` references below; rename to clarify.
+  const lessons = visibleLessons;
 
   return (
     <div className={styles.frame}>
@@ -96,7 +140,44 @@ export default async function AdminLessonsPage() {
           </a>
         </section>
 
-        {needsVideoCount > 0 ? (
+        <nav className={styles.tabNav} aria-label="Lesson library tabs">
+          <a
+            href="/admin/lessons?tab=published"
+            className={`${styles.tab} ${tab === "published" ? styles.tabActive : ""}`}
+            aria-current={tab === "published" ? "page" : undefined}
+          >
+            Published <span className={styles.tabCount}>{publishedCount}</span>
+          </a>
+          <a
+            href="/admin/lessons?tab=drafts"
+            className={`${styles.tab} ${tab === "drafts" ? styles.tabActive : ""}`}
+            aria-current={tab === "drafts" ? "page" : undefined}
+          >
+            Drafts <span className={styles.tabCount}>{draftsCount}</span>
+          </a>
+          <a
+            href="/admin/lessons?tab=bundles"
+            className={`${styles.tab} ${tab === "bundles" ? styles.tabActive : ""}`}
+            aria-current={tab === "bundles" ? "page" : undefined}
+          >
+            Bundles
+          </a>
+        </nav>
+
+        {tab === "bundles" ? (
+          <BundlesTab
+            bundles={bundles}
+            allLessons={allLessons.map((l) => ({
+              id: l.id,
+              title: l.title,
+              is_published: l.is_published,
+              bundle_id: l.bundle_id,
+              bundle_position: l.bundle_position,
+            }))}
+          />
+        ) : null}
+
+        {tab === "published" && needsVideoCount > 0 ? (
           <section className={styles.stubWarning}>
             <div className={styles.stubEyebrow}>
               {needsVideoCount} lesson{needsVideoCount === 1 ? "" : "s"} need{needsVideoCount === 1 ? "s" : ""} a video
@@ -109,10 +190,13 @@ export default async function AdminLessonsPage() {
           </section>
         ) : null}
 
+        {tab !== "bundles" ? (
         <section className={styles.listBlock}>
           {lessons.length === 0 ? (
             <div className={styles.empty}>
-              No lessons authored yet. Tap "Author a new lesson" to start.
+              {tab === "drafts"
+                ? "No drafts. In-progress planner sessions live here."
+                : "No published lessons yet. Author one and publish it at Step 7."}
             </div>
           ) : (
             <ul className={styles.lessonList}>
@@ -187,6 +271,7 @@ export default async function AdminLessonsPage() {
             </ul>
           )}
         </section>
+        ) : null}
     </div>
   );
 }
