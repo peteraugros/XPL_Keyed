@@ -69,38 +69,14 @@ function buildCalendlyEmbedUrl(
   return `${PAID_LESSON_CALENDLY_URL}?${params.toString()}`;
 }
 
+import { formatCompactDate, formatCallDateTime as fmtCallDateTime, formatTime } from "@/lib/datetime";
+
 function formatSuggestedSlot(iso: string): string {
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
-    ap.toLowerCase(),
-  );
-  return `${datePart} at ${timePart}`;
+  return `${formatCompactDate(iso)} at ${formatTime(iso)}`;
 }
 
 function formatSlotDateTime(iso: string): string {
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
-    ap.toLowerCase(),
-  );
-  return `${datePart} at ${timePart}`;
+  return fmtCallDateTime(iso) ?? "";
 }
 
 export default function SchedulerWizard({
@@ -377,6 +353,7 @@ export default function SchedulerWizard({
           {new Intl.DateTimeFormat("en-US", {
             month: "long",
             day: "numeric",
+            timeZone: "America/Los_Angeles",
           }).format(new Date(cycleAnchorAt))}
           . Stay roughly weekly for the smoothest progression.
         </p>

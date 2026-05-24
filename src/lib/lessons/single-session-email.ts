@@ -19,24 +19,11 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-// "Wednesday, May 27 at 4:00pm" — lowercased am/pm to match the rest of
-// the parent-facing surfaces. Server timezone, matching how /portal
-// renders the same field.
+// Delegates to the shared PT-pinned formatter so emails match the
+// portal exactly.
+import { formatCallDateTime as sharedFormatCallDateTime } from "@/lib/datetime";
 function formatCallDateTime(iso: string): string {
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
-    ap.toLowerCase(),
-  );
-  return `${datePart} at ${timePart}`;
+  return sharedFormatCallDateTime(iso) ?? "";
 }
 
 export async function sendSingleSessionPaidEmail(subscriptionId: string) {

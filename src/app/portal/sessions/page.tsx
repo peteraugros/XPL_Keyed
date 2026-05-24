@@ -33,23 +33,16 @@ type SubLookup = {
   trial_call_at: string | null;
 };
 
+import { formatCompactDate, formatTime } from "@/lib/datetime";
+
 // Structured date / time / duration formatter for trial + paid sessions.
-// Returns { date: "Wed, May 27", time: "4:00 pm", duration: "30 min" }
-// in the user's locale. Lowercased am/pm to match the rest of the UI.
+// Pinned to Pacific Time to match Calendly + emails.
 function formatSessionMeta(iso: string, durationMinutes = 30) {
-  const d = new Date(iso);
-  const date = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(d);
-  const time = timeRaw.replace(" AM", " am").replace(" PM", " pm");
-  return { date, time, duration: `${durationMinutes} min` };
+  return {
+    date: formatCompactDate(iso) ?? "",
+    time: formatTime(iso),
+    duration: `${durationMinutes} min`,
+  };
 }
 type CurriculumLookup = {
   id: string;

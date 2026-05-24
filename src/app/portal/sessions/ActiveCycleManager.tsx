@@ -37,21 +37,10 @@ type CalendlyMessage = {
 const PAID_LESSON_CALENDLY_URL =
   "https://calendly.com/xpl-keyed/paid-lesson";
 
+import { formatCallDateTime } from "@/lib/datetime";
+
 function formatSlotDateTime(iso: string): string {
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
-    ap.toLowerCase(),
-  );
-  return `${datePart} at ${timePart}`;
+  return formatCallDateTime(iso) ?? "";
 }
 
 function buildCalendlyEmbedUrl(

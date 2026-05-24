@@ -18,21 +18,10 @@ type Slot = {
   is_vod_review: boolean;
 };
 
+import { formatCallDateTime } from "@/lib/datetime";
+
 function formatSlotDateTime(iso: string): string {
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
-    ap.toLowerCase(),
-  );
-  return `${datePart} at ${timePart}`;
+  return formatCallDateTime(iso) ?? "";
 }
 
 export default function PaymentSummary({

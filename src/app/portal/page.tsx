@@ -102,36 +102,15 @@ function phaseFor(status: string | undefined): Phase {
   }
 }
 
-function formatShortDate(iso: string | null): string | null {
-  if (!iso) return null;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(iso));
-}
-
-// "Saturday, May 23 at 2:30pm" style for the trial call card. Server
-// timezone is used (typically America/Los_Angeles in this project's
-// local dev + Vercel default), which matches Tim's slot definitions in
-// Calendly. AM/PM is lower cased with no space to match the booking
-// email's formatting.
-function formatCallDateTime(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
-    ap.toLowerCase(),
-  );
-  return `${datePart} at ${timePart}`;
-}
+// Datetime formatters live in src/lib/datetime.ts. Centralized there
+// because Server Components default to the server's timezone (UTC on
+// Railway) and we need PT consistently to match Calendly + emails.
+import {
+  formatShortDate as fmtShortDate,
+  formatCallDateTime as fmtCallDateTime,
+} from "@/lib/datetime";
+const formatShortDate = fmtShortDate;
+const formatCallDateTime = fmtCallDateTime;
 
 export default async function PortalHome({
   searchParams,

@@ -34,6 +34,7 @@ function formatDate(iso: string | null): string {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "America/Los_Angeles",
   }).format(new Date(iso));
 }
 

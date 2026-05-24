@@ -127,31 +127,21 @@ const Q2_GOALS: Record<string, string> = {
   other: "build a more specific goal with Tim",
 };
 
+import { COACH_TZ, formatCompactDate, formatTime } from "@/lib/datetime";
+
 function formatDate(iso: string | null): string {
   if (!iso) return "";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: COACH_TZ,
   }).format(new Date(iso));
 }
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-  const timePart = timeRaw.replace(/\s?(AM|PM)/i, (_m, ap: string) =>
-    ap.toLowerCase(),
-  );
-  return `${datePart} at ${timePart}`;
+  return `${formatCompactDate(iso)} at ${formatTime(iso)}`;
 }
 
 type SlotStatus =

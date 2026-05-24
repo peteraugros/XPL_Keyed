@@ -48,22 +48,12 @@ const NO_HIGHLIGHTS: Highlights = {
 const POLL_INTERVAL_MS = 5000;
 const HIGHLIGHT_DURATION_MS = 3500;
 
-// Compact "Mon, May 27 at 4:00 pm" formatter. Mirrors the paid session
-// cards on /portal/sessions so the visual treatment carries across.
+import { formatCompactDate, formatTime } from "@/lib/datetime";
+
+// Compact "Mon, May 27 at 4:00pm PT" formatter. Pinned to Pacific so
+// it matches the booking email and stays consistent across surfaces.
 function formatSlotDateTime(iso: string): string {
-  const d = new Date(iso);
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(d);
-  const timeRaw = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(d);
-  const time = timeRaw.replace(" AM", " am").replace(" PM", " pm");
-  return `${datePart} at ${time}`;
+  return `${formatCompactDate(iso)} at ${formatTime(iso)}`;
 }
 
 export default function LiveOnboardingCards(props: Props) {
