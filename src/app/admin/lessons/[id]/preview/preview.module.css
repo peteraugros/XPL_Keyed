@@ -91,7 +91,7 @@
    readability. Subtle background tint on the "parent" mode so the
    visual switch is felt. */
 .previewMain {
-  padding: 24px 24px 56px;
+  padding: 18px 24px 48px;
   max-width: 820px;
   margin: 0 auto;
 }
@@ -101,17 +101,23 @@
 }
 
 /* The lesson itself — generic styles shared between kid and parent.
-   Tight section spacing so short sections don't float in dead space.
-   Screenshots showed the 28px default reading as ~80-100px of empty
-   navy between blocks; 14px lands closer to "tightly stacked reading
-   material" without feeling cramped. */
+   Aggressive section spacing — 6px between major blocks. Anything
+   bigger reads as dead space because the section cards (beats with
+   their internal padding, talking-points cards, glossary callout)
+   already have visual weight + breathing room baked in. */
 .lessonView {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 6px;
+}
+/* Defensive: kill any default margins on direct flex children that
+   could compound with the gap. Browser defaults on h2 / ol / ul /
+   article are typically 0 in modern UAs but explicit beats implicit. */
+.lessonView > * {
+  margin: 0;
 }
 
-.lessonHeader { display: flex; flex-direction: column; gap: 6px; }
+.lessonHeader { display: flex; flex-direction: column; gap: 4px; padding-bottom: 4px; }
 .eyebrow {
   font-size: 11px;
   letter-spacing: 2px;
@@ -192,16 +198,20 @@
   text-align: center;
 }
 
-/* Sections (glossary, beats, etc) — tighter internal spacing */
+/* Sections (glossary, beats, etc) — tighter internal spacing.
+   Section title gets a touch of breathing room above (separates it
+   from the prior section's content), tightly attached to its body
+   below. */
 .section {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-top: 8px;
 }
 .sectionTitle {
   margin: 0;
   font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-size: 18px;
+  font-size: 17px;
   letter-spacing: 0.3px;
   color: var(--text);
 }
@@ -258,13 +268,13 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   counter-reset: beat-counter;
 }
 .beat {
   counter-increment: beat-counter;
   position: relative;
-  padding: 14px 16px 14px 50px;
+  padding: 10px 14px 10px 44px;
   background: var(--bg-2);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
@@ -272,10 +282,10 @@
 .beat::before {
   content: counter(beat-counter);
   position: absolute;
-  left: 14px;
-  top: 14px;
-  width: 24px;
-  height: 24px;
+  left: 12px;
+  top: 10px;
+  width: 22px;
+  height: 22px;
   background: var(--lime);
   color: var(--bg);
   border-radius: 999px;
@@ -283,7 +293,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
 }
 .beatBullet {
   display: block;
@@ -328,8 +338,8 @@
 .talkingPoint {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
+  gap: 3px;
+  padding: 9px 14px;
   background: var(--bg-2);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
