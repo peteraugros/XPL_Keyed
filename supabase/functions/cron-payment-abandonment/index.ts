@@ -13,6 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
+import { cancelCurriculumEvents } from "../_shared/calendly.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -111,6 +112,12 @@ Deno.serve(async (_req) => {
         .maybeSingle();
       const curriculumId = (curriculumRow.data as { id: string } | null)?.id;
       if (curriculumId) {
+        // Cancel any Calendly events the parent booked before abandoning checkout.
+        await cancelCurriculumEvents(
+          supabase,
+          curriculumId,
+          "Payment not completed within 24 hours",
+        );
         await supabase
           .from("curriculum_slots")
           .update({ live_call_at: null, live_call_event_id: null })

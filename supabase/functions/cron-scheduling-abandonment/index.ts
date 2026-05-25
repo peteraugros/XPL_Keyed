@@ -17,6 +17,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
+import { cancelCurriculumEvents } from "../_shared/calendly.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -145,6 +146,12 @@ Deno.serve(async (_req) => {
         // rather than resetting. Family can request a refund within 60 days
         // per ToS. Lessons + progress are preserved.
         if (curriculumId) {
+          // Cancel any Calendly events the parent booked before abandoning.
+          await cancelCurriculumEvents(
+            supabase,
+            curriculumId,
+            "Session scheduling window expired",
+          );
           await supabase
             .from("curricula")
             .update({ status: "superseded" })
@@ -176,6 +183,12 @@ Deno.serve(async (_req) => {
         // Initial onboarding: no charge taken. Release slots and let them
         // re-schedule from the beginning.
         if (curriculumId) {
+          // Cancel any Calendly events the parent booked before abandoning.
+          await cancelCurriculumEvents(
+            supabase,
+            curriculumId,
+            "Session scheduling window expired",
+          );
           await supabase
             .from("curriculum_slots")
             .update({ live_call_at: null, live_call_event_id: null })
