@@ -499,6 +499,31 @@ Tim's cap is 12 active clients but the funnel will likely deliver more free-call
 
 **Do not** launch operator #2 for free. They pay something real from day one (low setup fee + low ongoing, or low monthly + low rev share). Acquirers want to see paying operators, not promotional ones.
 
+### Classes as a Phase 2 product (deferred until 1:1 trust posture is validated)
+
+The 1:1 cap math caps operator revenue at $14/kid/week × 12-cap = ~$8.7k/year, ~$6.1k after the 30/70 split. That's pocket money for a 14yo and a real recruiting problem — no serious parent fights through background checks, Connect KYC, and a 90-day supervised trial for $6k/year. Classes (60 min, 8 kids, ~$30/kid, 4 classes/week) get an operator to ~$50k/year. **The operator-#2 recruiting funnel only becomes economically viable at class scale.** This is a load-bearing piece of the platform thesis, not just an upsell.
+
+**Locked strategic position:** classes layer on as a **second tier**, not a pivot. 1:1 stays the premium personalized track; classes become the volume / entry tier and the operator-recruiting hook. Spec language already covers this — operators have content autonomy within the Hard Rules, and class vs 1:1 is a content choice, not a structural change to the platform. The acquirer pitch evolves to "operator-pair coaching platform, format agnostic."
+
+**Trust posture work required before shipping classes:**
+- **Parent-as-observer becomes explicit per-family opt-in at enrollment.** One Discord channel per class means parents see other families' kids — meaningful privacy posture change from the 1:1 model where each family has its own channel. Cannot be buried in ToS; enrollment flow needs a deliberate consent step.
+- **Translation pair generalizes** (group dynamics translate to real-world skills the same way — collaboration, role coordination, etc.).
+- **"For your back pocket" must stay per-kid.** Generic class recaps are a regression on the strategic moat. Each parent's email still names what Jake specifically did vs the rest of the class.
+
+**Schema work (deferred until commit):**
+- `cohorts` table joining N players, with a class-size cap (probably 6–10).
+- Group Calendly event types; the existing per-slot model becomes per-cohort-slot.
+- Per-cohort lesson plans alongside per-kid (lesson library generalizes).
+- Per-kid attendance + makeup logic when one kid cancels but the class still runs.
+- Monthly per-enrollment billing rather than per-cycle (the cycle/skip model is 1:1-shaped).
+
+**Sequencing:**
+1. **1:1 model proves trust posture with 6+ paying families.** This is the gate. Do not start class design before this.
+2. **Tim pilots a single class** (Saturday-only, 4–6 kids, e.g. FNCS prep) on top of his 1:1 slate to validate the format with his own audience before exposing it as a platform product.
+3. **Operator-#2 onboarding adds class capability** if #2 wants to run classes. Class layer + multi-tenant migration land together as one coordinated cutover.
+
+Do not build classes before 1:1 is validated. The schema work + trust-posture work + UX is real, and doing it ahead of validated demand pulls forward 1–2 months of work that may need to be redesigned once Tim actually runs a class and discovers what's wrong with the model.
+
 ### Acquirer pitch shape (target ~end of 2027)
 
 > *"Keyed is the operator-pair coaching platform for esports. We've proven the model with our flagship operator (Tim, 14, Unreal ranked) running at full cap for 18 months with zero safety incidents and 70% retention. We've onboarded 2–5 additional operator pairs, each running clean under our trust playbook. Here's the parent-trust playbook. Here's the organic content-to-customer flywheel. Here's the operator-pair legal structure. Here's the tech stack. Take it from here."*
@@ -761,6 +786,7 @@ Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or oper
 - **Pressure tests #1–#32** in CLAUDE.md (minus #13 which is retired with the recording feature).
 - **State child-labor compliance audit** + 1099 / multi-state nexus setup.
 - **Operator recruiting form** — Google form with kid + parent qualifying questions per spec.
+- **Classes as a Phase 2 product** — second tier on the platform (1:1 stays premium personalized track; classes become volume / entry tier + recruiting-economics unlock). See the "Classes as a Phase 2 product" section above for trust posture extensions, schema work, and sequencing. **Gate: 1:1 model validated with 6+ paying families first.** Then Tim pilots one Saturday class to validate the format before exposing it as a platform product.
 
 #### Peter setup (outside code)
 
