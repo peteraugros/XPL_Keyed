@@ -422,7 +422,7 @@ An acquirer is not buying revenue (they can build that). They're buying:
 
 - **The parent-trust playbook** — the Hard Rules, the trust signals, the coaching server architecture, the translation pair (Hard Rule #4), the "for your back pocket" mechanism, the COPPA-safe intake.
 - **The operator-pair pattern** — parent is the legal entity, kid is the talent, platform is the trust scaffolding. Tim + Peter are the canonical pair. This is the first structure in this space that is both legally clean and emotionally resonant. Outschool / Varsity Tutors / GamerSensei / Metafy tried adult-instructor models and missed the "same generation" magic; Roblox tried kid-as-creator without a parent layer and ate years of lawsuits. The operator-pair model threads that needle.
-- **The content-distribution-to-customer flywheel** — Tim's organic TikTok comment funnel converting to free calls to paying clients. Proof that a kid coach's authentic expertise compounds without paid ads.
+- **The content-distribution-to-customer flywheel** — Tim's organic social presence converting to free calls to paying clients. Proof that a kid coach's authentic expertise compounds without paid ads.
 - **The tech stack** — multi-tenant operator economics, RLS by operator, Stripe Connect, white-label theming. Shared shape with Elements of Chess; Peter has built this machinery twice by acquisition time.
 
 ### Operator-pair structure (locked)
@@ -471,31 +471,6 @@ Marketplace-style listings were rejected because they (a) pit operators against 
 - Add Canada / UK / Australia only after operator-pair pattern is proven and acquirer interest is real.
 - EU (GDPR), Brazil (LGPD), China, and anywhere with hard child-labor regimes deferred indefinitely. Those are acquirer problems.
 
-### The TikTok funnel (primary acquisition channel)
-
-Tim's organic-comment strategy on Fortnite-creator TikToks is the platform's primary acquisition channel and its most valuable demo asset for the eventual acquirer. Tim is already posting expert tactical comments and pulling 200–400 likes per comment. Flywheel:
-
-1. Tim comments expertly on Fortnite-creator TikToks → kids visit his profile.
-2. Profile bio links to `xplkeyed.com`.
-3. Site converts kid + parent to free intro call (Stage A intake).
-4. Free call converts to paid lessons (Stage C conversion).
-5. Satisfied clients reference back; Tim's content compounds.
-
-**Tracked from day one** (hand-tracked spreadsheet → analytics later):
-- Comments posted per week.
-- Likes/replies per comment.
-- Profile visits → site visits (UTM tag on bio link).
-- Site visits → free call booked.
-- Free call → paid conversion.
-- Time from first comment exposure to paying client.
-
-**Every viral comment is saved.** Tim screenshots each comment that pops off (the parent video, the comment text, like count, any replies). This becomes the operator-#2 playbook's first chapter: "Here are the 20 comments that got Tim from 0 to his first 10 clients." Single most valuable asset this business produces in 2026.
-
-**Tim's safety as the funnel scales:**
-- Hard Rule #1 (no photos of Tim) is non-negotiable, especially as audience grows. Pressure to "show face for engagement" will get louder; the rule does not bend.
-- TikTok bio and profile scrubbed of school name, real last name, city, tournament results under real identity. "XPL Keyed, 14, Unreal, coaching at xplkeyed.com" is plenty.
-- **Canned DM response** for every stranger-kid DM (TikTok, Fortnite party invite, Instagram): *"Hey! I only coach through my site so your parents can be involved. Have them check out xplkeyed.com and book the free call. Looking forward to playing with you there."* Tim builds this habit early. No off-platform coaching, ever.
-
 ### Intake throttling when the funnel turns on hot
 
 Tim's cap is 12 active clients but the funnel will likely deliver more free-call requests than he can handle:
@@ -513,7 +488,7 @@ Tim's cap is 12 active clients but the funnel will likely deliver more free-call
 
 ### Operator #1 (Tim) → Operator #2 sequencing
 
-- **2026:** Tim's n=1 instance reaches 6–12 paying clients with clean operations, parent testimonials, zero safety incidents, clean P&L. TikTok funnel runs. Comment patterns documented.
+- **2026:** Tim's n=1 instance reaches 6–12 paying clients with clean operations, parent testimonials, zero safety incidents, clean P&L.
 - **Late 2026 / early 2027:** Operator #2 recruited from Tim's pipeline (overflow free-call families, recruiting form submissions, Tim's competitive Fortnite network filtered through parent screening).
 - Operator #2 launches with 2–3 of Tim's overflow clients (pre-qualified soft handoff, framed as a choice: "Coach Jordan is also Unreal ranked and is taking new clients — want to meet him?").
 - **90-day platform-supervised trial period** before full autonomy. See pressure tests.
@@ -554,8 +529,7 @@ Spec describes these as design-locked. Code does not implement them yet. Surfaci
 2. ~~**Call recording infrastructure.**~~ **RETIRED 2026-05-22.** Never built; intentionally retired before launch. Workflow cost (Tim, 14, remembering QuickTime + system-audio routing per call) didn't justify the trust-signal gain over what we already deliver (parent-as-observer live access to the kid's Discord channel + Tim's `coach_note` per slot landing on `/portal/progress`). User-facing copy on `/portal/coaches` updated to lead with live-observer rights + post-call notes. **Do not reinstate without re-examining the trust posture.**
 3. **Discord coaching server template.** Setup item #2 says "create the bot." No setup docs exist for the server template, channel-naming convention, parent-observer role config, recording-bot setup. For Tim's launch this is manual: Tim creates a per-family private channel by hand in his existing server and pastes the invite URL into `/admin` via the inline form on each client card. Operator #2 will need a documented template.
 4. ~~**iOS PWA Add-to-Home-Screen.**~~ **RESOLVED 2026-05-22.** `public/icons/apple-touch-icon.png` (180×180 PNG, rasterized from `public/icons/icon.svg` via a one-off sharp script) wired into `src/app/layout.tsx` via `metadata.icons.apple`. iOS "Add to Home Screen" now shows the branded icon. If the brand mark ever changes, re-run the rasterization with `sharp(svg, {density: 384}).resize(180,180).png()`.
-5. **Analytics + TikTok funnel measurement.** Long-term thesis section says "hand-tracked spreadsheet → analytics later." The spreadsheet template is not in the repo. No UTM convention locked in for the marketing-site bio link. The TikTok comment screenshot library (Tim's "20 comments that got him to first 10 clients") has no storage path.
-6. ~~**`pending_intake_verifications` purge cron.**~~ **DONE 2026-05-24.** Migration `20260525000100_intake_purge_cron.sql` adds a pg_cron job (`purge-intake-verifications`) that runs daily at 4am UTC and deletes `WHERE expires_at < NOW() AND verified_at IS NULL`. Direct SQL delete, no Edge Function needed.
+5. ~~**`pending_intake_verifications` purge cron.**~~ **DONE 2026-05-24.** Migration `20260525000100_intake_purge_cron.sql` adds a pg_cron job (`purge-intake-verifications`) that runs daily at 4am UTC and deletes `WHERE expires_at < NOW() AND verified_at IS NULL`. Direct SQL delete, no Edge Function needed.
 7. **Refund window enforcement.** Policy lives in ToS + email copy only. No Stripe-portal refund block for requests > 60 days post-charge. Build when the first refund flows.
 8. ~~**Day-7 unscheduled auto-cancel for scattered renewals.**~~ **DONE 2026-05-24.** `cron-scheduling-abandonment` now branches at the 7d expiry on `sub.status`: `status='active'` (paid renewal, $56 already charged) → cancels subscription, supersedes curriculum, sends "paused" email (`trigger: renewal_scheduling_abandoned_7d`). Other statuses (initial onboarding, no charge) → existing slot-reset behavior unchanged.
 9. ~~**Calendly auto-booking of uniform predicted times.**~~ **RESOLVED 2026-05-24 — auto-suggest UI approach, not server-side auto-booking.** Calendly's API doesn't support programmatic invitee creation. The correct implementation: predicted slots (set by `provisionNextCycle`) show in `/portal/sessions` with a "Confirm booking" button that opens a Calendly embed (`ConfirmPredictedModal`). Parent books their predicted time (or any other) and the modal posts to `/api/portal/sessions/[id]/confirm-predicted` to write the real event URI. No skip counter, no 24hr rule. Paired with the `/portal` home uniform-schedule card (item 1 resolution above).
@@ -604,7 +578,7 @@ Open work items to flush out before the platform takes on a second operator pair
 
 ### Client-side safety (kids being coached)
 
-11. **COPPA intake stress test.** Re-read Stage A intake specifically through the lens of "this user is 10 and got here from a TikTok comment, no parent in the room." First field after age disclosure must be parent email, gated; no other data collected from the kid until the parent acts. Verify the existing design holds.
+11. **COPPA intake stress test.** Re-read Stage A intake specifically through the lens of "this user is 10 and got here from a social media post, no parent in the room." First field after age disclosure must be parent email, gated; no other data collected from the kid until the parent acts. Verify the existing design holds.
 12. **Parent email verification for under-13 intake.** What stops a 10-year-old from typing a fake parent email and continuing? Magic-link verification before any further data is collected. Confirm and harden.
 13. ~~**Recording access and retention.**~~ **RETIRED 2026-05-22.** Recording feature dropped before launch (see Account & trust model section + What's NOT built #2). The replacement trust signals are live parent-observer access to the kid's Discord channel + Tim's per-call `coach_note` surfacing on `/portal/progress`. If a future incident or legal/CYA need forces a recording capability back, revisit this pressure test then; the access matrix design here (parent / platform / operator-parent) is reusable.
 14. **Anomaly detection.** Platform-level monitoring: operator kid messaging client kid outside the coaching server, operator parent not responding to client parent within 48 hours, operator kid exceeding stated client cap, unusual cancellation patterns, coach notes consistently missing post-call, post-call replies drying up. Each anomaly fires a platform alert to Peter. (Recording-retention-window monitoring dropped — recording retired 2026-05-22.)
@@ -751,7 +725,6 @@ Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or oper
 #### Real product gaps (build when bandwidth + need align)
 
 - **60-day refund window enforcement** — policy lives in ToS only; no Stripe-portal block. Build when first refund request flows.
-- **TikTok funnel analytics** — spreadsheet template + UTM convention for the bio link + screenshot library storage path. Manual until volume matters.
 
 #### New feature requests
 
@@ -1030,7 +1003,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
 - **Calendly account configured (2026-05-17).**
   - Workspace renamed to `xpl-keyed` (brand-locked to XPL Keyed, no Augros family name in infrastructure URL). Standard plan ($12/mo) for webhooks + custom questions + minimum-notice.
   - Event type **"30 minute free intro call"** published at `https://calendly.com/xpl-keyed/intro-call`. This is the URL the Stage A Level 4 step will embed.
-  - **Locked settings:** 30 min duration · 15-min before/after buffers · 2/day, 5/week meeting cap (capacity gate for when the TikTok funnel scales) · 24hr minimum notice · 60-day max date range · notetaker OFF (consent/privacy with minors) · autofill from prior bookings OFF (prevents phone number injection) · invitee guests OFF · US federal holidays auto-block ON · availability Wed/Thu/Fri 4–6pm + Sat 1–5pm only.
+  - **Locked settings:** 30 min duration · 15-min before/after buffers · 2/day, 5/week meeting cap · 24hr minimum notice · 60-day max date range · notetaker OFF (consent/privacy with minors) · autofill from prior bookings OFF (prevents phone number injection) · invitee guests OFF · US federal holidays auto-block ON · availability Wed/Thu/Fri 4–6pm + Sat 1–5pm only.
   - **Location:** Custom, dash-free copy. *"Discord voice call. After you book, Tim will send the XPL Keyed coaching server invite to the Discord username you provide below. The call happens there at your scheduled time. We never call or text your phone."* Visibility set to "only after booking confirmation" so the trust copy lands in the email at peak relevance, not the public page.
   - **Invitee form: phone field removed.** Top-level Name + Email captures the **parent** (the person booking). Five custom questions: kid's first name (req), kid's Discord username (req, with help text), kid's Fortnite IGN (req), kid's age (req), what they want to get better at (optional, multi-line).
   - **Design decision locked: kid's Discord username, NOT parent's.** The original spec assumed parent's Discord. Corrected at setup because 90%+ of parents don't use Discord and would bounce. Parent's observer role in the coaching server happens via post-conversion invite, not at the booking form. **This generalizes: parent Discord is never collected at any intake surface.** Trust model unchanged; conversion friction removed.
@@ -1094,7 +1067,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
     1. **`/portal` and `/play` don't exist yet.** The callback redirects to them and they currently 404. Building them is downstream of Task 6 (client portal work). Until then, a successful sign-in lands on a 404 — the session cookie is set correctly, so the moment the routes are added, sign-in works end-to-end without changes here.
     2. **Resend in dev still hits the live Resend API.** Same posture as the intake routes (see "Intake backend complete" flag #1). Magic-link URLs go to real inboxes; for local visibility while building portal nav state, send to a real address or add a dev-only `console.log` of `linkResult.data.properties.action_link` in `src/lib/supabase/auth.ts`.
     3. **Player login resolves the OLDEST player in the family.** MVP families are 1-kid, so this is a non-issue. When multi-kid lands, `/login` needs a "which kid?" step — probably a second screen that lists kids by first name after the email is entered. Helper signature already takes a `playerId` shape via the family-of-1 lookup; multi-kid would change the API to `sendPlayerMagicLink(supabase, parentEmail, playerId, opts)`. Schema already supports it; UX work only.
-    4. **No rate limit on `/api/auth/send-magic-link`.** Resend's per-recipient limits are the backstop. Acceptable at 1–10 client scale; revisit when the TikTok funnel is live and someone tries to use the endpoint as an outbound-email cannon.
+    4. **No rate limit on `/api/auth/send-magic-link`.** Resend's per-recipient limits are the backstop. Acceptable at 1–10 client scale; revisit if volume grows significantly.
 
 - **Parent /portal (trial state) complete (2026-05-17, night).** First slice of Task 7. Server-rendered parent dashboard at `/portal`. Auth + role gate, calm informational tone (no rarity colors, no XP bar — parent isn't a player). `npx tsc --noEmit` clean.
   - **Files:** `src/app/portal/page.tsx` (Server Component, ~280 lines incl. quest config + render) + `src/app/portal/PortalClient.tsx` (sign-out + nudge Client Components) + `src/app/portal/page.module.css` (scoped, mobile-first, dash-free).
@@ -1677,13 +1650,9 @@ This section is the running source of truth for what's on Peter's plate. Update 
     - **Open queue** with FIFO position numbers (`#1`, `#2`, ...) per locked spec. Each row: parent email + kid first name + age + signup date + freshness check history + status pill (`Waiting`, `Offered. Nh left`, `Offer expiring`, etc.). Per-row **Remove** button with reason field + two-step confirm.
     - **History section** for closed entries (claimed / converted / expired / removed) with the removed_reason inline.
   - **`POST /api/admin/waitlist/[id]/remove`** — coach-gated. Marks `status='removed'`, stamps `removed_at + removed_reason`. Used for ghost families, bad contact info, or any FIFO-bypass case. Skip-in-queue intentionally NOT built (strict FIFO per CLAUDE.md spec; if it ever matters, additive endpoint).
-  - **Two new Focused Home task types** (migration `20260520000100_admin_home_action_items.sql`):
+  - **One new Focused Home task type** (migration `20260520000100_admin_home_action_items.sql`):
     - **`lesson_authoring_needed` (P75)** — fires when an active client's NEXT pending curriculum_slot (lowest `week_number` with `delivered_at IS NULL`) points at a lesson with empty `slides` JSONB AND the `live_call_at` is within 7 days. Catches the broken-Sunday-delivery bug Stage C take-on (and auto-renew provisioning) creates by writing stub lessons with empty slides. View uses a CTE (`next_stub_slot`) that joins subscriptions → curricula → slots → lessons. P75 sits just below `new_student_welcome` (P70) which makes sense — both are action-required, lesson stubs slightly more urgent.
-    - **`tiktok_daily_reminder` (P25)** — daily awareness card nudging Tim to drop his Fortnite-creator comment. Per CLAUDE.md, the TikTok organic-comment funnel is the platform's primary acquisition channel. Card fires once per UTC day via `NOT EXISTS` against a new `tiktok_comments` table; logging just inserts a row stamped with `logged_at` and a UNIQUE `(coach_id, logged_date)` index dedupes the day. `logged_date` is a `GENERATED ALWAYS AS ((logged_at AT TIME ZONE 'UTC')::date) STORED` column for clean partial-index queries.
-    - **`POST /api/admin/tiktok/log`** — coach-gated. Inserts row; treats unique-violation (Postgres SQLSTATE 23505) as success so Tim tapping twice in the same day still drops the card cleanly.
-  - **AdminClient render branches** added for both new types:
-    - `lesson_authoring_needed`: amber `LESSON STUB` pill + inline CTA row with **Open lesson library** + **Open client card**. Note: `/admin/lessons/<id>/edit` doesn't exist yet, so the primary CTA routes to the list. Real lesson-edit route is the next missing piece if Tim hits this often.
-    - `tiktok_daily_reminder`: rare-blue `FUNNEL` pill. Special-cased meta row (no kid name + no Stuck button since it's not client-scoped). Inline **✓ Commented today** button via new `TikTokLogButton` Client Component that fires `/api/admin/tiktok/log` and `router.refresh()`.
+  - **AdminClient render branch** for `lesson_authoring_needed`: amber `LESSON STUB` pill + inline CTA row with **Open lesson library** + **Open client card**. Note: `/admin/lessons/<id>/edit` doesn't exist yet, so the primary CTA routes to the list. Real lesson-edit route is the next missing piece if Tim hits this often.
   - **AI prompt retune** for the parent-translation suggest endpoint shipped in the same window. Original output was reading like a psychology textbook ("Trains spatial planning and sequenced execution while filtering threats..."). Retuned with:
     - System prompt now has an explicit "WRITE FOR A REGULAR PARENT, NOT A PSYCHOLOGY TEXTBOOK" section.
     - **Banned vocabulary** list: spatial planning, sequenced execution, executive function, cognition, pattern recognition, decision making (as noun phrase), filtering, processing, parsing, working memory, motor planning, etc.

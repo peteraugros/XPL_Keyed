@@ -618,12 +618,11 @@ function FocusedHome({
   const isPrepAnswered = topTask.task_type === "prep_answered";
   const isAutoRenewOff = topTask.task_type === "subscription_auto_renew_off";
   const isLessonStub = topTask.task_type === "lesson_authoring_needed";
-  const isTikTok = topTask.task_type === "tiktok_daily_reminder";
   const isOutcomePending = topTask.task_type === "call_outcome_pending";
   const isDragOut = topTask.task_type === "cycle_drag_out";
   const isLibraryLow = topTask.task_type === "library_running_low";
   const isAwareness =
-    isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff || isTikTok;
+    isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff;
 
   async function submitReply(e: React.FormEvent) {
     e.preventDefault();
@@ -683,8 +682,6 @@ function FocusedHome({
           <span className={styles.pastDuePill}>AUTO RENEW OFF</span>
         ) : isLessonStub ? (
           <span className={styles.pastDuePill}>LESSON STUB</span>
-        ) : isTikTok ? (
-          <span className={styles.newTrialPill}>FUNNEL</span>
         ) : isOutcomePending ? (
           <span className={styles.pastDuePill}>POST CALL</span>
         ) : isDragOut ? (
@@ -702,21 +699,13 @@ function FocusedHome({
         <p className={styles.focusedHomeBody}>{phrasing.body}</p>
       ) : null}
       <div className={styles.focusedHomeMeta}>
-        {isTikTok ? null : (
-          <>
-            <span className={styles.focusedHomeKid}>{topTask.client_name}</span>
-            <span className={styles.focusedHomeDot}>·</span>
-          </>
-        )}
+        <span className={styles.focusedHomeKid}>{topTask.client_name}</span>
+        <span className={styles.focusedHomeDot}>·</span>
         <span className={styles.focusedHomeAge}>{ageStr}</span>
-        {isTikTok ? null : (
-          <>
-            <span className={styles.focusedHomeDot}>·</span>
-            <StuckButton task={topTask} variant="link" />
-            <span className={styles.focusedHomeDot}>·</span>
-            <DismissButton task={topTask} variant="link" />
-          </>
-        )}
+        <span className={styles.focusedHomeDot}>·</span>
+        <StuckButton task={topTask} variant="link" />
+        <span className={styles.focusedHomeDot}>·</span>
+        <DismissButton task={topTask} variant="link" />
       </div>
 
       {isWelcome ? (
@@ -802,8 +791,6 @@ function FocusedHome({
             Open client card
           </a>
         </div>
-      ) : isTikTok ? (
-        <TikTokLogButton onDone={() => router.refresh()} />
       ) : isOutcomePending ? (
         <div className={styles.inlineReplyRow}>
           <a href={"/admin/calendar" as never} className={styles.focusedHomeCta}>
@@ -1277,40 +1264,6 @@ function DismissButton({
   );
 }
 
-function TikTokLogButton({ onDone }: { onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function log() {
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await fetch("/api/admin/tiktok/log", { method: "POST" });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? "Could not log.");
-        setBusy(false);
-        return;
-      }
-      onDone();
-    } catch {
-      setError("Could not reach the server.");
-      setBusy(false);
-    }
-  }
-  return (
-    <div className={styles.inlineReplyRow}>
-      <button
-        type="button"
-        onClick={log}
-        disabled={busy}
-        className={styles.focusedHomeCta}
-      >
-        {busy ? "Logging..." : "✓ Commented today"}
-      </button>
-      {error ? <span className={styles.inlineReplyError}>{error}</span> : null}
-    </div>
-  );
-}
 
 function AutoRenewOffActions({
   subscriptionId,
@@ -1566,12 +1519,6 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         cta: "Author lesson",
       };
     }
-    case "tiktok_daily_reminder":
-      return {
-        title: "Drop your TikTok comment for today.",
-        body: "Pick a Fortnite creator video, leave one expert tactical comment. Keeps the funnel spinning.",
-        cta: "Logged it",
-      };
     case "subscription_auto_renew_off": {
       const payload = (t.task_payload ?? {}) as {
         cycle_lessons_delivered?: number;
