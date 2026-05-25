@@ -80,7 +80,9 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px clamp(20px, 4vw, 32px);
+  /* PWA standalone mode: status bar overlays the sticky nav unless we
+     offset for safe-area-inset-top. Defaults to 14px when not in PWA. */
+  padding: calc(14px + env(safe-area-inset-top)) clamp(20px, 4vw, 32px) 14px;
   max-width: 1180px;
   margin: 0 auto;
 }
@@ -866,7 +868,7 @@ footer {
 @media (max-width: 767px) {
   .nav-links { display: none; }
   .hamburger { display: block; }
-  .nav-inner { padding: 12px 20px; }
+  .nav-inner { padding: calc(12px + env(safe-area-inset-top)) 20px 12px; }
 
   .hero {
     padding: 56px 0 64px;
