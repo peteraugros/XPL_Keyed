@@ -1,0 +1,277 @@
+/* /admin/money refund review — coach-tone palette, no rarity colors. */
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+
+.cardEyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.6px;
+  margin: 0 0 14px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cardSubtle {
+  color: var(--text-faint);
+  font-size: 14px;
+  margin: 0;
+}
+
+.pendingCount {
+  font-family: var(--font-sans, Inter, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  background: rgba(245, 166, 35, 0.18);
+  color: #F5A623;
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.row {
+  border: 1px solid rgba(199, 255, 61, 0.3);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: rgba(199, 255, 61, 0.04);
+}
+
+.rowMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rowName {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.rowSubtle {
+  font-size: 13px;
+  color: var(--text-faint);
+  text-transform: none;
+  font-family: var(--font-sans, Inter, sans-serif);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.rowQuote {
+  font-size: 14px;
+  color: var(--text);
+  font-style: italic;
+  padding-left: 12px;
+  border-left: 2px solid rgba(199, 255, 61, 0.5);
+  margin-top: 4px;
+  line-height: 1.55;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btnPrimary {
+  background: var(--lime, #C7FF3D);
+  color: var(--bg, #0B1538);
+  border: none;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  font-size: 14px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 40px;
+}
+.btnPrimary:hover {
+  filter: brightness(1.05);
+}
+.btnPrimary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btnDanger {
+  background: transparent;
+  color: #FF8B8B;
+  border: 1px solid rgba(200, 7, 21, 0.5);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 40px;
+}
+.btnDanger:hover {
+  background: rgba(200, 7, 21, 0.1);
+}
+.btnDanger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 40px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.btnGhost:hover {
+  color: var(--text);
+}
+
+.decisionBox {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.decisionLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 84px;
+}
+.textarea:focus {
+  outline: 2px solid var(--lime, #C7FF3D);
+  outline-offset: 0;
+  border-color: transparent;
+}
+
+.error {
+  font-size: 13px;
+  color: #FF8B8B;
+  background: rgba(200, 7, 21, 0.12);
+  border: 1px solid rgba(200, 7, 21, 0.35);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.historySection {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.historyLabel {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.historyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.historyRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 8px 0;
+}
+
+.historyMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.historyName {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.historyText {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.historyNote {
+  font-size: 12.5px;
+  color: var(--text);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.statusPill {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.statusApproved {
+  background: rgba(49, 146, 54, 0.18);
+  color: #6CDC72;
+  border: 1px solid rgba(49, 146, 54, 0.5);
+}
+
+.statusDenied {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+}

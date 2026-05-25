@@ -9,8 +9,19 @@
 import { requireParentSession } from "../_lib/session";
 import { ManagePaymentButton, AutoRenewToggle } from "../PortalClient";
 import styles from "../_components/inner-page.module.css";
+import { stripe } from "@/lib/stripe/server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import {
+  RefundsSection,
+  type EligibleCharge,
+  type InProgressRequest,
+  type ResolvedRequest,
+} from "./RefundsSection";
 
 export const dynamic = "force-dynamic";
+
+const REFUND_WINDOW_DAYS = 60;
+const REFUND_WINDOW_SECONDS = REFUND_WINDOW_DAYS * 24 * 60 * 60;
 
 type SubLookup = {
   status: string;
@@ -22,7 +33,125 @@ type SubLookup = {
   pending_cancel_auto_confirm_at: string | null;
   auto_renew_enabled: boolean;
 };
-type FamilyLookup = { stripe_customer_id: string | null };
+type FamilyLookup = { id: string; stripe_customer_id: string | null };
+type RefundRow = {
+  id: string;
+  status: "pending" | "approved" | "denied";
+  amount_cents: number;
+  charge_date: string;
+  reason: string;
+  decision_note: string | null;
+  decided_at: string | null;
+  created_at: string;
+  stripe_payment_intent_id: string;
+};
+
+function pickChargeLabel(metadataKind: string | undefined, amount: number): string {
+  if (metadataKind === "single_session") return "Single session";
+  if (metadataKind === "renewal") return "Cycle renewal";
+  if (metadataKind === "first_cycle") return "First cycle";
+  if (amount === 2400) return "Single session";
+  if (amount === 5600) return "Cycle";
+  return "Charge";
+}
+
+async function loadRefundData(args: {
+  familyId: string;
+  stripeCustomerId: string | null;
+}): Promise<{
+  eligible: EligibleCharge[];
+  inProgress: InProgressRequest[];
+  resolved: ResolvedRequest[];
+}> {
+  if (!args.stripeCustomerId) {
+    return { eligible: [], inProgress: [], resolved: [] };
+  }
+
+  const service = createServiceRoleClient();
+  // refund_requests landed in 20260525000300; not in db.ts until regen.
+  // Cast through `as never` for the table name; runtime shape is correct.
+  const refundsResp = await service
+    .from("refund_requests" as never)
+    .select(
+      "id, status, amount_cents, charge_date, reason, decision_note, decided_at, created_at, stripe_payment_intent_id",
+    )
+    .eq("family_id", args.familyId)
+    .order("created_at", { ascending: false });
+  const refundRows = ((refundsResp.data ?? []) as unknown) as RefundRow[];
+
+  // Look up Stripe charges within the 60-day window so we can list
+  // eligible ones. Skip rows that have an open or any prior refund
+  // request — denied requests still block to keep the surface tidy;
+  // parents who want to re-request can message Tim.
+  const cutoffSec = Math.floor((Date.now() - REFUND_WINDOW_SECONDS * 1000) / 1000);
+  const piWithRequest = new Set(refundRows.map((r) => r.stripe_payment_intent_id));
+
+  const eligible: EligibleCharge[] = [];
+  try {
+    const list = await stripe.paymentIntents.list({
+      customer: args.stripeCustomerId,
+      created: { gte: cutoffSec },
+      limit: 50,
+      expand: ["data.latest_charge"],
+    });
+    for (const pi of list.data) {
+      if (pi.status !== "succeeded") continue;
+      if (piWithRequest.has(pi.id)) continue;
+      // Skip already-refunded charges.
+      const charge = pi.latest_charge as
+        | { refunded: boolean; amount_refunded: number }
+        | string
+        | null;
+      if (
+        typeof charge === "object" &&
+        charge !== null &&
+        (charge.refunded || charge.amount_refunded > 0)
+      ) {
+        continue;
+      }
+      const ageDays = Math.floor((Date.now() / 1000 - pi.created) / 86400);
+      const daysUntilClose = Math.max(0, REFUND_WINDOW_DAYS - ageDays);
+      eligible.push({
+        payment_intent_id: pi.id,
+        amount_cents: pi.amount,
+        charge_iso: new Date(pi.created * 1000).toISOString(),
+        label: pickChargeLabel(pi.metadata?.kind, pi.amount),
+        days_until_window_close: daysUntilClose,
+      });
+    }
+  } catch (err) {
+    console.error("[portal/billing] eligible charge lookup failed", err);
+    // Fail open — parent can still see in-flight + history; eligible
+    // list just appears empty for the moment.
+  }
+
+  eligible.sort((a, b) => (a.charge_iso < b.charge_iso ? 1 : -1));
+
+  const inProgress: InProgressRequest[] = refundRows
+    .filter((r) => r.status === "pending")
+    .map((r) => ({
+      id: r.id,
+      amount_cents: r.amount_cents,
+      charge_iso: r.charge_date,
+      label: r.amount_cents === 2400 ? "Single session" : r.amount_cents === 5600 ? "Cycle" : "Charge",
+      reason: r.reason,
+      requested_iso: r.created_at,
+    }));
+
+  const resolved: ResolvedRequest[] = refundRows
+    .filter((r) => r.status === "approved" || r.status === "denied")
+    .map((r) => ({
+      id: r.id,
+      amount_cents: r.amount_cents,
+      charge_iso: r.charge_date,
+      label: r.amount_cents === 2400 ? "Single session" : r.amount_cents === 5600 ? "Cycle" : "Charge",
+      status: r.status as "approved" | "denied",
+      decision_note: r.decision_note,
+      decided_iso: r.decided_at,
+    }));
+
+  return { eligible, inProgress, resolved };
+}
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -64,7 +193,7 @@ export default async function BillingPage() {
       .maybeSingle(),
     supabase
       .from("families")
-      .select("stripe_customer_id")
+      .select("id, stripe_customer_id")
       .eq("id", parent.family_id)
       .maybeSingle(),
   ]);
@@ -72,6 +201,13 @@ export default async function BillingPage() {
   const sub = subResp.data as SubLookup | null;
   const family = familyResp.data as FamilyLookup | null;
   const hasStripeCustomer = !!family?.stripe_customer_id;
+
+  const refundData = family
+    ? await loadRefundData({
+        familyId: family.id,
+        stripeCustomerId: family.stripe_customer_id,
+      })
+    : { eligible: [], inProgress: [], resolved: [] };
 
   const { label: statusText, klass: statusKlass } = statusLabel(sub?.status);
   const isPaying =
@@ -235,6 +371,12 @@ export default async function BillingPage() {
           </a>
         </section>
       ) : null}
+
+      <RefundsSection
+        eligible={refundData.eligible}
+        inProgress={refundData.inProgress}
+        resolved={refundData.resolved}
+      />
 
       <section className={styles.card}>
         <div className={styles.cardEyebrow}>How billing works</div>

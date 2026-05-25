@@ -13,6 +13,11 @@ import { requireCoachSession } from "../_lib/session";
 import { stripe } from "@/lib/stripe/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import styles from "./money.module.css";
+import {
+  RefundReviewSection,
+  type PendingRefund,
+  type ResolvedRefund,
+} from "./RefundReview";
 
 export const dynamic = "force-dynamic";
 
@@ -264,6 +269,71 @@ export default async function MoneyPage() {
   }
   pastDueRows.sort((a, b) => b.days_past_due - a.days_past_due);
 
+  // ---- Refund requests (DB) -----------------------------------------------
+  type RefundRow = {
+    id: string;
+    family_id: string;
+    subscription_id: string;
+    status: "pending" | "approved" | "denied";
+    amount_cents: number;
+    charge_date: string;
+    reason: string;
+    decision_note: string | null;
+    decided_at: string | null;
+    created_at: string;
+  };
+  // refund_requests landed in 20260525000300 (not in db.ts until regen).
+  const refundRowsResp = await supabase
+    .from("refund_requests" as never)
+    .select(
+      "id, family_id, subscription_id, status, amount_cents, charge_date, reason, decision_note, decided_at, created_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const refundRows = ((refundRowsResp.data ?? []) as unknown) as RefundRow[];
+
+  // We need kid + parent context per refund row. Resolve via the
+  // already-loaded maps + a lookup from subscription -> player.
+  const subById = new Map(subs.map((s) => [s.id, s]));
+  function refundContext(r: RefundRow): {
+    kid_first_name: string | null;
+    parent_first_name: string | null;
+    parent_email: string | null;
+    player_id: string | null;
+  } {
+    const sub = subById.get(r.subscription_id);
+    const player = sub ? playerById.get(sub.player_id) : null;
+    const parent = parentByFamily.get(r.family_id);
+    return {
+      kid_first_name: player?.first_name ?? null,
+      parent_first_name: parent?.first_name ?? null,
+      parent_email: parent?.email ?? null,
+      player_id: player?.id ?? null,
+    };
+  }
+  const pendingRefunds: PendingRefund[] = refundRows
+    .filter((r) => r.status === "pending")
+    .map((r) => ({
+      id: r.id,
+      ...refundContext(r),
+      amount_cents: r.amount_cents,
+      charge_iso: r.charge_date,
+      reason: r.reason,
+      requested_iso: r.created_at,
+    }));
+  const resolvedRefunds: ResolvedRefund[] = refundRows
+    .filter((r) => r.status !== "pending")
+    .map((r) => ({
+      id: r.id,
+      kid_first_name: refundContext(r).kid_first_name,
+      parent_first_name: refundContext(r).parent_first_name,
+      amount_cents: r.amount_cents,
+      charge_iso: r.charge_date,
+      status: r.status as "approved" | "denied",
+      decision_note: r.decision_note,
+      decided_iso: r.decided_at,
+    }));
+
   return (
     <div className={styles.wrap}>
       <section className={styles.hero}>
@@ -287,6 +357,14 @@ export default async function MoneyPage() {
         />
         {draggingCycles > 0 ? (
           <Stat label="Dragging cycles" value={String(draggingCycles)} tone="warn" hint="Cycles running 8+ weeks." />
+        ) : null}
+        {pendingRefunds.length > 0 ? (
+          <Stat
+            label="Refunds pending"
+            value={String(pendingRefunds.length)}
+            tone="warn"
+            hint="Awaiting your approve or deny."
+          />
         ) : null}
       </section>
 
@@ -415,11 +493,12 @@ export default async function MoneyPage() {
         )}
       </section>
 
+      <RefundReviewSection pending={pendingRefunds} resolved={resolvedRefunds} />
+
       <section className={styles.card}>
         <div className={styles.cardEyebrow}>Coming later</div>
         <ul className={styles.bullets}>
           <li>Operator payout history (lands when the platform fee + Stripe Connect ship)</li>
-          <li>Refund history (deferred until refunds actually start happening)</li>
         </ul>
       </section>
     </div>

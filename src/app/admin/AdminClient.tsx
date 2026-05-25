@@ -621,6 +621,7 @@ function FocusedHome({
   const isOutcomePending = topTask.task_type === "call_outcome_pending";
   const isDragOut = topTask.task_type === "cycle_drag_out";
   const isLibraryLow = topTask.task_type === "library_running_low";
+  const isRefundPending = topTask.task_type === "refund_request_pending";
   const isAwareness =
     isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff;
 
@@ -656,7 +657,7 @@ function FocusedHome({
       className={`${styles.focusedHome} ${
         isWelcome
           ? styles.focusedHomeWelcome
-          : isPastDue
+          : isPastDue || isRefundPending
             ? styles.focusedHomePastDue
             : isAwareness
               ? styles.focusedHomeTrialBooked
@@ -688,11 +689,13 @@ function FocusedHome({
           <span className={styles.pastDuePill}>CYCLE DRAG</span>
         ) : isLibraryLow ? (
           <span className={styles.newTrialPill}>LIBRARY</span>
+        ) : isRefundPending ? (
+          <span className={styles.pastDuePill}>REFUND</span>
         ) : (
           "Next thing"
         )}
       </div>
-      <h2 className={`${styles.focusedHomeTitle} ${isWelcome || isAwareness || isPastDue ? styles.focusedHomeTitleLarge : ""}`}>
+      <h2 className={`${styles.focusedHomeTitle} ${isWelcome || isAwareness || isPastDue || isRefundPending ? styles.focusedHomeTitleLarge : ""}`}>
         {phrasing.title}
       </h2>
       {phrasing.body ? (
@@ -813,6 +816,18 @@ function FocusedHome({
             className={styles.inlineReplySecondary}
           >
             See library
+          </a>
+        </div>
+      ) : isRefundPending ? (
+        <div className={styles.inlineReplyRow}>
+          <a href={"/admin/money" as never} className={styles.focusedHomeCta}>
+            Review refund
+          </a>
+          <a
+            href={`/admin/clients?client=${topTask.client_id}`}
+            className={styles.inlineReplySecondary}
+          >
+            Open client card
           </a>
         </div>
       ) : (
@@ -1532,6 +1547,28 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
             ? `${remaining} ${remaining === 1 ? "lesson" : "lessons"} left in the cycle, then the subscription ends. Reach out if you want to keep them.`
             : "The cycle is done. The subscription ends at the next cron run.",
         cta: "Open card",
+      };
+    }
+    case "refund_request_pending": {
+      const payload = (t.task_payload ?? {}) as {
+        amount_cents?: number;
+        charge_date?: string;
+        reason?: string;
+      };
+      const amt = payload.amount_cents ?? 0;
+      const amountStr = `$${(amt / 100).toFixed(2).replace(/\.00$/, "")}`;
+      const reason = (payload.reason ?? "").trim();
+      const quote =
+        reason.length > 0
+          ? ` "${reason.slice(0, 160)}${reason.length > 160 ? "..." : ""}"`
+          : "";
+      const ageNote = payload.charge_date
+        ? ` Charge was ${Math.max(0, Math.floor((Date.now() - new Date(payload.charge_date).getTime()) / 86_400_000))}d ago.`
+        : "";
+      return {
+        title: `${name}'s family asked for a refund.`,
+        body: `${amountStr}.${ageNote}${quote}`,
+        cta: "Review refund",
       };
     }
     case "prep_answered": {

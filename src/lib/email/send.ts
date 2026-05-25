@@ -26,6 +26,9 @@ export type EmailTrigger =
   | "coach_cancel_late"
   | "no_show"
   | "parent_cancel_notification"
+  | "refund_request_received"
+  | "refund_request_approved"
+  | "refund_request_denied"
   | "other";
 
 export type RecipientType = "coach" | "parent" | "player";
@@ -38,7 +41,8 @@ export type EntityType =
   | "curriculum"
   | "intake"
   | "trial_call"
-  | "no_show";
+  | "no_show"
+  | "refund_request";
 
 type SendArgs = {
   to: string;
