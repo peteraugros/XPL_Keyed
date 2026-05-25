@@ -138,17 +138,20 @@ export default async function MoneyPage() {
       });
       for (const pi of page.data) {
         if (pi.status !== "succeeded") continue;
-        // Skip fully refunded charges — the PI stays "succeeded" after a refund
-        // but the underlying charge gets refunded=true.
+        // Use net revenue: subtract any refunded amount from the charge.
+        // A fully refunded charge nets to 0 and is skipped entirely.
         const charge = pi.latest_charge as
           | { refunded: boolean; amount_refunded: number; amount: number }
           | string
           | null;
-        if (typeof charge === "object" && charge !== null && charge.refunded) continue;
+        const refundedCents =
+          typeof charge === "object" && charge !== null ? charge.amount_refunded : 0;
+        const netCents = pi.amount - refundedCents;
+        if (netCents <= 0) continue;
         const created = pi.created;
         const d = new Date(created * 1000);
         const key = monthKey(d);
-        revByMonth.set(key, (revByMonth.get(key) ?? 0) + pi.amount);
+        revByMonth.set(key, (revByMonth.get(key) ?? 0) + netCents);
 
         // Resolve kid first name for the description column (best-effort).
         const playerId = pi.metadata?.player_id ?? null;
@@ -156,7 +159,7 @@ export default async function MoneyPage() {
         recentPayments.push({
           id: pi.id,
           created,
-          amount: pi.amount,
+          amount: netCents,
           kid_first_name: kid,
           description:
             pi.description ?? (pi.metadata?.kind === "renewal" ? "Cycle renewal" : "First cycle"),
