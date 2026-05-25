@@ -102,8 +102,12 @@ export default function ActiveCycleManager({
         <ul className={styles.weekList}>
           {slots.map((s) => {
             const needsReschedule = isCoachCancelled(s);
+            const predicted = isPredicted(s);
             return (
-              <li key={s.id} className={`${styles.weekRow} ${needsReschedule ? styles.weekRowNeedsReschedule : ""}`}>
+              <li
+                key={s.id}
+                className={`${styles.weekRow} ${needsReschedule ? styles.weekRowNeedsReschedule : ""} ${predicted ? styles.weekRowPredicted : ""}`}
+              >
                 <span className={styles.weekNum}>Week {s.week_number}</span>
                 <span className={styles.weekCopy}>
                   <span className={styles.weekLabel}>
@@ -111,7 +115,10 @@ export default function ActiveCycleManager({
                   </span>
                   <span className={styles.weekTime}>
                     {s.live_call_at
-                      ? formatSlotDateTime(s.live_call_at)
+                      ? <>
+                          {formatSlotDateTime(s.live_call_at)}
+                          {predicted ? <span className={styles.predictedBadge}>predicted</span> : null}
+                        </>
                       : needsReschedule
                         ? <span className={styles.needsRescheduleText}>Tim cancelled. Pick a new time.</span>
                         : "(no time yet)"}
@@ -124,6 +131,14 @@ export default function ActiveCycleManager({
                     onClick={() => setOpenSlot(s)}
                   >
                     Pick a time
+                  </button>
+                ) : predicted ? (
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    onClick={() => setOpenSlot(s)}
+                  >
+                    Confirm booking
                   </button>
                 ) : s.live_call_at && !isPast(s.live_call_at) ? (
                   <button
@@ -142,6 +157,19 @@ export default function ActiveCycleManager({
 
       {openSlot && isCoachCancelled(openSlot) ? (
         <BookAfterCoachCancelModal
+          slot={openSlot}
+          parentFirstName={parentFirstName}
+          parentEmail={parentEmail}
+          kidFirstName={kidFirstName}
+          kidDiscord={kidDiscord}
+          onClose={() => setOpenSlot(null)}
+          onDone={() => {
+            setOpenSlot(null);
+            router.refresh();
+          }}
+        />
+      ) : openSlot && isPredicted(openSlot) ? (
+        <ConfirmPredictedModal
           slot={openSlot}
           parentFirstName={parentFirstName}
           parentEmail={parentEmail}
@@ -177,6 +205,14 @@ function isCoachCancelled(s: Slot): boolean {
     s.live_call_at === null &&
     (s.live_call_event_id ?? "").startsWith("cancelled:")
   );
+}
+
+// A predicted slot has a soft-booked live_call_at (set by provisionNextCycle
+// based on the prior cycle's uniform pattern) but no live_call_event_id —
+// meaning no real Calendly event exists yet. The parent needs to confirm
+// (or reschedule) to create a real booking.
+function isPredicted(s: Slot): boolean {
+  return s.live_call_at !== null && s.live_call_event_id === null;
 }
 
 function isPast(iso: string): boolean {
@@ -711,6 +747,186 @@ function BookAfterCoachCancelModal({
         {submitting ? <p className={styles.modalBody}>Saving your new time...</p> : null}
         <div
           id={`calendly-coachresched-${slot.id}`}
+          style={{ minWidth: "280px", height: "700px" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ConfirmPredictedModal — for uniform-predicted slots.
+//
+// Different from the regular reschedule modal:
+//   * No 24hr rule (no existing Calendly event to cancel)
+//   * No skip counter math
+//   * Confirms the predicted time or lets parent pick a different one
+//   * Posts to /api/portal/sessions/[id]/confirm-predicted
+// ---------------------------------------------------------------------------
+
+function ConfirmPredictedModal({
+  slot,
+  parentFirstName,
+  parentEmail,
+  kidFirstName,
+  kidDiscord,
+  onClose,
+  onDone,
+}: {
+  slot: Slot;
+  parentFirstName: string;
+  parentEmail: string;
+  kidFirstName: string;
+  kidDiscord: string | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const predictedIso = slot.live_call_at!;
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  // Calendly embed pre-navigated to the predicted week so the default
+  // visible month is the right one without any scrolling.
+  const embedUrl = useMemo(() => {
+    const d = new Date(predictedIso);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const params = new URLSearchParams({
+      background_color: "0F1B47",
+      text_color: "FFFFFF",
+      primary_color: "C7FF3D",
+      hide_gdpr_banner: "1",
+      hide_event_type_details: "1",
+      name: parentFirstName,
+      email: parentEmail,
+      a1: kidFirstName,
+      month: `${yyyy}-${mm}`,
+    });
+    if (kidDiscord) params.set("a2", kidDiscord);
+    return `${PAID_LESSON_CALENDLY_URL}?${params.toString()}`;
+  }, [predictedIso, parentFirstName, parentEmail, kidFirstName, kidDiscord]);
+
+  useEffect(() => {
+    function onMessage(e: MessageEvent<CalendlyMessage["data"]>) {
+      const origin = (e as MessageEvent).origin;
+      if (!origin || !origin.includes("calendly.com")) return;
+      const data = e.data;
+      if (!data || data.event !== "calendly.event_scheduled") return;
+      const eventUri = data.payload?.event?.uri;
+      if (!eventUri) return;
+      void commit(eventUri);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slot.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    function tryInit() {
+      if (cancelled) return;
+      const w = window as unknown as {
+        Calendly?: {
+          initInlineWidget: (opts: { url: string; parentElement: Element }) => void;
+        };
+      };
+      const target = document.getElementById(`calendly-predicted-${slot.id}`);
+      if (w.Calendly && target) {
+        target.innerHTML = "";
+        w.Calendly.initInlineWidget({ url: embedUrl, parentElement: target });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 50) setTimeout(tryInit, 100);
+    }
+    tryInit();
+    return () => {
+      cancelled = true;
+    };
+  }, [embedUrl, slot.id]);
+
+  async function commit(newEventUri: string) {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const resolved = await fetch(
+        `/api/portal/sessions/resolve-event?uri=${encodeURIComponent(newEventUri)}`,
+      );
+      if (!resolved.ok) {
+        setError("Could not look up the new time. Refresh and try again.");
+        setSubmitting(false);
+        return;
+      }
+      const { start_time } = (await resolved.json()) as { start_time: string };
+
+      const res = await fetch(
+        `/api/portal/sessions/${slot.id}/confirm-predicted`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            new_event_uri: newEventUri,
+            new_time_iso: start_time,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? "Could not confirm the booking. Try again.");
+        setSubmitting(false);
+        return;
+      }
+      setDone(start_time);
+      setSubmitting(false);
+    } catch {
+      setError("Could not reach the server.");
+      setSubmitting(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className={styles.modalOverlay} onClick={onClose}>
+        <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Close">×</button>
+          <div className={styles.modalEyebrow}>Confirmed</div>
+          <h2 className={styles.modalTitle}>
+            Week {slot.week_number} locked in for {formatSlotDateTime(done)}
+          </h2>
+          <p className={styles.modalBody}>
+            Tim is confirmed. The slot moved from a predicted time to a real
+            Calendly booking. No skip counted.
+          </p>
+          <div className={styles.modalRow}>
+            <button type="button" className={styles.modalCta} onClick={onDone}>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Close">×</button>
+        <Script src="https://assets.calendly.com/assets/external/widget.js" strategy="afterInteractive" />
+        <div className={styles.modalEyebrow}>Confirm Week {slot.week_number}</div>
+        <h2 className={styles.modalTitle}>Lock in the predicted time</h2>
+        <p className={styles.modalBody}>
+          Tim predicted {formatSlotDateTime(predictedIso)} based on your last
+          cycle. Pick that time (or any other that works) to create the real
+          booking. No skip counted either way.
+        </p>
+        {error ? <p className={styles.modalError}>{error}</p> : null}
+        {submitting ? (
+          <p className={styles.modalBody}>Locking in your time...</p>
+        ) : null}
+        <div
+          id={`calendly-predicted-${slot.id}`}
           style={{ minWidth: "280px", height: "700px" }}
         />
       </div>

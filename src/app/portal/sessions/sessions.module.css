@@ -644,3 +644,18 @@
   color: var(--lime);
   font-weight: 500;
 }
+.weekRowPredicted {
+  border-color: rgba(76, 81, 247, 0.45);
+  background: rgba(76, 81, 247, 0.06);
+}
+.predictedBadge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  font-family: var(--font-display);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--rare);
+  opacity: 0.85;
+  vertical-align: middle;
+}

@@ -114,11 +114,11 @@ export default function HomePage() {
             <div className="step step-1 reveal">
               <div className="step-day">Sunday</div>
               <div className="step-title">Lesson lands in inbox</div>
-              <div className="step-desc">PowerPoint + voiceover walking through that week&apos;s focus area. Built around your specific gaps.</div>
+              <div className="step-desc">Video lesson walking through that week&apos;s focus area. Built around your specific gaps.</div>
             </div>
             <div className="step step-2 reveal">
               <div className="step-day">Mon to Tue</div>
-              <div className="step-title">Study the PowerPoint</div>
+              <div className="step-title">Watch the lesson</div>
               <div className="step-desc">Student reviews on their own time. Rewatch as needed. Take notes.</div>
             </div>
             <div className="step step-3 reveal">
@@ -267,7 +267,7 @@ export default function HomePage() {
               <div className="section-title-wrap reveal">
                 <h3 className="section-title">Screen time<br />with structure.</h3>
               </div>
-              <p>Lessons are studied like school material. Your kid reviews a PowerPoint with a voiceover, takes notes, and gets quizzed on it. Sessions are short (30 minutes) and scheduled in advance. No late night calls. No surprise charges.</p>
+              <p>Lessons are studied like school material. Your kid watches a short lesson video, takes notes, and gets quizzed on it. Sessions are short (30 minutes) and scheduled in advance. No late night calls. No surprise charges.</p>
             </div>
             <div className="audience-block reveal">
               <div className="section-eyebrow">For Players</div>
@@ -291,7 +291,7 @@ export default function HomePage() {
           <div className="faq reveal">
             <details>
               <summary>How is this different from YouTube tutorials?</summary>
-              <p>YouTube is general. These lessons are built around your specific weaknesses. Keyed watches your gameplay, identifies what&apos;s holding you back, and builds a PowerPoint that targets exactly that. Then he quizzes you on it live.</p>
+              <p>YouTube is general. These lessons are built around your specific weaknesses. Keyed watches your gameplay, identifies what&apos;s holding you back, and builds a lesson that targets exactly that. Then he quizzes you on it live.</p>
             </details>
             <details>
               <summary>What platform does my kid need to play on?</summary>

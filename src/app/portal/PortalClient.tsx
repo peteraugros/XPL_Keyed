@@ -300,3 +300,47 @@ export function SendPlayerLinkButton({
     </div>
   );
 }
+
+// Dismisses the uniform schedule confirmation card on /portal home.
+// POSTs to the acknowledge endpoint which stamps
+// uniform_schedule_acknowledged_at on the active subscription.
+export function AcknowledgeUniformScheduleButton() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function onClick() {
+    setBusy(true);
+    try {
+      await fetch("/api/portal/subscription/acknowledge-uniform-schedule", {
+        method: "POST",
+      });
+    } catch {
+      // Non-critical — the card will just show again next visit.
+    }
+    setBusy(false);
+    router.refresh();
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      style={{
+        background: "transparent",
+        border: "1px solid rgba(199,255,61,0.4)",
+        color: "var(--lime)",
+        borderRadius: 10,
+        padding: "12px 20px",
+        minHeight: 48,
+        cursor: "pointer",
+        fontFamily: "var(--font-display)",
+        fontSize: 13,
+        letterSpacing: "1.5px",
+        textTransform: "uppercase",
+      }}
+    >
+      {busy ? "Saving..." : "Got it, remind me in Sessions"}
+    </button>
+  );
+}

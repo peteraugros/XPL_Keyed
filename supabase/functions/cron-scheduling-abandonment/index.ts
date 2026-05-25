@@ -1,16 +1,19 @@
 // Edge Function — scheduling_abandonment
 //
-// Phase 2 of the trial conversion flow. Per locked spec decision 3, a
-// family that has approved their curriculum but hasn't finished booking
-// the 4 sessions gets reminded at 24h + 72h, then released at 7d.
-//
-// Fired hourly by pg_cron. Filters subscriptions where:
+// Reminds families that haven't finished booking their 4 sessions.
+// Fired hourly. Filters subscriptions where:
 //   lifecycle_state IN (ACCEPTED_PENDING_SCHEDULING, SCHEDULING_IN_PROGRESS)
 //
-// Per-subscription idempotency: scheduling_reminder_24h_at and
-// scheduling_reminder_72h_at on subscriptions. Once 7d has elapsed
-// since scheduling_started_at, the slots are released + lifecycle is
-// reset to ACCEPTED_PENDING_SCHEDULING and the timestamps cleared.
+// At 24h: reminder email ("finish reserving sessions").
+// At 72h: urgency email ("spot expires in 4 days").
+// At 7d: two branches based on subscription status.
+//   - status != 'active' (initial onboarding, no charge taken): reset slots
+//     + lifecycle to ACCEPTED_PENDING_SCHEDULING so they can try again.
+//   - status = 'active' (paid renewal cycle, $56 already charged): cancel
+//     the subscription. Family keeps the money per the 60-day ToS refund
+//     window. Same framing as a voluntary cancel.
+//
+// Idempotency columns: scheduling_reminder_24h_at, scheduling_reminder_72h_at.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmailWithLog, brandedEmailHtml } from "../_shared/resend.ts";
@@ -27,6 +30,7 @@ const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span styl
 type SubRow = {
   id: string;
   player_id: string;
+  status: string;
   lifecycle_state: string;
   scheduling_started_at: string | null;
   scheduling_reminder_24h_at: string | null;
@@ -55,7 +59,16 @@ function reminder72Html(kid: string, url: string): string {
 function expiredHtml(kid: string, url: string): string {
   return brandedEmailHtml({
     headline: `Your reserved times expired`,
-    bodyHtml: `<p>Your reserved lesson times for ${kid} expired since the 4 weekly sessions weren't all picked within 7 days. No charge happened. You can restart onboarding any time — Tim's plan for ${kid} is still in your dashboard.</p>${SIGNATURE}`,
+    bodyHtml: `<p>Your reserved lesson times for ${kid} expired since the 4 weekly sessions weren't all picked within 7 days. No charge happened. You can restart onboarding any time. Tim's plan for ${kid} is still in your dashboard.</p>${SIGNATURE}`,
+    ctaLabel: "Open dashboard",
+    ctaHref: url,
+  });
+}
+
+function renewalCancelledHtml(kid: string, url: string): string {
+  return brandedEmailHtml({
+    headline: `${kid}'s subscription has been paused`,
+    bodyHtml: `<p>Hi, we paused ${kid}'s subscription because the new cycle's session times weren't reserved within 7 days. ${kid}'s lesson history and progress are saved. If you'd like to continue, just open your dashboard and set up a new cycle any time. If you think there was an error, reply to this email and we'll sort it out.</p>${SIGNATURE}`,
     ctaLabel: "Open dashboard",
     ctaHref: url,
   });
@@ -74,7 +87,7 @@ Deno.serve(async (_req) => {
   const { data: subs, error } = await supabase
     .from("subscriptions")
     .select(
-      "id, player_id, lifecycle_state, scheduling_started_at, scheduling_reminder_24h_at, scheduling_reminder_72h_at, players(first_name, family_id)",
+      "id, player_id, status, lifecycle_state, scheduling_started_at, scheduling_reminder_24h_at, scheduling_reminder_72h_at, players(first_name, family_id)",
     )
     .in("lifecycle_state", ["ACCEPTED_PENDING_SCHEDULING", "SCHEDULING_IN_PROGRESS"]);
 
@@ -127,40 +140,74 @@ Deno.serve(async (_req) => {
 
     // ---- 7d expiry path: highest priority --------------------------------
     if (sub.scheduling_started_at <= t168) {
-      // Release all slots for this curriculum.
-      if (curriculumId) {
+      if (sub.status === "active") {
+        // Paid renewal cycle: $56 already charged. Cancel the subscription
+        // rather than resetting. Family can request a refund within 60 days
+        // per ToS. Lessons + progress are preserved.
+        if (curriculumId) {
+          await supabase
+            .from("curricula")
+            .update({ status: "superseded" })
+            .eq("id", curriculumId);
+        }
         await supabase
-          .from("curriculum_slots")
-          .update({ live_call_at: null, live_call_event_id: null })
-          .eq("curriculum_id", curriculumId);
+          .from("subscriptions")
+          .update({
+            lifecycle_state: "CANCELED",
+            status: "canceled",
+            scheduling_started_at: null,
+            scheduling_reminder_24h_at: null,
+            scheduling_reminder_72h_at: null,
+          })
+          .eq("id", sub.id);
+        await sendEmailWithLog({
+          apiKey: RESEND_API_KEY,
+          defaultFrom: RESEND_FROM_EMAIL,
+          supabase,
+          to: parentEmail,
+          subject: `${kid}'s subscription has been paused`,
+          html: renewalCancelledHtml(kid, `${NEXT_PUBLIC_APP_URL}/portal`),
+          trigger: "renewal_scheduling_abandoned_7d",
+          recipientType: "parent",
+          relatedEntityType: "subscription",
+          relatedEntityId: sub.id,
+        });
+      } else {
+        // Initial onboarding: no charge taken. Release slots and let them
+        // re-schedule from the beginning.
+        if (curriculumId) {
+          await supabase
+            .from("curriculum_slots")
+            .update({ live_call_at: null, live_call_event_id: null })
+            .eq("curriculum_id", curriculumId);
+          await supabase
+            .from("curricula")
+            .update({ cycle_anchor_at: null })
+            .eq("id", curriculumId);
+        }
         await supabase
-          .from("curricula")
-          .update({ cycle_anchor_at: null })
-          .eq("id", curriculumId);
+          .from("subscriptions")
+          .update({
+            lifecycle_state: "ACCEPTED_PENDING_SCHEDULING",
+            scheduling_started_at: null,
+            scheduling_reminder_24h_at: null,
+            scheduling_reminder_72h_at: null,
+            payment_pending_at: null,
+          })
+          .eq("id", sub.id);
+        await sendEmailWithLog({
+          apiKey: RESEND_API_KEY,
+          defaultFrom: RESEND_FROM_EMAIL,
+          supabase,
+          to: parentEmail,
+          subject: `Your reserved times for ${kid} expired`,
+          html: expiredHtml(kid, `${NEXT_PUBLIC_APP_URL}/portal`),
+          trigger: "scheduling_released_7d",
+          recipientType: "parent",
+          relatedEntityType: "subscription",
+          relatedEntityId: sub.id,
+        });
       }
-      // Reset subscription state.
-      await supabase
-        .from("subscriptions")
-        .update({
-          lifecycle_state: "ACCEPTED_PENDING_SCHEDULING",
-          scheduling_started_at: null,
-          scheduling_reminder_24h_at: null,
-          scheduling_reminder_72h_at: null,
-          payment_pending_at: null,
-        })
-        .eq("id", sub.id);
-      await sendEmailWithLog({
-        apiKey: RESEND_API_KEY,
-        defaultFrom: RESEND_FROM_EMAIL,
-        supabase,
-        to: parentEmail,
-        subject: `Your reserved times for ${kid} expired`,
-        html: expiredHtml(kid, `${NEXT_PUBLIC_APP_URL}/portal`),
-        trigger: "scheduling_released_7d",
-        recipientType: "parent",
-        relatedEntityType: "subscription",
-        relatedEntityId: sub.id,
-      });
       expired++;
       continue;
     }

@@ -116,6 +116,13 @@
   color: var(--text-faint);
   margin: 0;
 }
+.alertActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
 
 /* Warn variant (pending_cancel — winding down). Legendary orange accent
    to read as "act soon" without the emergency red of dunning. */

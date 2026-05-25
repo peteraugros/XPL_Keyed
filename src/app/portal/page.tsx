@@ -25,7 +25,11 @@
 
 import Link from "next/link";
 import { requireParentSession } from "./_lib/session";
-import { SendPlayerLinkButton, ManagePaymentButton } from "./PortalClient";
+import {
+  SendPlayerLinkButton,
+  ManagePaymentButton,
+  AcknowledgeUniformScheduleButton,
+} from "./PortalClient";
 import SessionPersistenceModal from "@/components/SessionPersistenceModal";
 import PaymentProcessingCard from "./PaymentProcessingCard";
 import LiveSummaryCards from "./LiveSummaryCards";
@@ -45,6 +49,7 @@ type SubLookup = {
   cycle_started_at: string | null;
   pending_cancel_auto_confirm_at: string | null;
   trial_call_at: string | null;
+  uniform_schedule_acknowledged_at: string | null;
 };
 type QuestRow = { quest_key: string };
 type MessageRow = {
@@ -126,7 +131,7 @@ export default async function PortalHome({
     supabase
       .from("subscriptions")
       .select(
-        "status, tier, lifecycle_state, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at",
+        "status, tier, lifecycle_state, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at, uniform_schedule_acknowledged_at",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -261,6 +266,45 @@ export default async function PortalHome({
       };
     }
   }
+
+  // Uniform-schedule confirmation card. Only shown when:
+  //   1. The subscription is ACTIVE (paid renewal cycle)
+  //   2. The parent hasn't acknowledged it yet
+  //   3. At least one slot has a predicted live_call_at but no live_call_event_id
+  //      (i.e. provisionNextCycle soft-booked predicted times but no real
+  //      Calendly event exists yet)
+  type UniformSlotPreview = {
+    id: string;
+    week_number: number;
+    live_call_at: string;
+  };
+  let uniformPredictedSlots: UniformSlotPreview[] = [];
+  if (
+    sub?.lifecycle_state === "ACTIVE" &&
+    !sub.uniform_schedule_acknowledged_at &&
+    !isSingleSession
+  ) {
+    const activeCurrResp = await supabase
+      .from("curricula")
+      .select("id")
+      .eq("player_id", player.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const activeCurrId = (activeCurrResp.data as { id: string } | null)?.id;
+    if (activeCurrId) {
+      const predictedResp = await supabase
+        .from("curriculum_slots")
+        .select("id, week_number, live_call_at")
+        .eq("curriculum_id", activeCurrId)
+        .not("live_call_at", "is", null)
+        .is("live_call_event_id", null)
+        .order("week_number", { ascending: true });
+      uniformPredictedSlots = (predictedResp.data ?? []) as UniformSlotPreview[];
+    }
+  }
+  const hasUniformPredictedSlots = uniformPredictedSlots.length > 0;
 
   const phase = phaseFor(sub?.status);
   const cycleProgress = sub?.cycle_lessons_delivered ?? 0;
@@ -518,6 +562,33 @@ export default async function PortalHome({
             Your messages, history, and family record stay here. If you want
             to restart, email Tim and he will walk you back in.
           </p>
+        </section>
+      ) : null}
+
+      {hasUniformPredictedSlots ? (
+        <section className={styles.alertCelebrate}>
+          <div className={styles.alertEyebrowCelebrate}>New cycle</div>
+          <h2 className={styles.alertTitleLarge}>
+            Your next {uniformPredictedSlots.length} sessions are predicted
+          </h2>
+          <p className={styles.alertBody}>
+            Based on your last cycle, Tim has reserved the same weekly slot for{" "}
+            {player.first_name}. Go to Sessions to confirm each time or
+            reschedule any you cannot make.
+          </p>
+          <p className={styles.alertSubtle}>
+            Predicted times are not real Calendly bookings yet. Confirm each
+            one in Sessions to lock it in.
+          </p>
+          <div className={styles.alertActions}>
+            <Link
+              href={"/portal/sessions" as never}
+              className={styles.alertCta}
+            >
+              Review sessions
+            </Link>
+            <AcknowledgeUniformScheduleButton />
+          </div>
         </section>
       ) : null}
 
