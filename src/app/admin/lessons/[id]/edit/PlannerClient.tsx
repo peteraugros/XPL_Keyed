@@ -262,6 +262,7 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
   // Save debounce.
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<PendingSave>({});
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
 
   // Save: merge `patch` into pending, debounce 250ms, fire PATCH.
   const queueSave = useCallback((patch: PendingSave) => {
@@ -295,13 +296,11 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
     (updater: (p: PlannerStateJson) => PlannerStateJson) => {
       setPlanner((prev) => {
         const next = updater(prev);
-        const derivedTitle = deriveTitle(next);
-        queueSave({ planner_state: next, title: derivedTitle });
-        if (derivedTitle !== title) setTitle(derivedTitle);
+        queueSave({ planner_state: next });
         return next;
       });
     },
-    [queueSave, title],
+    [queueSave],
   );
 
   const setBeatAndSave = useCallback(
@@ -450,7 +449,31 @@ export default function PlannerClient({ initial }: { initial: LessonRecord }) {
       <header className={styles.topbar}>
         <div>
           <Link href="/admin/lessons" className={styles.backLink}>Back to library</Link>
-          <h1 className={styles.shellTitle}>{title || "Untitled lesson"}</h1>
+          <h1
+            ref={titleRef}
+            contentEditable
+            suppressContentEditableWarning
+            className={styles.shellTitle}
+            onBlur={(e) => {
+              const newTitle = e.currentTarget.textContent?.trim() || "";
+              if (!newTitle) {
+                if (titleRef.current) titleRef.current.textContent = title || "Untitled lesson";
+                return;
+              }
+              if (newTitle !== title) {
+                setTitle(newTitle);
+                queueSave({ title: newTitle });
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                (e.currentTarget as HTMLElement).blur();
+              }
+            }}
+          >
+            {title || "Untitled lesson"}
+          </h1>
         </div>
         <div className={styles.topbarMeta}>
           <span className={styles.savingPill} data-state={saving}>{savingLabel(saving)}</span>

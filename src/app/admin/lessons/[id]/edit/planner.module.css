@@ -32,8 +32,19 @@
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin: 0;
+  margin: 0 0 0 -4px;
   color: var(--text);
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 4px;
+  outline: none;
+}
+.shellTitle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.shellTitle:focus {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(199, 255, 61, 0.25);
 }
 .topbarMeta {
   display: flex;
