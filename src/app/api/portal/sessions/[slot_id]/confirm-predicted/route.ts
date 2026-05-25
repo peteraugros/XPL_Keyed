@@ -96,10 +96,11 @@ export async function POST(
 
   await supabase
     .from("curriculum_slots")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update({
       live_call_at: body.new_time_iso,
       live_call_event_id: body.new_event_uri,
-    })
+    } as never)
     .eq("id", slot_id);
 
   return NextResponse.json({ ok: true });

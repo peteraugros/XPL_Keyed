@@ -133,10 +133,18 @@ export default async function MoneyPage() {
       const page = await stripe.paymentIntents.list({
         limit: 100,
         created: { gte: cutoffSec },
+        expand: ["data.latest_charge"],
         ...(starting_after ? { starting_after } : {}),
       });
       for (const pi of page.data) {
         if (pi.status !== "succeeded") continue;
+        // Skip fully refunded charges — the PI stays "succeeded" after a refund
+        // but the underlying charge gets refunded=true.
+        const charge = pi.latest_charge as
+          | { refunded: boolean; amount_refunded: number; amount: number }
+          | string
+          | null;
+        if (typeof charge === "object" && charge !== null && charge.refunded) continue;
         const created = pi.created;
         const d = new Date(created * 1000);
         const key = monthKey(d);
