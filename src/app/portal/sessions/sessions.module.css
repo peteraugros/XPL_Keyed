@@ -218,7 +218,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  /* Fixed overlay; centered card. The 20px padding is mostly visual
+     breathing room. We still respect safe-area so the card never
+     overflows behind the dynamic island on small phones. */
+  padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom));
 }
 .modalCard {
   background: var(--bg-2);
@@ -528,7 +531,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 24px;
+  /* Fixed overlay; body's PWA inset padding doesn't reach it. */
+  padding: calc(24px + var(--safe-top)) 24px calc(24px + var(--safe-bottom));
   overflow-y: auto;
 }
 .modal {

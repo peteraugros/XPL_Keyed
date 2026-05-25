@@ -35,6 +35,23 @@
   --fs-section-title: clamp(32px, 6vw, 56px);
   --fs-cred: clamp(40px, 8vw, 72px);
   --section-pad: clamp(56px, 9vw, 96px);
+
+  /* PWA safe-area inset vars. In regular browsers (no PWA, no notch)
+     these resolve to 0 so layout is unchanged. In standalone PWA mode
+     on iPhone they expose the dynamic island + home indicator clearance.
+     Used by body (in-flow content + sticky-relative-to-body) and by
+     any fixed-position element that has top-edge content (drawers,
+     modals — body padding does NOT reach them, so they apply env()
+     directly to their own padding).
+
+     CONVENTION for new code:
+       * Pages without a custom shell: nothing to do. Body padding
+         handles the safe area for you.
+       * Sticky headers / navs inside the doc: nothing to do.
+         position: sticky sticks at body's padding-box edge, which is
+         already below the inset. */
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -48,6 +65,13 @@ body {
   line-height: 1.55;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  /* PWA safe-area: body padding pushes ALL in-flow content past the
+     iPhone dynamic island + home indicator. Sticky descendants come
+     along for the ride because sticky-top:0 measures from body's
+     padding box, not the viewport. env() resolves to 0 in regular
+     browsers so this is a no-op outside PWA. */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 body.menu-open { overflow: hidden; }
 
@@ -80,9 +104,7 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* PWA standalone mode: status bar overlays the sticky nav unless we
-     offset for safe-area-inset-top. Defaults to 14px when not in PWA. */
-  padding: calc(14px + env(safe-area-inset-top)) clamp(20px, 4vw, 32px) 14px;
+  padding: 14px clamp(20px, 4vw, 32px);
   max-width: 1180px;
   margin: 0 auto;
 }
@@ -868,7 +890,7 @@ footer {
 @media (max-width: 767px) {
   .nav-links { display: none; }
   .hamburger { display: block; }
-  .nav-inner { padding: calc(12px + env(safe-area-inset-top)) 20px 12px; }
+  .nav-inner { padding: 12px 20px; }
 
   .hero {
     padding: 56px 0 64px;

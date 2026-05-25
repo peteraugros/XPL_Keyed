@@ -10,7 +10,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  /* Fixed overlay; body's PWA inset padding doesn't reach it. */
+  padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom));
   animation: fadeIn 0.25s ease;
 }
 @keyframes fadeIn {
