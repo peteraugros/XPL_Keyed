@@ -580,6 +580,54 @@ the call below it, because a predicate proves nothing to the compiler. The fix
 is for the validator to RETURN the value (`discordUserId`) rather than a
 boolean, so narrowing is earned rather than incidental.
 
+### The lifecycle rehearsal (`npm run rehearse`)
+
+**One family, front door to renewal, through the real routes. 51 assertions,
+0 failed.** Built 2026-09-20 because the verify suites cover the MIDDLE of the
+lifecycle and all three START from a seeded ACTIVE subscription, so two things
+had never run at all: **the front door** (take-on to approval token to Stripe
+checkout to webhook to ACTIVE with four bare sessions) and **the money** (no
+suite touches Stripe, and prod has never taken anyone on).
+
+What it walks: a trial family -> Tim takes them on -> the parent pays -> a real
+signed `checkout.session.completed` -> four scheduled calls -> four
+`mark-outcome` completions -> the renewal. Every stage through the REAL route
+as a real signed in coach, then teardown with a row census back to baseline.
+
+**🔴 IT REFUSES TO RUN AGAINST LIVE STRIPE, AND BOTH REFUSALS ARE PROVEN.**
+Production is `sk_live_` with an enabled webhook on `xplkeyed.com`, so a
+rehearsal pointed there would create a real customer and a real charge. Stage 0
+aborts on `sk_live_` and on a non local Supabase URL; both were tested by
+swapping `.env.local`, and it was restored byte identical afterwards. **The
+difference between a rehearsal and an incident is one env var.**
+
+**🔵 WHAT IT PROVED THAT NOTHING HAD: the recap email actually fires.** The run
+logs **5 notifications, all `sent`** ; one `stage_c_take_on` and one
+`session_recap` per completed call ; and the first version of the teardown
+asserted `notification_log` back to BASELINE and failed on it. **That was the
+assertion being wrong rather than the app**: the run legitimately sends mail,
+and that is the single most valuable thing here, so it is asserted rather than
+cleaned away. ⚠️ **It sends real email** through whatever `RESEND_API_KEY` is
+in `.env.local`, addressed to `@example.test`, a reserved domain that cannot
+reach a person. A mocked send would have proven nothing about the thing that
+had never run.
+
+**⚠️ THREE OF MY OWN FIXTURES WERE WRONG BEFORE ANY CODE WAS, ALL THE SAME
+MISTAKE: I GUESSED A VALUE INSTEAD OF READING IT.** `lifecycle_state_t` has
+`TRIAL_SCHEDULED` and not `TRIAL_BOOKED`; `subscriptions.status` allows `trial`
+and not `trialing`; the sign in route takes `username` and not `email`; and
+`notification_log.recipient_id` is NULL rather than the parent. Each cost a run.
+`pg_enum`, `pg_constraint` and the route's own Zod schema answer all four in
+one query, and this file already warns about exactly that.
+
+**⚠️ WHAT IT STILL DOES NOT COVER, stated rather than implied.** The renewal
+calls `provisionNextCycle` directly, so **the auto renew Edge Function and the
+actual Stripe CHARGE are still unexercised** ; the $56 has never been taken.
+Calendly is simulated by writing `live_call_at`, not by its webhook. Nothing
+here touches Discord, dunning, cancellation or the no show path. **The first
+real family is still the first real test of those**, and this narrows that
+surface rather than closing it.
+
 ### Still to do
 
 - 🔴 **DISCORD HAS NEVER BEEN CONFIGURED IN ANY ENVIRONMENT, AND THE VALUES DO
@@ -605,17 +653,17 @@ boolean, so narrowing is earned rather than incidental.
   Prices unchanged. **The stale half of this note is the drift this file keeps
   recording: a to-do that was quietly done stays on the list and gets read as
   outstanding work.**
-- 🔴 **NOTHING IN THIS SYSTEM HAS EVER RUN WITH A REAL FAMILY, AND THAT IS NOW
-  THE LARGEST RISK RATHER THAN ANY REMAINING CODE.** Prod holds 2
-  subscriptions, both declined trials, 0 ACTIVE, 0 slots, 0 past due, 0
-  waitlist; nobody has ever been taken on. So every cron filters on state that
-  is empty, the $56 auto renew charge has never fired once, the recap email has
-  never sent, and `cycle_sessions_delivered` has never been advanced by a real
-  completed call. **Everything shipped this week is verified against fixtures
-  and zero rows.** The next meaningful work is a full lifecycle rehearsal ;
-  take on, schedule, complete a call, mark the outcome, watch the cycle advance
-  and the renewal bill ; rather than more building.
-
+- ⚠️ **`notification_log.recipient_id` IS NULL ON EVERY ROW**, while
+  `recipient_type` says `parent`. The log records WHAT KIND of recipient but
+  not WHICH ONE, so *"every email we have sent this parent"* is not answerable
+  from it; only *"every email about this slot"* is, through
+  `related_entity_id`. Found by the rehearsal, which had to match on the slot
+  instead. Not urgent at one family; it is the kind of gap that only hurts once
+  somebody asks the question in a support conversation.
+- ⚠️ **`DISCORD_*` still unset** (above), and **prod Stripe is LIVE** with an
+  enabled webhook at `https://xplkeyed.com/api/stripe-webhook`. Anything that
+  exercises payment must point at local + `sk_test_`; `npm run rehearse`
+  refuses otherwise.
 
 ## Locked product decisions
 

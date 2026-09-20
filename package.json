@@ -19,7 +19,8 @@
     "gen:types": "supabase gen types typescript --local > src/types/db.ts",
     "verify:billing": "node scripts/verify-billing-lifecycle.mjs",
     "verify:coaching": "node scripts/verify-coaching-session.mjs",
-    "verify:nocontent": "node scripts/verify-no-content-creation.mjs"
+    "verify:nocontent": "node scripts/verify-no-content-creation.mjs",
+    "rehearse": "node scripts/rehearse-lifecycle.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
