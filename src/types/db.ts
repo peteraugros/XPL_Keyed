@@ -264,6 +264,7 @@ export type Database = {
           curriculum_id: string
           cycle_counted_at: string | null
           delivered_at: string | null
+          delivery_mode: string
           id: string
           live_call_at: string | null
           live_call_completed_at: string | null
@@ -276,6 +277,9 @@ export type Database = {
           training_routine: string | null
           training_routine_at: string | null
           updated_at: string
+          vod_review_at: string | null
+          vod_review_by: string | null
+          vod_upload_id: string | null
           week_number: number
         }
         Insert: {
@@ -285,6 +289,7 @@ export type Database = {
           curriculum_id: string
           cycle_counted_at?: string | null
           delivered_at?: string | null
+          delivery_mode?: string
           id?: string
           live_call_at?: string | null
           live_call_completed_at?: string | null
@@ -297,6 +302,9 @@ export type Database = {
           training_routine?: string | null
           training_routine_at?: string | null
           updated_at?: string
+          vod_review_at?: string | null
+          vod_review_by?: string | null
+          vod_upload_id?: string | null
           week_number: number
         }
         Update: {
@@ -306,6 +314,7 @@ export type Database = {
           curriculum_id?: string
           cycle_counted_at?: string | null
           delivered_at?: string | null
+          delivery_mode?: string
           id?: string
           live_call_at?: string | null
           live_call_completed_at?: string | null
@@ -318,6 +327,9 @@ export type Database = {
           training_routine?: string | null
           training_routine_at?: string | null
           updated_at?: string
+          vod_review_at?: string | null
+          vod_review_by?: string | null
+          vod_upload_id?: string | null
           week_number?: number
         }
         Relationships: [
@@ -326,6 +338,13 @@ export type Database = {
             columns: ["curriculum_id"]
             isOneToOne: false
             referencedRelation: "curricula"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_slots_vod_upload_id_fkey"
+            columns: ["vod_upload_id"]
+            isOneToOne: false
+            referencedRelation: "vod_uploads"
             referencedColumns: ["id"]
           },
         ]
@@ -874,6 +893,7 @@ export type Database = {
           cycle_skips_used: number
           cycle_started_at: string | null
           cycle_timezone: string
+          cycle_vod_reviews_used: number
           id: string
           last_cancel_at: string | null
           lifecycle_state: Database["public"]["Enums"]["lifecycle_state_t"]
@@ -914,6 +934,7 @@ export type Database = {
           cycle_skips_used?: number
           cycle_started_at?: string | null
           cycle_timezone?: string
+          cycle_vod_reviews_used?: number
           id?: string
           last_cancel_at?: string | null
           lifecycle_state?: Database["public"]["Enums"]["lifecycle_state_t"]
@@ -954,6 +975,7 @@ export type Database = {
           cycle_skips_used?: number
           cycle_started_at?: string | null
           cycle_timezone?: string
+          cycle_vod_reviews_used?: number
           id?: string
           last_cancel_at?: string | null
           lifecycle_state?: Database["public"]["Enums"]["lifecycle_state_t"]

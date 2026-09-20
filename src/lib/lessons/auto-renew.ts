@@ -253,6 +253,11 @@ export async function provisionNextCycle(
       cycle_sessions_delivered: 0,
       cycle_skips_used: 0,
       cycle_cancels_used: 0,
+      // The VOD review allowance is per CYCLE, so it resets here with the
+      // others. If this line is ever dropped the allowance silently becomes
+      // once per lifetime, which nothing would surface: the kid just stops
+      // being offered it and never learns why.
+      cycle_vod_reviews_used: 0,
       lifecycle_state: nextLifecycle,
       status: "active",
       waiting_on: "SYSTEM",

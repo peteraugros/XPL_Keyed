@@ -23,7 +23,8 @@
     "rehearse": "node scripts/rehearse-lifecycle.mjs",
     "prove:charge": "node scripts/prove-renewal-charge.mjs",
     "prove:webhooks": "node scripts/prove-renewal-webhooks.mjs",
-    "dev:login": "node scripts/dev-login.mjs"
+    "dev:login": "node scripts/dev-login.mjs",
+    "verify:vodreview": "node scripts/verify-vod-review.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

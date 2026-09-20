@@ -18,6 +18,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./page.module.css";
+import UpcomingSessions, { type UpcomingSession } from "./_components/UpcomingSessions";
+import { VOD_REVIEWS_PER_CYCLE } from "@/lib/sessions/vodReview";
 
 type QuestKey = "signup" | "drop_vod" | "answer_questions" | "join_discord";
 
@@ -67,6 +69,8 @@ export default function PlayClient({
   subscriptionStatus,
   subscriptionTier,
   cycleSessionsDelivered,
+  upcomingSessions,
+  vodReviewsUsed,
   trialCallAt,
   discordChannelUrl,
   singleSession,
@@ -78,6 +82,8 @@ export default function PlayClient({
   subscriptionStatus: string;
   subscriptionTier: string | null;
   cycleSessionsDelivered: number;
+  upcomingSessions: UpcomingSession[];
+  vodReviewsUsed: number;
   initialPrep: PrepState;
   trialCallAt: string | null;
   discordChannelUrl: string | null;
@@ -327,6 +333,15 @@ export default function PlayClient({
             Open My Training &rarr;
           </Link>
         </section>
+      ) : null}
+
+      {isActive ? (
+        <UpcomingSessions
+          className={styles.card}
+          sessions={upcomingSessions}
+          vodReviewsUsed={vodReviewsUsed}
+          vodReviewsPerCycle={VOD_REVIEWS_PER_CYCLE}
+        />
       ) : null}
 
       {isTrial ? (

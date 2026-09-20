@@ -112,8 +112,54 @@ export default async function PlayHQ() {
   const discordChannelUrl =
     (playerExtra.data as { discord_channel_url: string | null } | null)?.discord_channel_url ?? null;
 
+  // Upcoming sessions for the swap control. Only sessions that have not been
+  // delivered: a session Tim has written up is spent and nothing about it can
+  // change. Scoped to the player's own curricula, and read through the cookie
+  // session so RLS is what enforces that rather than this query remembering to.
+  let upcomingSessions: {
+    id: string;
+    week_number: number;
+    live_call_at: string | null;
+    delivery_mode: string;
+    vod_review_by: string | null;
+    has_vod: boolean;
+  }[] = [];
+  let vodReviewsUsed = 0;
+  {
+    const curs = await supabase.from("curricula").select("id").eq("player_id", player.id);
+    const ids = ((curs.data ?? []) as { id: string }[]).map((c) => c.id);
+    if (ids.length > 0) {
+      const resp = await supabase
+        .from("curriculum_slots")
+        .select("id, week_number, live_call_at, delivery_mode, vod_review_by, vod_upload_id, delivered_at")
+        .in("curriculum_id", ids)
+        .is("delivered_at", null)
+        .order("week_number", { ascending: true });
+      upcomingSessions = ((resp.data ?? []) as {
+        id: string; week_number: number; live_call_at: string | null;
+        delivery_mode: string; vod_review_by: string | null; vod_upload_id: string | null;
+      }[]).map((r) => ({
+        id: r.id,
+        week_number: r.week_number,
+        live_call_at: r.live_call_at,
+        delivery_mode: r.delivery_mode,
+        vod_review_by: r.vod_review_by,
+        has_vod: r.vod_upload_id !== null,
+      }));
+    }
+    const subExtra = await supabase
+      .from("subscriptions")
+      .select("cycle_vod_reviews_used")
+      .eq("player_id", player.id)
+      .maybeSingle();
+    vodReviewsUsed =
+      (subExtra.data as { cycle_vod_reviews_used: number } | null)?.cycle_vod_reviews_used ?? 0;
+  }
+
   return (
     <PlayClient
+      upcomingSessions={upcomingSessions}
+      vodReviewsUsed={vodReviewsUsed}
       playerFirstName={player.first_name}
       fortniteUsername={player.fortnite_username}
       initialCompletedQuests={Array.from(completed)}
