@@ -41,7 +41,7 @@ This file is loaded into any Claude session working in this directory. It captur
 
 - Marketing site is ported into `src/app/page.tsx` (Server Component) with `src/components/MarketingClient.tsx` (Client Component) attaching the hamburger toggle, scroll-reveal IntersectionObserver, and count-up timer. Inline CSS from the original static design lives in `src/app/globals.css` under the same class names. Original `index.html` is archived at `archive/index.html` for parity reference; do not edit it further.
 - Next.js 15 + Supabase scaffold is in place — see "Project files" below. `npm install` and `npm run dev` are working; dev server runs on localhost:3000 or next available port.
-- Database schema, RLS policies, dev seed, and pg_cron jobs are written as Supabase migrations in `supabase/migrations/` (5 files total including `20260517000400_dunning_reminder_columns.sql` added for the cron functions below). **⚠️ STALE: there are 56 migration files, not 5.** The repo is LINKED to a hosted Supabase project (`fmsekesjdkjpvvleefpu`) and **all 56 are applied to BOTH local and prod as of 2026-09-20**, the first time the two have been in step since May. Prod no longer has `tiktok_comments`, now HAS `refund_requests`, and carries none of the content schema. 🔴 So prod still has `tiktok_comments`, has NO `refund_requests` table, and its `derived_tasks_view` predates both; the refund feature exists in code against a table prod does not have. 🔵 Prod data is effectively empty: 2 families / 2 players / 2 subscriptions, both `declined` + `CANCELED` + `tier='trial'` with no Stripe customer, and **0 curricula, 0 curriculum_slots, 0 messages, 0 vod_uploads**. Nobody has ever been taken on.
+- Database schema, RLS policies, dev seed, and pg_cron jobs are written as Supabase migrations in `supabase/migrations/` (5 files total including `20260517000400_dunning_reminder_columns.sql` added for the cron functions below). **⚠️ STALE: there are 57 migration files, not 5.** The repo is LINKED to a hosted Supabase project (`fmsekesjdkjpvvleefpu`) and **all 57 are applied to BOTH local and prod as of 2026-09-20**, the first time the two have been in step since May. Prod no longer has `tiktok_comments`, now HAS `refund_requests`, and carries none of the content schema. 🔴 So prod still has `tiktok_comments`, has NO `refund_requests` table, and its `derived_tasks_view` predates both; the refund feature exists in code against a table prod does not have. 🔵 Prod data is effectively empty: 2 families / 2 players / 2 subscriptions, both `declined` + `CANCELED` + `tier='trial'` with no Stripe customer, and **0 curricula, 0 curriculum_slots, 0 messages, 0 vod_uploads**. Nobody has ever been taken on.
 - **All 7 cron Edge Functions are written** under `supabase/functions/`: the original `cron-twenty-min-pre-call-reminder` plus 6 new ones added 2026-05-17 (`day7-dunning-ping`, `dunning-parent-reminders`, `pending-cancel-lifecycle`, `waitlist-offer-lifecycle`, `waitlist-freshness-check`, `sunday-lesson-delivery`). Shared helpers live in `supabase/functions/_shared/` (`discord.ts` with `dmTim` + `sendChannelMessage`; `resend.ts` with `sendEmail` + `brandedEmailHtml` template). Functions are functional stubs at the same fidelity as the existing example: real DB queries, real outbound calls, real idempotency markers, placeholder email/Discord copy (dash-free per Hard rule #8). All await `app_config` rows + env vars at deploy time before they do anything.
 - No auth, payments, or live functionality is wired up. Stripe layer is the next coding task; the Sunday lesson delivery cron has a flagged TODO for the cycle-completion billing trigger that pairs with it.
 - **⚠️ STALE: `npx tsc --noEmit` is CLEAN, 0 errors** (measured 2026-09-19, both before and after a types regen). The 4 errors were cleared at some point and the note was not. Any typecheck error is therefore new.
@@ -101,7 +101,7 @@ of `src`.
 last fully reversible point and it is behind us: Phase 4 deleted the surfaces,
 Phase 5 dropped the schema, and all six pending migrations were applied to prod
 and read back before the code was merged. **Local and prod are both at
-`20260920000100`, 56 of 56, with no drift.** The lesson library now needs a
+`20260920000200`, 57 of 57, with no drift.** The lesson library now needs a
 restore rather than a revert.
 
 ### What Phase 1 added
@@ -441,17 +441,60 @@ Mechanics"*, *"Untitled lesson"*, and one whose title is a whole sentence.
 the simplification but unavoidable in the chain; exported first as well. Neither
 export is anywhere durable, so treat both as gone.
 
+### `cycle_lessons_delivered` is now `cycle_sessions_delivered` (2026-09-20, migration `20260920000200`)
+
+The last thing in the schema named for the content era. It counts coaching
+SESSIONS: `mark-outcome` moves it when a call is completed and the $56 charge
+fires at 4. Held out of Phase 5 deliberately, because a rename touching
+`derived_tasks_view` and ~60 readers should not ride along with a destructive
+migration.
+
+**🔵 TWO NAMES, AND ONLY ONE RENAMES ITSELF.** Postgres stores a view's column
+references by attribute number, so `s.cycle_lessons_delivered` inside
+`derived_tasks_view` followed the rename with nothing done to it (verified, not
+assumed). **The JSON KEY did not**: two branches build
+`jsonb_build_object(..., 'cycle_lessons_delivered', ...)` where the name is a
+string literal, and `AdminClient.tsx` reads `payload.cycle_lessons_delivered`.
+Leaving it would have given the column one name and its own payload another,
+inside the very change meant to remove that drift. The view is re-emitted with
+the literal corrected, generated from the live post-rename `pg_get_viewdef`
+rather than retyped.
+
+**⚠️ FOUR SPELLINGS, AND THE ORDER OF REPLACEMENT MATTERS**: the column,
+`cycleLessonsDelivered`, the `cycle_lessons` prop on the clients list, and a
+`newLessonsDelivered` local. **`cycle_lessons` is a SUBSTRING of
+`cycle_lessons_delivered`**, so the long one goes first or it is corrupted into
+`cycle_sessions_delivered` mid-pass. 86 replacements over 21 files. Applied
+migrations are left alone; they legitimately carry the old name.
+
+**🔴 A RENAME HAS NO SAFE ORDERING, WHICH IS THE OPPOSITE OF PHASE 5.** Phase 5
+was additive-then-destructive, so migrating first was right. Here both names
+cannot exist at once, so migrating first breaks the deployed code's reads and
+merging first breaks the new code's reads. **Merge first is the better half**:
+the old build keeps working through the ~90s build, and the migration lands the
+moment the new build is live. **Measured window: 8 seconds** (new build 07:56:33,
+migration done 07:56:41), against ~4 minutes had it been done the other way.
+⚠️ **The public funnel reads this column nowhere** (`/`, `/intake`,
+`/single-session` all zero references), so the revenue path was never exposed
+either way; only authenticated portal, admin and play pages were, and prod has
+0 active subscriptions.
+
 ### Still to do
 
-- ⚠️ **`subscriptions.cycle_lessons_delivered` is named for an era that is
-  gone.** It counts sessions. Renaming it means touching `derived_tasks_view`
-  and several readers, so it is a deliberate change, not a sweep.
-- ⚠️ **`cron-rough-draft-cleanup` reports `succeeded` while deleting nothing**,
-  118 runs and counting. Phase 3 unschedules it when prod catches up, so this
-  resolved itself when Phase 3 reached prod on 2026-09-20 and unscheduled it ;
-  but the shape is worth remembering, because a pg_cron job whose body is
-  `cron_fire(...)` reports on the DISPATCH and can never report on the work. It
-  reported `succeeded` 118 times while deleting nothing.
+- 🔴🔴 **NO EDGE FUNCTION IS DEPLOYED TO PRODUCTION. THE ENTIRE CRON LAYER IS
+  INERT, AND THIS IS THE LARGEST OPEN ITEM IN THE FILE.** `supabase functions
+  list` returns `{"functions":[]}` against the linked project, confirmed twice
+  including with an explicit `--project-ref`. Ten functions exist on disk and
+  none of them is live. Every `cron.job` row runs `SELECT cron_fire('<name>')`,
+  which POSTs to an Edge Function URL that does not exist, so **auto renew
+  detection, dunning, the pre call reminder, payment abandonment, pending
+  cancel lifecycle, the waitlist jobs and the call outcome push have never run
+  in production.** ⚠️ **It also explains `cron-rough-draft-cleanup` reporting
+  `succeeded` 118 times while deleting nothing**: pg_cron reports on the
+  DISPATCH and can never report on the work. Nothing has been lost yet because
+  prod has 0 active subscriptions, but **auto renew is billing**, so this must
+  be closed before the first family is taken on. Deploying them is its own
+  change and was not attempted here.
 - ⚠️ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19).
   Prices unchanged for now: 4 sessions for $56, $24 single. Marketing still
   promises *"Slides and voiceover delivered to keep"* and *"watches a short
