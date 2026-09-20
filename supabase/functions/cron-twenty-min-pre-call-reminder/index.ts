@@ -103,7 +103,7 @@ Deno.serve(async (_req) => {
 
     await sendPushToActiveCoach(
       supabase,
-      `${firstName}'s lesson in 20 min`,
+      `${firstName}'s session in 20 min`,
       "Open the calendar to review prep.",
       "/admin/calendar",
       `pre-call-${slot.id}`,

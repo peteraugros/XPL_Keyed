@@ -50,7 +50,7 @@ const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span styl
 function bodyDay3(firstName: string): string {
   return brandedEmailHtml({
     headline: `Payment hold on ${firstName}'s subscription`,
-    bodyHtml: `<p>Your card was declined a few days ago. I've paused ${firstName}'s lessons while you update payment. No charge, no impact on your cycle.</p><p>Update your card to resume.</p>${SIGNATURE}`,
+    bodyHtml: `<p>Your card was declined a few days ago. I've paused ${firstName}'s sessions while you update payment. No charge, no impact on your cycle.</p><p>Update your card to resume.</p>${SIGNATURE}`,
     ctaLabel: "Update card",
     ctaHref: STRIPE_PORTAL_URL,
   });
@@ -84,7 +84,7 @@ Deno.serve(async (_req) => {
       defaultFrom: RESEND_FROM_EMAIL,
       supabase,
       to: parentEmail,
-      subject: `Payment hold on ${firstName}'s lessons`,
+      subject: `Payment hold on ${firstName}'s sessions`,
       html: bodyDay3(firstName),
       trigger: "dunning_reminder_day3",
       recipientType: "parent",

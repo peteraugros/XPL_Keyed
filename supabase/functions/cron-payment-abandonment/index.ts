@@ -54,8 +54,8 @@ function reminderHtml(kid: string, hour: 6 | 12, url: string): string {
 function expiredHtml(kid: string, url: string): string {
   return brandedEmailHtml({
     headline: `Reserved sessions released`,
-    bodyHtml: `<p>The 4 sessions you reserved for ${kid} have been released since checkout wasn't completed within 24 hours. No charge happened. Tim's plan is still in your dashboard — you can re-reserve any time.</p>${SIGNATURE}`,
-    ctaLabel: "Re-reserve sessions",
+    bodyHtml: `<p>The 4 sessions you reserved for ${kid} have been released since checkout wasn't completed within 24 hours. No charge happened. Tim's plan is still in your dashboard. You can reserve again any time.</p>${SIGNATURE}`,
+    ctaLabel: "Reserve sessions again",
     ctaHref: url,
   });
 }

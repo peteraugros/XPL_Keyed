@@ -122,7 +122,7 @@ Deno.serve(async (_req) => {
         const html = brandedEmailHtml({
           headline: `This was your last cycle`,
           bodyHtml: `<p>Hi ${parent.first_name},</p>
-<p>${player.first_name} finished the 4 lessons of this cycle. Auto renew is off, so no new charge fired and no new cycle started.</p>
+<p>${player.first_name} finished the 4 sessions of this cycle. Auto renew is off, so no new charge fired and no new cycle started.</p>
 <p>If you want to keep going, sign back in any time and book a new cycle. Your progress and history are saved.</p>${SIGNATURE}`,
           ctaLabel: "Book another cycle",
           ctaHref: `${NEXT_PUBLIC_APP_URL}/portal`,
@@ -184,7 +184,7 @@ Deno.serve(async (_req) => {
           payment_method: paymentMethodId,
           off_session: true,
           confirm: true,
-          description: `Auto renew: ${player.first_name}'s next 4 lesson cycle`,
+          description: `Auto renew: ${player.first_name}'s next 4 session cycle`,
           metadata: {
             kind: "renewal",
             subscription_id: sub.id,

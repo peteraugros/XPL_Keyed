@@ -42,17 +42,17 @@ type SubRow = {
 function reminder24Html(kid: string, remaining: number, url: string): string {
   return brandedEmailHtml({
     headline: `Finish reserving ${kid}'s sessions`,
-    bodyHtml: `<p>You still have ${remaining} session${remaining === 1 ? "" : "s"} left to reserve for ${kid}. Pick your slots when you have a minute so I can get the first lesson ready.</p>${SIGNATURE}`,
-    ctaLabel: "Reserve lesson times",
+    bodyHtml: `<p>You still have ${remaining} session${remaining === 1 ? "" : "s"} left to reserve for ${kid}. Pick your slots when you have a minute so I can get the first session ready.</p>${SIGNATURE}`,
+    ctaLabel: "Reserve session times",
     ctaHref: url,
   });
 }
 
 function reminder72Html(kid: string, url: string): string {
   return brandedEmailHtml({
-    headline: `Complete your lesson booking`,
-    bodyHtml: `<p>Heads up — please finish reserving ${kid}'s sessions before your spot expires. We hold reserved times for 7 days; after that the booking resets and ${kid} has to start over.</p>${SIGNATURE}`,
-    ctaLabel: "Reserve lesson times",
+    headline: `Complete your session booking`,
+    bodyHtml: `<p>Heads up. Please finish reserving ${kid}'s sessions before your spot expires. We hold reserved times for 7 days; after that the booking resets and ${kid} has to start over.</p>${SIGNATURE}`,
+    ctaLabel: "Reserve session times",
     ctaHref: url,
   });
 }
@@ -60,7 +60,7 @@ function reminder72Html(kid: string, url: string): string {
 function expiredHtml(kid: string, url: string): string {
   return brandedEmailHtml({
     headline: `Your reserved times expired`,
-    bodyHtml: `<p>Your reserved lesson times for ${kid} expired since the 4 weekly sessions weren't all picked within 7 days. No charge happened. You can restart onboarding any time. Tim's plan for ${kid} is still in your dashboard.</p>${SIGNATURE}`,
+    bodyHtml: `<p>Your reserved session times for ${kid} expired since the 4 weekly sessions weren't all picked within 7 days. No charge happened. You can restart onboarding any time. Tim's plan for ${kid} is still in your dashboard.</p>${SIGNATURE}`,
     ctaLabel: "Open dashboard",
     ctaHref: url,
   });
@@ -69,7 +69,7 @@ function expiredHtml(kid: string, url: string): string {
 function renewalCancelledHtml(kid: string, url: string): string {
   return brandedEmailHtml({
     headline: `${kid}'s subscription has been paused`,
-    bodyHtml: `<p>Hi, we paused ${kid}'s subscription because the new cycle's session times weren't reserved within 7 days. ${kid}'s lesson history and progress are saved. If you'd like to continue, just open your dashboard and set up a new cycle any time. If you think there was an error, reply to this email and we'll sort it out.</p>${SIGNATURE}`,
+    bodyHtml: `<p>Hi, we paused ${kid}'s subscription because the new cycle's session times weren't reserved within 7 days. ${kid}'s session history and progress are saved. If you'd like to continue, just open your dashboard and set up a new cycle any time. If you think there was an error, reply to this email and we'll sort it out.</p>${SIGNATURE}`,
     ctaLabel: "Open dashboard",
     ctaHref: url,
   });
@@ -235,7 +235,7 @@ Deno.serve(async (_req) => {
         defaultFrom: RESEND_FROM_EMAIL,
         supabase,
         to: parentEmail,
-        subject: `Complete ${kid}'s lesson booking`,
+        subject: `Complete ${kid}'s session booking`,
         html: reminder72Html(kid, `${NEXT_PUBLIC_APP_URL}/portal/sessions`),
         trigger: "scheduling_reminder_72h",
         recipientType: "parent",

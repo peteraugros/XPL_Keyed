@@ -64,7 +64,7 @@ Deno.serve(async (_req) => {
       subject: `4 days left to confirm or undo ${name}'s cancellation`,
       html: brandedEmailHtml({
         headline: `${name}'s subscription is pending end`,
-        bodyHtml: `<p>You have 4 days left to confirm or undo this. No new lessons run and no charges will happen during the pending window.</p><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+        bodyHtml: `<p>You have 4 days left to confirm or undo this. No new sessions run and no charges will happen during the pending window.</p><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
         ctaLabel: "Review options",
         ctaHref: `${NEXT_PUBLIC_APP_URL}/parent/subscription`,
       }),

@@ -479,22 +479,65 @@ migration done 07:56:41), against ~4 minutes had it been done the other way.
 either way; only authenticated portal, admin and play pages were, and prod has
 0 active subscriptions.
 
+### The Edge Functions are deployed (2026-09-20)
+
+**All ten, against production, and the cron layer runs for the first time.**
+Before this, `supabase functions list` returned `{"functions":[]}` while eleven
+`cron.job` rows fired daily, so auto renew detection, dunning, the pre call
+reminder, payment and scheduling abandonment, pending cancel lifecycle, the
+waitlist jobs and the call outcome push had **never run**.
+
+**🔴🔴 THREE SEPARATE FAILURES STOOD BETWEEN THE CRONS AND THE FUNCTIONS, AND
+ONLY THE FIRST WAS VISIBLE. `net._http_response` shows all three in one
+timeline: 39 x 404, then 5 x 401, then 5 x 200.**
+
+1. **Not deployed** (the 404s). Fixed by deploying.
+2. **`app_config.edge_service_key` HELD A STALE KEY** (the 401s,
+   `UNAUTHORIZED_LEGACY_JWT`). ⚠️ **This is the one that would have made
+   "deployed" a false claim**: the functions were live and every cron still
+   failed, with a different error nobody was reading. It was invisible because
+   a manual `curl` with the CURRENT service key succeeds, so testing the
+   function proves nothing about the path the cron takes. **Test `cron_fire`
+   itself and read `net._http_response`.** The stored key was 218 characters
+   against the live one's 219: a rotated key, not a malformed one.
+3. **`cron-call-outcome-push` DOUBLE PREFIXED ITS TRIGGER**, fixed by migration
+   `20260920000300`. `cron_fire` builds `base || '/cron-' || trigger` and
+   supplies the prefix itself, so passing `'cron-call-outcome-push'` produced
+   `/cron-cron-call-outcome-push`. Every other job passes the bare name. The
+   migration asserts the PROPERTY (no job may pass a trigger already carrying
+   the prefix) rather than the one string.
+
+**⚠️ AND WHY NONE OF IT EVER SURFACED: pg_cron reports on the DISPATCH.**
+`cron_fire` returns a pg_net request id, so the job records `succeeded` whether
+the eventual POST is 200, 401 or 404. `cron.job_run_details` is not where cron
+health lives; **`net._http_response` is.**
+
+**🔵 THE COPY WAS FIXED BEFORE ANY OF IT WAS SWITCHED ON, which is the half that
+mattered most.** These emails go to real parents and had never sent, and 13
+strings across 5 functions still described the content era: *"I've paused
+{kid}'s lessons while you update payment"*, *"Payment hold on {kid}'s
+lessons"*, *"Reserve lesson times"*, *"{kid}'s lesson in 20 min"*, and a STRIPE
+`description` reading *"next 4 lesson cycle"*, which lands on a card statement.
+Deploying as they were would have activated a product description that no
+longer exists. Two Hard rule #8 violations went with them (an em dash in two
+parent email bodies, and a `Re-reserve` hyphen in a CTA label).
+
+**✅ VERIFIED BY INVOKING ALL TEN DELIBERATELY RATHER THAN WAITING FOR A CRON**,
+against a baseline captured first: every one returned 200 and did nothing
+(`no_subs`, `no_pending`, `no_slots`, `{"sent":0}`), and afterwards
+`notification_log` was still 6 and `subscriptions.updated_at` still
+2026-07-27. Nothing was emailed, charged or mutated. Safe because prod holds 0
+active subscriptions, 0 past due, 0 waitlist entries and 0 slots; **every one
+of these functions filters on state that is currently empty, which is why the
+first real run is the one to watch.**
+
 ### Still to do
 
-- 🔴🔴 **NO EDGE FUNCTION IS DEPLOYED TO PRODUCTION. THE ENTIRE CRON LAYER IS
-  INERT, AND THIS IS THE LARGEST OPEN ITEM IN THE FILE.** `supabase functions
-  list` returns `{"functions":[]}` against the linked project, confirmed twice
-  including with an explicit `--project-ref`. Ten functions exist on disk and
-  none of them is live. Every `cron.job` row runs `SELECT cron_fire('<name>')`,
-  which POSTs to an Edge Function URL that does not exist, so **auto renew
-  detection, dunning, the pre call reminder, payment abandonment, pending
-  cancel lifecycle, the waitlist jobs and the call outcome push have never run
-  in production.** ⚠️ **It also explains `cron-rough-draft-cleanup` reporting
-  `succeeded` 118 times while deleting nothing**: pg_cron reports on the
-  DISPATCH and can never report on the work. Nothing has been lost yet because
-  prod has 0 active subscriptions, but **auto renew is billing**, so this must
-  be closed before the first family is taken on. Deploying them is its own
-  change and was not attempted here.
+- ⚠️ **`DISCORD_BOT_TOKEN` and `DISCORD_TIM_USER_ID` ARE NOT SET as Supabase
+  secrets**, and `cron-day7-dunning-ping` imports `_shared/discord.ts` to DM
+  Tim. It throws at CALL time, not at import, so the function deploys and
+  no-ops safely today; **it will throw the first time a subscription actually
+  goes past due.** Set them before the first family is taken on.
 - ⚠️ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19).
   Prices unchanged for now: 4 sessions for $56, $24 single. Marketing still
   promises *"Slides and voiceover delivered to keep"* and *"watches a short
