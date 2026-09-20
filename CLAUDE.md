@@ -744,6 +744,22 @@ charged nothing, and printed **fourteen failures that read exactly like a
 regression in working code**. It now refuses on any non-200 and says
 `PREREQUISITE MISSING, not a test failure`.
 
+**✅ DEPLOY VERIFIED BY COMMIT HASH, NOT BY A STATUS PAGE.** Railway reports
+`48b891d SUCCESS` on project `astonishing-ambition` / service `XPL_Keyed` /
+environment `production`, and the route answers 400 to a deliberately invalid
+signature. **⚠️ THE 400 ALONE PROVES NOTHING ABOUT WHICH CODE IS RUNNING** ; it
+is the same answer before and after the change, so it shows the route is alive
+and not that the fix shipped. The hash is the part that settles it.
+
+**⚠️ AND THE CLI WAS NOT LINKED FOR THIS DIRECTORY AT ALL** (`~/.railway/config.json`
+keys its links BY DIRECTORY, and only Curriculum_OS and dayknight were in it).
+Since this session's shell kept resetting its cwd to Curriculum_OS, an
+unqualified `railway` command here would have answered about a DIFFERENT
+PROJECT while looking perfectly normal. Re-checked afterwards from the correct
+link: the Discord finding below still holds exactly, so the earlier reading had
+used explicit `--project` flags. **Link the directory, or pass the project and
+service explicitly, every time.**
+
 **⚠️ SIX FIXTURE FIELDS WERE GUESSED WRONG ACROSS THIS SESSION AND EVERY ONE
 WAS ONE QUERY AWAY**: `curricula.created_by` is NOT NULL and references
 `coaches(id)`; `curriculum_slots` has **no `status` column** (delivery is
@@ -762,7 +778,7 @@ exist"* is true of any database that never had one.
   `DISCORD_TIM_USER_ID` and `DISCORD_GUILD_ID` are the literal string `...` in
   `.env.local` AND on Railway (service `XPL_Keyed`, project
   `astonishing-ambition`), straight out of `.env.local.example`. They are the
-  only 3 of Railway's 32 variables that are placeholders, so this is specific
+  only 3 of Railway's 31 variables that are placeholders, so this is specific
   rather than a general state of neglect. **They must be created**: the bot
   token from the Discord Developer Portal, Tim's user id from Discord with
   Developer Mode on. `DISCORD_GUILD_ID` is needed by no Edge Function.
