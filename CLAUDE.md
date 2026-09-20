@@ -621,12 +621,54 @@ and not `trialing`; the sign in route takes `username` and not `email`; and
 one query, and this file already warns about exactly that.
 
 **⚠️ WHAT IT STILL DOES NOT COVER, stated rather than implied.** The renewal
-calls `provisionNextCycle` directly, so **the auto renew Edge Function and the
-actual Stripe CHARGE are still unexercised** ; the $56 has never been taken.
+calls `provisionNextCycle` directly, so the auto renew Edge Function and the
+Stripe charge are outside it ; **✅ both are now proven separately by
+`npm run prove:charge`, see below.**
 Calendly is simulated by writing `live_call_at`, not by its webhook. Nothing
 here touches Discord, dunning, cancellation or the no show path. **The first
 real family is still the first real test of those**, and this narrows that
 surface rather than closing it.
+
+### The $56 charge is proven (`npm run prove:charge`)
+
+**26 assertions, 0 failed. Money moved for the first time**, in Stripe TEST
+mode, through the REAL `cron-auto-renew-detection` Edge Function served locally
+against a real test card. Until 2026-09-20 that function had never fired once
+in any environment: production has 0 active subscriptions, so every observation
+of it had been `no_subs`.
+
+**The evidence is asked of STRIPE, not of our own database**, which is the
+whole point of the exercise:
+
+```
+pi_3UHsf0Q1Iu1GRfbN04PIvRNd   $56.00 USD   succeeded   livemode false
+description  "Auto renew: Jaxon's next 4 session cycle"
+metadata     kind=renewal, subscription_id, player_id, family_id
+```
+
+**🔵 AND THAT DESCRIPTION IS ITSELF A PROOF THE RENAME LANDED WHERE IT MATTERS
+MOST.** It says *session cycle*, and it is the line that prints on a parent's
+card statement. It said *"next 4 lesson cycle"* that same morning, and no
+typecheck, suite or page render would ever have caught it.
+
+**Four behaviours proven, not one:** the charge fires once and is remembered in
+`renewal_pi_id`; a second run **does not charge again**, because the eligibility
+query filters on `renewal_pi_id IS NULL`; **auto renew OFF cancels cleanly and
+fires no payment intent**; and **no card on file is REPORTED as
+`no_payment_method` rather than thrown**, leaving the subscription ACTIVE and
+retryable. The run ends by asserting **exactly ONE charge across every customer
+it created**, which is the assertion that would catch a double bill.
+
+**🔴 IT REFUSES ON A LIVE KEY, AND HERE THAT MATTERS MORE THAN ANYWHERE ELSE**,
+because this one CONFIRMS a payment intent off session: on `sk_live_` that is
+$56 taken from a real parent. The card is `pm_card_visa`, attached and made
+default, which is what `setup_future_usage='off_session'` does at real checkout
+; the one step a script cannot drive, because it needs Stripe's hosted page.
+
+**⚠️ STILL NOT COVERED**: the `invoice.paid` and `payment_intent.succeeded`
+webhooks that should react to this charge are not exercised here, so what
+happens AFTER the money arrives is still untested. Calendly, Discord, dunning,
+cancellation and the no show path remain untouched by both harnesses.
 
 ### Still to do
 
