@@ -18,7 +18,7 @@ type SubscriptionRow = {
   id: string;
   player_id: string;
   status: string;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_cancels_used: number;
   created_at: string;
   lifecycle_state?: string;
@@ -44,7 +44,7 @@ export default async function AdminHome() {
     supabase
       .from("subscriptions")
       .select(
-        "id, player_id, status, cycle_lessons_delivered, cycle_cancels_used, created_at, lifecycle_state, waiting_on",
+        "id, player_id, status, cycle_sessions_delivered, cycle_cancels_used, created_at, lifecycle_state, waiting_on",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -360,7 +360,7 @@ export default async function AdminHome() {
       parent_first_name: parent?.first_name ?? "(unknown)",
       lifecycle_state: sub.lifecycle_state ?? "TRIAL_PREP",
       waiting_on: sub.waiting_on ?? "SYSTEM",
-      cycle_lessons_delivered: sub.cycle_lessons_delivered,
+      cycle_sessions_delivered: sub.cycle_sessions_delivered,
       cycle_cancels_used: sub.cycle_cancels_used,
       prep_completed: completed.size,
     };

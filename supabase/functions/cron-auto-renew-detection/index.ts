@@ -1,7 +1,7 @@
 // Edge Function — auto_renew_detection
 //
 // Fired daily by pg_cron. Picks up subscriptions where the current
-// cycle just completed (cycle_lessons_delivered=4) and decides what
+// cycle just completed (cycle_sessions_delivered=4) and decides what
 // happens next:
 //
 //   * auto_renew_enabled=FALSE → cancel the subscription cleanly,
@@ -62,7 +62,7 @@ Deno.serve(async (_req) => {
     .select("id, player_id, auto_renew_enabled, renewal_pi_id, cycle_skips_used")
     .eq("status", "active")
     .eq("lifecycle_state", "ACTIVE")
-    .eq("cycle_lessons_delivered", 4)
+    .eq("cycle_sessions_delivered", 4)
     .is("renewal_pi_id", null);
 
   if (error) return new Response(error.message, { status: 500 });

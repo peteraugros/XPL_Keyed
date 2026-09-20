@@ -90,7 +90,7 @@ export type ActiveRow = {
   // (winding down inside the 7 day undo window). canceled / declined
   // are filtered upstream — they don't appear in this list.
   status: string;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_cancels_used: number;
   // Trial-time context carried forward into the active phase so Tim
   // can still glance at what motivated the family. Both nullable —
@@ -147,7 +147,7 @@ type PipelineCard = {
   parent_first_name: string;
   lifecycle_state: string;
   waiting_on: string;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_cancels_used: number;
   prep_completed: number;
 };
@@ -481,7 +481,7 @@ function CommandPipeline({
                         {c.lifecycle_state === "TRIAL_PREP" || c.lifecycle_state === "TRIAL_SCHEDULED" ? (
                           <span>prep {c.prep_completed}/4</span>
                         ) : c.lifecycle_state === "ACTIVE" ? (
-                          <span>cyc {c.cycle_lessons_delivered}/4 · skips {c.cycle_cancels_used}/2</span>
+                          <span>cyc {c.cycle_sessions_delivered}/4 · skips {c.cycle_cancels_used}/2</span>
                         ) : c.lifecycle_state === "PAST_DUE" ? (
                           <span>past due</span>
                         ) : c.lifecycle_state === "PENDING_CANCEL" ? (
@@ -1421,7 +1421,7 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
     case "cycle_drag_out": {
       const payload = (t.task_payload ?? {}) as {
         cycle_started_at?: string;
-        cycle_lessons_delivered?: number;
+        cycle_sessions_delivered?: number;
         cycle_skips_used?: number;
         coach_cancels_count?: number;
       };
@@ -1431,7 +1431,7 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
       const weeks = started
         ? Math.floor((Date.now() - started.getTime()) / (7 * 86_400_000))
         : 0;
-      const delivered = payload.cycle_lessons_delivered ?? 0;
+      const delivered = payload.cycle_sessions_delivered ?? 0;
       const skips = payload.cycle_skips_used ?? 0;
       const cancels = payload.coach_cancels_count ?? 0;
       return {
@@ -1456,9 +1456,9 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
     }
     case "subscription_auto_renew_off": {
       const payload = (t.task_payload ?? {}) as {
-        cycle_lessons_delivered?: number;
+        cycle_sessions_delivered?: number;
       };
-      const delivered = payload.cycle_lessons_delivered ?? 0;
+      const delivered = payload.cycle_sessions_delivered ?? 0;
       const remaining = Math.max(0, 4 - delivered);
       return {
         title: `${name}'s auto renew is off.`,

@@ -14,7 +14,7 @@ type SubLookup = {
   status: string;
   tier: string;
   cycle_started_at: string | null;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_cancels_used: number;
   created_at: string;
   pending_cancel_auto_confirm_at: string | null;
@@ -89,7 +89,7 @@ export default async function MembershipPage() {
     supabase
       .from("subscriptions")
       .select(
-        "status, tier, cycle_started_at, cycle_lessons_delivered, cycle_cancels_used, created_at, pending_cancel_auto_confirm_at",
+        "status, tier, cycle_started_at, cycle_sessions_delivered, cycle_cancels_used, created_at, pending_cancel_auto_confirm_at",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -150,7 +150,7 @@ export default async function MembershipPage() {
                 {formatDate(sub?.cycle_started_at ?? null)}
               </dd>
               <dt className={styles.dt}>Sessions done</dt>
-              <dd className={styles.dd}>{sub.cycle_lessons_delivered} of 4</dd>
+              <dd className={styles.dd}>{sub.cycle_sessions_delivered} of 4</dd>
               <dt className={styles.dt}>Cancellations used</dt>
               <dd className={styles.dd}>
                 {sub.cycle_cancels_used} of 2

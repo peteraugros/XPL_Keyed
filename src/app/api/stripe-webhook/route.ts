@@ -94,7 +94,7 @@ export async function POST(req: Request) {
 // conversion paid." Flips:
 //   * curricula.status='active', approved_at=NOW()
 //   * subscriptions.tier='monthly', status='active',
-//     cycle_started_at=NOW(), cycle_lessons_delivered=0, cycle_cancels_used=0
+//     cycle_started_at=NOW(), cycle_sessions_delivered=0, cycle_cancels_used=0
 //
 // Identifies the rows via session.metadata that the checkout endpoint
 // stashed: curriculum_id + subscription_id. Both are looked up by id
@@ -172,7 +172,7 @@ async function handleCheckoutSessionCompleted(
       lifecycle_state: "ACTIVE",
       waiting_on: "TIM",
       cycle_started_at: paidAt.toISOString(),
-      cycle_lessons_delivered: 0,
+      cycle_sessions_delivered: 0,
       cycle_cancels_used: 0,
       past_due_started_at: null,
       notified_at_day7_dunning: null,
@@ -190,7 +190,7 @@ async function handleCheckoutSessionCompleted(
   // What this branch did: if there was no Sunday between payment and Week 1's
   // live call, the Sunday cron would miss Week 1 entirely, so it shipped that
   // week's slides and voiceover straight away and incremented
-  // cycle_lessons_delivered.
+  // cycle_sessions_delivered.
   //
   // Both halves are gone. There are no materials to ship, and the counter is
   // now advanced by a COMPLETED CALL and nothing else (see advanceCycleOnce in
@@ -339,7 +339,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, supabase: Supa) {
       lifecycle_state: "ACTIVE",
       waiting_on: "SYSTEM",
       cycle_started_at: nowIso,
-      cycle_lessons_delivered: 0,
+      cycle_sessions_delivered: 0,
       cycle_cancels_used: 0,
       past_due_started_at: null,
       notified_at_day7_dunning: null,

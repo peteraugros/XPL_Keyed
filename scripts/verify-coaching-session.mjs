@@ -106,7 +106,7 @@ async function seed() {
 
   const sub = await db.from("subscriptions").insert({
     player_id: player.data.id, status: "active", lifecycle_state: "ACTIVE",
-    tier: "monthly", cycle_lessons_delivered: 0, auto_renew_enabled: true,
+    tier: "monthly", cycle_sessions_delivered: 0, auto_renew_enabled: true,
   }).select("id").single();
   if (sub.error) throw new Error(`subscriptions: ${sub.error.message}`);
   made.subs.push(sub.data.id);

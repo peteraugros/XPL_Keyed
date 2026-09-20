@@ -34,7 +34,7 @@ type SubLookup = {
   id: string;
   cycle_skips_used: number;
   cycle_cancels_used: number;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_timezone: string;
   auto_renew_enabled: boolean;
   stripe_subscription_id: string | null;
@@ -95,7 +95,7 @@ export async function POST(
   const subRow = await service
     .from("subscriptions")
     .select(
-      "id, cycle_skips_used, cycle_cancels_used, cycle_lessons_delivered, cycle_timezone, auto_renew_enabled, stripe_subscription_id",
+      "id, cycle_skips_used, cycle_cancels_used, cycle_sessions_delivered, cycle_timezone, auto_renew_enabled, stripe_subscription_id",
     )
     .eq("player_id", player.id)
     .maybeSingle();
@@ -162,7 +162,7 @@ export async function POST(
     .update({
       cycle_skips_used: newSkipsUsed,
       cycle_cancels_used: sub.cycle_cancels_used + 1,
-      cycle_lessons_delivered: sub.cycle_lessons_delivered + 1,
+      cycle_sessions_delivered: sub.cycle_sessions_delivered + 1,
       last_cancel_at: nowIso,
       auto_renew_enabled: triggeredAutoRenewOff ? false : sub.auto_renew_enabled,
     } as never)

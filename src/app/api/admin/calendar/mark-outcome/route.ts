@@ -14,7 +14,7 @@
 //   outcome='no_show'
 //     → no_show_at = NOW()
 //     → if charge_skip=true (default): cycle_skips_used+1,
-//        cycle_lessons_delivered+1, classification='forfeit'
+//        cycle_sessions_delivered+1, classification='forfeit'
 //        cancellation_events row. Email parent "Hope all is well."
 //     → if charge_skip=false (courtesy pass): coach_cancels row
 //        instead. No skip. Cycle pauses 1 week. Email parent
@@ -107,7 +107,7 @@ type SubLookup = {
   id: string;
   cycle_skips_used: number;
   cycle_cancels_used: number;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   auto_renew_enabled: boolean;
 };
 
@@ -119,7 +119,7 @@ type SubLookup = {
 // per slot, and says out loud whether it worked.
 //
 // Why this exists. $56 buys 4 sessions and cron-auto-renew-detection fires
-// the next charge on cycle_lessons_delivered = 4. Once the content delivery
+// the next charge on cycle_sessions_delivered = 4. Once the content delivery
 // path is gone, a COMPLETED CALL is the only thing that advances the cycle,
 // so this increment is the single point of failure for revenue. Before, it
 // was `await service.from("subscriptions").update(...)` with the error
@@ -163,7 +163,7 @@ async function advanceCycleOnce(
 
   const bump = await service
     .from("subscriptions")
-    .update({ cycle_lessons_delivered: sub.cycle_lessons_delivered + 1 } as never)
+    .update({ cycle_sessions_delivered: sub.cycle_sessions_delivered + 1 } as never)
     .eq("id", sub.id)
     .select("id");
 
@@ -246,7 +246,7 @@ export async function POST(req: Request) {
   const subRow = await service
     .from("subscriptions")
     .select(
-      "id, cycle_skips_used, cycle_cancels_used, cycle_lessons_delivered, auto_renew_enabled",
+      "id, cycle_skips_used, cycle_cancels_used, cycle_sessions_delivered, auto_renew_enabled",
     )
     .eq("player_id", player.id)
     .maybeSingle();
@@ -397,7 +397,7 @@ export async function POST(req: Request) {
       const forfeitCycle = await advanceCycleOnce(
         service,
         slot.id,
-        { ...sub, cycle_lessons_delivered: sub.cycle_lessons_delivered },
+        { ...sub, cycle_sessions_delivered: sub.cycle_sessions_delivered },
         nowIso,
       );
       if (forfeitCycle === "failed") {
@@ -416,7 +416,7 @@ export async function POST(req: Request) {
       } as never);
     } else {
       // Courtesy pass: treat like a coach cancel. No skip. Cycle pauses.
-      // We do NOT advance cycle_lessons_delivered (the slot is delivered_at
+      // We do NOT advance cycle_sessions_delivered (the slot is delivered_at
       // for the Sunday cron's sake, but the cycle counter shouldn't tick).
       await service.from("coach_cancels").insert({
         coach_id: coach.id,

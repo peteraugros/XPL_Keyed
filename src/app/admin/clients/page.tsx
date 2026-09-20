@@ -29,7 +29,7 @@ type SubscriptionRow = {
   id: string;
   player_id: string;
   status: string;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_cancels_used: number;
   created_at: string;
   waiting_on?: string;
@@ -58,7 +58,7 @@ export default async function AdminClientsPage() {
   const subsLookup = await supabase
     .from("subscriptions")
     .select(
-      "id, player_id, status, cycle_lessons_delivered, cycle_cancels_used, created_at, waiting_on",
+      "id, player_id, status, cycle_sessions_delivered, cycle_cancels_used, created_at, waiting_on",
     )
     .order("created_at", { ascending: false });
 
@@ -239,7 +239,7 @@ export default async function AdminClientsPage() {
               player_first_name: player.first_name,
               parent_first_name: parent?.first_name ?? "(unknown)",
               status: sub.status,
-              cycle_lessons_delivered: sub.cycle_lessons_delivered,
+              cycle_sessions_delivered: sub.cycle_sessions_delivered,
               cycle_cancels_used: sub.cycle_cancels_used,
               // Trial-time context carried forward.
               latest_vod_url: vodByPlayer.get(sub.player_id) ?? null,
@@ -255,7 +255,7 @@ export default async function AdminClientsPage() {
         parent_first_name: parent?.first_name ?? "(unknown)",
         phase,
         waiting_on_tim: waitingOnTim,
-        cycle_lessons: sub.cycle_lessons_delivered,
+        cycle_sessions: sub.cycle_sessions_delivered,
         cycle_cancels: sub.cycle_cancels_used,
         prep_completed: completed.size,
         total_quests: QUEST_TOTAL,

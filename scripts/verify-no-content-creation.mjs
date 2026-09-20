@@ -91,7 +91,7 @@ async function seed() {
   // trial + waiting_on TIM is the state Stage C acts on.
   const sub = await db.from("subscriptions").insert({
     player_id: player.data.id, status: "trial", lifecycle_state: "TRIAL_DONE",
-    tier: "trial", waiting_on: "TIM", cycle_lessons_delivered: 0,
+    tier: "trial", waiting_on: "TIM", cycle_sessions_delivered: 0,
   }).select("id").single();
   if (sub.error) throw new Error(`subscriptions: ${sub.error.message}`);
   made.subs.push(sub.data.id);
@@ -196,7 +196,7 @@ async function main() {
   // the finished cycle real call times so the uniform/scattered branch runs.
   await db.from("subscriptions").update({
     status: "active", lifecycle_state: "ACTIVE", tier: "monthly",
-    cycle_lessons_delivered: 4, cycle_started_at: new Date(Date.now() - 28 * 864e5).toISOString(),
+    cycle_sessions_delivered: 4, cycle_started_at: new Date(Date.now() - 28 * 864e5).toISOString(),
   }).eq("id", fx.subId);
   for (let i = 0; i < 4; i++) {
     await db.from("curriculum_slots")

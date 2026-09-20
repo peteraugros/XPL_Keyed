@@ -41,7 +41,7 @@ export default async function PlayHQ() {
     supabase
       .from("subscriptions")
       .select(
-        "status, tier, cycle_lessons_delivered, cycle_started_at, trial_call_at",
+        "status, tier, cycle_sessions_delivered, cycle_started_at, trial_call_at",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -55,7 +55,7 @@ export default async function PlayHQ() {
     | {
         status: string;
         tier: string | null;
-        cycle_lessons_delivered: number;
+        cycle_sessions_delivered: number;
         cycle_started_at: string | null;
         trial_call_at: string | null;
       }
@@ -120,7 +120,7 @@ export default async function PlayHQ() {
       initialVodUrl={vod?.url ?? null}
       subscriptionStatus={subscription?.status ?? "trial"}
       subscriptionTier={subscription?.tier ?? null}
-      cycleLessonsDelivered={subscription?.cycle_lessons_delivered ?? 0}
+      cycleSessionsDelivered={subscription?.cycle_sessions_delivered ?? 0}
       trialCallAt={subscription?.trial_call_at ?? null}
       discordChannelUrl={discordChannelUrl}
       singleSession={singleSession}

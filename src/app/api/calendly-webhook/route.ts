@@ -190,17 +190,17 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
 
   // New unified skip model per xpl-reschedule-spec.md. Both credit
   // (>=24hr) and forfeit (<24hr) cancels count as 1 skip. Forfeit also
-  // advances cycle_lessons_delivered (kid keeps materials). Allowance
+  // advances cycle_sessions_delivered (kid keeps materials). Allowance
   // is 2 skips per cycle; the 3rd skip flips auto_renew_enabled=FALSE.
   // Current cycle still continues through session 4, then ends. No
   // more pending_cancel triggered from here — that path is retired in
   // favor of the auto-renew model.
   const newSkipsUsed = subscription.cycle_skips_used + 1;
   const newCancelsUsed = subscription.cycle_cancels_used + 1;
-  const newLessonsDelivered =
+  const newSessionsDelivered =
     classification === "forfeit"
-      ? subscription.cycle_lessons_delivered + 1
-      : subscription.cycle_lessons_delivered;
+      ? subscription.cycle_sessions_delivered + 1
+      : subscription.cycle_sessions_delivered;
   const triggeredAutoRenewOff =
     newSkipsUsed >= 3 && subscription.auto_renew_enabled;
 
@@ -210,7 +210,7 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
       last_cancel_at: nowIso,
       cycle_skips_used: newSkipsUsed,
       cycle_cancels_used: newCancelsUsed,
-      cycle_lessons_delivered: newLessonsDelivered,
+      cycle_sessions_delivered: newSessionsDelivered,
       auto_renew_enabled: triggeredAutoRenewOff ? false : subscription.auto_renew_enabled,
     } as never)
     .eq("id", subscription.id);
@@ -783,7 +783,7 @@ async function applyCoachCancel(slot: SlotRow, supabase: Supa) {
   if (error) throw error;
 
   // Per CLAUDE.md: coach cancels pause the family's cycle 1 week, no cap
-  // impact, no cycle_lessons_delivered increment. delivered_at is the settled
+  // impact, no cycle_sessions_delivered increment. delivered_at is the settled
   // flag: it marks the session as consumed so the scheduling and cancel paths
   // skip it. (It used to also mean "the Sunday cron already sent the
   // materials"; there is no cron and there are no materials.)
@@ -837,7 +837,7 @@ type SubscriptionRow = {
   stripe_subscription_id: string | null;
   cycle_cancels_used: number;
   cycle_skips_used: number;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   auto_renew_enabled: boolean;
 };
 
@@ -848,7 +848,7 @@ async function fetchSubscriptionForSlot(
   const { data, error } = await supabase
     .from("subscriptions")
     .select(
-      "id, player_id, status, stripe_subscription_id, cycle_cancels_used, cycle_skips_used, cycle_lessons_delivered, auto_renew_enabled",
+      "id, player_id, status, stripe_subscription_id, cycle_cancels_used, cycle_skips_used, cycle_sessions_delivered, auto_renew_enabled",
     )
     .eq("id", subscriptionId)
     .maybeSingle();

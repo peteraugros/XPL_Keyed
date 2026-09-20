@@ -27,7 +27,7 @@ type SubLookup = {
   status: string;
   tier: string;
   cycle_started_at: string | null;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_skips_used: number;
   past_due_started_at: string | null;
   pending_cancel_auto_confirm_at: string | null;
@@ -187,7 +187,7 @@ export default async function BillingPage() {
     supabase
       .from("subscriptions")
       .select(
-        "status, tier, cycle_started_at, cycle_lessons_delivered, cycle_skips_used, past_due_started_at, pending_cancel_auto_confirm_at, auto_renew_enabled",
+        "status, tier, cycle_started_at, cycle_sessions_delivered, cycle_skips_used, past_due_started_at, pending_cancel_auto_confirm_at, auto_renew_enabled",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -257,7 +257,7 @@ export default async function BillingPage() {
             <>
               <dt className={styles.dt}>Sessions this cycle</dt>
               <dd className={styles.dd}>
-                {sub?.cycle_lessons_delivered ?? 0} of 4
+                {sub?.cycle_sessions_delivered ?? 0} of 4
               </dd>
               <dt className={styles.dt}>Skips used</dt>
               <dd className={styles.dd}>

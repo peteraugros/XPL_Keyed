@@ -23,7 +23,7 @@ export type ClientItem = {
   parent_first_name: string;
   phase: "trial" | "active" | "past_due" | "pending_cancel";
   waiting_on_tim: boolean;
-  cycle_lessons?: number;
+  cycle_sessions?: number;
   cycle_cancels?: number;
   prep_completed?: number;
   total_quests?: number;
@@ -115,7 +115,7 @@ export default function ClientsClient({ items }: { items: ClientItem[] }) {
                       <span className={styles.metaText}>
                         {item.phase === "trial"
                           ? `Prep ${item.prep_completed ?? 0}/${item.total_quests ?? 4}`
-                          : `Cycle ${item.cycle_lessons ?? 0}/4`}
+                          : `Cycle ${item.cycle_sessions ?? 0}/4`}
                       </span>
                     </div>
                   </button>
@@ -176,7 +176,7 @@ function ActiveDetail({ row }: { row: ActiveRow }) {
             <span className={`${styles.pill} ${styles.pillActive}`}>Active</span>
           )}
           <span className={styles.pill}>
-            Cycle {row.cycle_lessons_delivered}/4
+            Cycle {row.cycle_sessions_delivered}/4
           </span>
           <span className={styles.pill}>
             Cancels {row.cycle_cancels_used}/2

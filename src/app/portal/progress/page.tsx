@@ -18,7 +18,7 @@ type SubLookup = {
   status: string;
   tier: string | null;
   lifecycle_state: string;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_skips_used: number;
   cycle_started_at: string | null;
   auto_renew_enabled: boolean;
@@ -242,7 +242,7 @@ export default async function ProgressPage() {
   const subResp = await supabase
     .from("subscriptions")
     .select(
-      "id, status, tier, lifecycle_state, cycle_lessons_delivered, cycle_skips_used, cycle_started_at, auto_renew_enabled, trial_call_at",
+      "id, status, tier, lifecycle_state, cycle_sessions_delivered, cycle_skips_used, cycle_started_at, auto_renew_enabled, trial_call_at",
     )
     .eq("player_id", player.id)
     .maybeSingle();
@@ -572,11 +572,11 @@ export default async function ProgressPage() {
           <div className={styles.cardEyebrow}>This cycle</div>
           <h2 className={styles.cardTitle}>
             {sub.lifecycle_state === "ACTIVE"
-              ? `Session ${Math.min(sub.cycle_lessons_delivered + 1, 4)} of 4`
+              ? `Session ${Math.min(sub.cycle_sessions_delivered + 1, 4)} of 4`
               : sub.lifecycle_state.toLowerCase().replace(/_/g, " ")}
           </h2>
           <div className={progressStyles.statRow}>
-            <Stat label="Delivered" value={`${sub.cycle_lessons_delivered} of 4`} />
+            <Stat label="Delivered" value={`${sub.cycle_sessions_delivered} of 4`} />
             <Stat
               label="Skips used"
               value={`${sub.cycle_skips_used} of 2`}

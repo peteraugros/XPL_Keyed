@@ -28,7 +28,7 @@ type SubRow = {
   lifecycle_state: string | null;
   past_due_started_at: string | null;
   cycle_started_at: string | null;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   auto_renew_enabled: boolean;
 };
 type PlayerRow = { id: string; first_name: string; family_id: string };
@@ -67,7 +67,7 @@ export default async function MoneyPage() {
     supabase
       .from("subscriptions")
       .select(
-        "id, player_id, status, lifecycle_state, past_due_started_at, cycle_started_at, cycle_lessons_delivered, auto_renew_enabled",
+        "id, player_id, status, lifecycle_state, past_due_started_at, cycle_started_at, cycle_sessions_delivered, auto_renew_enabled",
       ),
     supabase.from("players").select("id, first_name, family_id"),
     supabase.from("families").select("id, stripe_customer_id"),

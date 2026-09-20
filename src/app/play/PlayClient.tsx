@@ -66,7 +66,7 @@ export default function PlayClient({
   initialPrep,
   subscriptionStatus,
   subscriptionTier,
-  cycleLessonsDelivered,
+  cycleSessionsDelivered,
   trialCallAt,
   discordChannelUrl,
   singleSession,
@@ -77,7 +77,7 @@ export default function PlayClient({
   initialVodUrl: string | null;
   subscriptionStatus: string;
   subscriptionTier: string | null;
-  cycleLessonsDelivered: number;
+  cycleSessionsDelivered: number;
   initialPrep: PrepState;
   trialCallAt: string | null;
   discordChannelUrl: string | null;
@@ -256,7 +256,7 @@ export default function PlayClient({
               ? "Tim wrote up your advice and your routine. It's in My Training."
               : "Your call with Tim is the main event. After it he writes up your advice and your routine."
             : isActive
-              ? `Session ${cycleLessonsDelivered} of 4 done. Your advice and routine are in My Training.`
+              ? `Session ${cycleSessionsDelivered} of 4 done. Your advice and routine are in My Training.`
               : isPaused
                 ? "Coaching is on a brief hold. Your parents are sorting it. Tim still sees your messages in Comms."
                 : isEnded
@@ -312,7 +312,7 @@ export default function PlayClient({
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>This cycle</div>
           <h2 className={styles.cardTitle}>
-            Session {cycleLessonsDelivered} of 4 done
+            Session {cycleSessionsDelivered} of 4 done
           </h2>
           <p className={styles.cardBody}>
             Each session is a call with Tim. After it he writes up what to

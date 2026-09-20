@@ -5,7 +5,7 @@
 // coach against the REAL local database. No mocks.
 //
 // Why this suite exists. $56 buys 4 sessions and cron-auto-renew-detection
-// fires the next charge on cycle_lessons_delivered = 4. That counter used to
+// fires the next charge on cycle_sessions_delivered = 4. That counter used to
 // have five writers, two of them the content delivery path
 // (cron-sunday-lesson-delivery, deliver-week-one) which this project removes.
 // Afterwards a COMPLETED CALL is the only thing that advances the cycle, so
@@ -121,7 +121,7 @@ async function seed() {
     status: "active",
     lifecycle_state: "ACTIVE",
     tier: "monthly",
-    cycle_lessons_delivered: 0,
+    cycle_sessions_delivered: 0,
     auto_renew_enabled: true,
   }).select("id").single();
   if (sub.error) throw new Error(`subscriptions: ${sub.error.message}`);
@@ -169,9 +169,9 @@ async function cleanup() {
 // helpers
 // ---------------------------------------------------------------------------
 async function counter(subId) {
-  const r = await db.from("subscriptions").select("cycle_lessons_delivered").eq("id", subId).single();
+  const r = await db.from("subscriptions").select("cycle_sessions_delivered").eq("id", subId).single();
   if (r.error) throw new Error(`counter read: ${r.error.message}`);
-  return r.data.cycle_lessons_delivered;
+  return r.data.cycle_sessions_delivered;
 }
 async function slotRow(slotId) {
   const r = await db.from("curriculum_slots")
@@ -258,7 +258,7 @@ async function main() {
   console.log("\nE. the repair path: a failed advance can be completed later");
   // Simulate the crash window: the call is marked, the advance did not land.
   await db.from("curriculum_slots").update({ cycle_counted_at: null }).eq("id", fx.slotIds[0]);
-  await db.from("subscriptions").update({ cycle_lessons_delivered: 0 }).eq("id", fx.subId);
+  await db.from("subscriptions").update({ cycle_sessions_delivered: 0 }).eq("id", fx.subId);
   eq("state rewound to the failure window", await counter(fx.subId), 0);
   const r3 = await post("/api/admin/calendar/mark-outcome", {
     outcome: "done", slot_id: fx.slotIds[0],
@@ -281,7 +281,7 @@ async function main() {
     .select("id")
     .eq("status", "active")
     .eq("lifecycle_state", "ACTIVE")
-    .eq("cycle_lessons_delivered", 4)
+    .eq("cycle_sessions_delivered", 4)
     .is("renewal_pi_id", null);
   ok("the auto renew cron's own query now matches this subscription",
      (eligible.data ?? []).some((r) => r.id === fx.subId),
@@ -343,8 +343,8 @@ async function main() {
   // exact shape that made a failed advance silent.
   const moSrc = stripComments(readFileSync("src/app/api/admin/calendar/mark-outcome/route.ts", "utf8"));
   ok("mark-outcome advances the cycle only through advanceCycleOnce",
-     (moSrc.match(/cycle_lessons_delivered: sub\.cycle_lessons_delivered \+ 1/g) ?? []).length === 1,
-     `${(moSrc.match(/cycle_lessons_delivered: sub\.cycle_lessons_delivered \+ 1/g) ?? []).length} increment sites`);
+     (moSrc.match(/cycle_sessions_delivered: sub\.cycle_sessions_delivered \+ 1/g) ?? []).length === 1,
+     `${(moSrc.match(/cycle_sessions_delivered: sub\.cycle_sessions_delivered \+ 1/g) ?? []).length} increment sites`);
   ok("the advance result is checked, not discarded",
      /cycle === "failed"/.test(moSrc) && /cycle_advance_failed/.test(moSrc));
 }

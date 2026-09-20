@@ -870,7 +870,7 @@ export type Database = {
           coach_seen_at: string | null
           created_at: string
           cycle_cancels_used: number
-          cycle_lessons_delivered: number
+          cycle_sessions_delivered: number
           cycle_skips_used: number
           cycle_started_at: string | null
           cycle_timezone: string
@@ -910,7 +910,7 @@ export type Database = {
           coach_seen_at?: string | null
           created_at?: string
           cycle_cancels_used?: number
-          cycle_lessons_delivered?: number
+          cycle_sessions_delivered?: number
           cycle_skips_used?: number
           cycle_started_at?: string | null
           cycle_timezone?: string
@@ -950,7 +950,7 @@ export type Database = {
           coach_seen_at?: string | null
           created_at?: string
           cycle_cancels_used?: number
-          cycle_lessons_delivered?: number
+          cycle_sessions_delivered?: number
           cycle_skips_used?: number
           cycle_started_at?: string | null
           cycle_timezone?: string

@@ -8,7 +8,7 @@
 //
 // That became unsafe the moment a completed call was made the only thing
 // that advances the billing cycle. cron-auto-renew-detection fires the next
-// $56 charge on cycle_lessons_delivered = 4, and only mark-outcome moves it,
+// $56 charge on cycle_sessions_delivered = 4, and only mark-outcome moves it,
 // so `call_outcome_pending` stopped being a tidiness nudge and became the
 // thing standing between Tim forgetting and a family silently never being
 // billed again.

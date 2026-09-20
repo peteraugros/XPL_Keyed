@@ -44,7 +44,7 @@ type SubLookup = {
   status: string;
   tier: string | null;
   lifecycle_state: string | null;
-  cycle_lessons_delivered: number;
+  cycle_sessions_delivered: number;
   cycle_cancels_used: number;
   cycle_started_at: string | null;
   pending_cancel_auto_confirm_at: string | null;
@@ -131,7 +131,7 @@ export default async function PortalHome({
     supabase
       .from("subscriptions")
       .select(
-        "status, tier, lifecycle_state, cycle_lessons_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at, uniform_schedule_acknowledged_at",
+        "status, tier, lifecycle_state, cycle_sessions_delivered, cycle_cancels_used, cycle_started_at, pending_cancel_auto_confirm_at, trial_call_at, uniform_schedule_acknowledged_at",
       )
       .eq("player_id", player.id)
       .maybeSingle(),
@@ -281,7 +281,7 @@ export default async function PortalHome({
   const hasUniformPredictedSlots = uniformPredictedSlots.length > 0;
 
   const phase = phaseFor(sub?.status);
-  const cycleProgress = sub?.cycle_lessons_delivered ?? 0;
+  const cycleProgress = sub?.cycle_sessions_delivered ?? 0;
   const cancelsUsed = sub?.cycle_cancels_used ?? 0;
   const autoConfirmDate = formatShortDate(sub?.pending_cancel_auto_confirm_at ?? null);
   // Calendly's invitee.created webhook populates trial_call_at on the

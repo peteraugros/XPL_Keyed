@@ -250,7 +250,7 @@ export async function provisionNextCycle(
     .from("subscriptions")
     .update({
       cycle_started_at: new Date().toISOString(),
-      cycle_lessons_delivered: 0,
+      cycle_sessions_delivered: 0,
       cycle_skips_used: 0,
       cycle_cancels_used: 0,
       lifecycle_state: nextLifecycle,
