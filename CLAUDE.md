@@ -771,6 +771,74 @@ suites use 54422 correctly and were unaffected, but a schema assertion pointed
 at the wrong database would have passed trivially ; *"the lessons table does not
 exist"* is true of any database that never had one.
 
+### VOD review instead of a live call (built 2026-09-20)
+
+**A student can turn one session a cycle into a VOD review. Tim can too, and
+his decision costs the kid nothing.** Spec in `spec-vod-review-swap.md`;
+migration `20260920000400`, applied to production and read back.
+
+**The argument is not convenience.** A session inside the 24 hour window is
+lost outright AND burns a skip, and the third skip turns off auto renew, so a
+sudden conflict costs a family a session they paid for and moves them toward
+losing the subscription. This is the humane branch of that exact moment, which
+is why it is deliberately **not** gated on the 24 hour boundary: that boundary
+exists because a live call needs a slot in Tim's calendar and a VOD review does
+not. Gating it there would refuse the case it exists for.
+
+**It is a MODE, not a new kind of session.** `mark-outcome` already produces the
+three artifacts a VOD review produces (coach note, training routine, parent
+summary), so delivery, counting, the cycle, renewal and the parent view are all
+untouched. That is the whole reason it was a small build.
+
+**Decisions, each reversible in one place.** Once per CYCLE rather than per
+calendar month (a cycle is the only clock the portal already speaks; a second
+time base is a second thing that can disagree). It does NOT consume a skip,
+because charging one would make the humane branch cost the same as the bad one.
+Tim's override does not spend the kid's swap, and `vod_review_by` records which
+of the two happened because afterwards they are indistinguishable. Undo is
+allowed until delivery and hands the allowance back.
+
+**🔴 THE SCHEMA ENFORCES THE RULE RATHER THAN DOCUMENTING IT.** `vod_review_by`
+is constrained to `student` or `coach`, so **a parent initiated swap is
+unrepresentable** (Peter: parents are there only to see), and a pairing CHECK
+makes the initiator mandatory exactly when there is one. Proven in a rolled
+back transaction, all seven behaviours including the three refusals.
+
+**⚠️ THERE WAS NOWHERE FOR THE ACTION TO LIVE.** `/play` had no session list at
+all and `/play/training` only shows sessions Tim has ALREADY WRITTEN UP, so the
+kid could not see what was coming, let alone change it. The upcoming sessions
+block is new. A button with no surface to live on is how a capability ends up
+reachable only by people who already know it exists, which is the same shape as
+the coach magic link fixed earlier the same day.
+
+**🔴 THE NAMING TRAP, THIRD TIME FOR THESE THREE LETTERS.**
+`curriculum_slots.is_vod_review` was DROPPED this morning and meant *Tim
+authored a VOD review as content*; `vod_uploads` SURVIVES and means *the free
+trial VOD a prospect submits*; this is `curriculum_slots.delivery_mode`, *how a
+session the family already owns is delivered*. Reusing the old name would make
+a reader conclude Phase 5 was reverted. The migration header says so.
+
+**✅ `npm run verify:vodreview`, 42 assertions.** Part A is the rules as pure
+functions; part B drives the real routes as a real student and a real coach,
+because the rules being right says nothing about whether a kid can reach
+another family's sessions. **A kid asking about someone else's slot gets 404,
+never 403: a 403 would confirm the id exists.** Non vacuous by four mutations,
+each failing loudly: a coach swap spending the kid's allowance, the renewal no
+longer resetting it, another family's slot answering 403, and the coach route
+charging the family.
+
+**⚠️ AND TWO STAGES OF THAT SUITE ASSERTED NOTHING WHEN FIRST WRITTEN.** Part A
+imported the module and never used it, and the renewal check sat inside an
+`if (import failed)` branch so it never executed. Both looked like passing
+stages. **A stage that prints a heading and no assertions is indistinguishable
+from one that passed.**
+
+**⚠️ ORDER WAS LOAD BEARING: the migration went to production BEFORE the
+deploy.** `/play` now selects `delivery_mode`, and **PostgREST rejects a select
+naming an unknown column outright**, so the reverse order would have broken
+`/play` for every student. Deploy verified by COMMIT HASH (`7e9974e`, SUCCESS),
+not by a status page.
+
 ### Still to do
 
 - 🔴 **DISCORD HAS NEVER BEEN CONFIGURED IN ANY ENVIRONMENT, AND THE VALUES DO
