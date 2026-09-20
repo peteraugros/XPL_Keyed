@@ -595,10 +595,26 @@ boolean, so narrowing is earned rather than incidental.
   which is how they reach both Supabase and Railway without being printed.
   Nothing is broken today because every Discord path no-ops at 0 past due
   subscriptions, but it must be real before the first family is taken on.
-- ⚠️ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19).
-  Prices unchanged for now: 4 sessions for $56, $24 single. Marketing still
-  promises *"Slides and voiceover delivered to keep"* and *"watches a short
-  lesson video, takes notes, and gets quizzed on it"*.
+- ✅ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19), and
+  **the marketing now says so.** ⚠️ This entry read *"Marketing still promises
+  Slides and voiceover delivered to keep"* until 2026-09-20; measured against
+  the LIVE page that is FALSE, and had been since Phase 4. `slide`,
+  `voiceover`, `quizzed`, `PowerPoint`, `PDF` and even the word `lesson` return
+  ZERO hits on xplkeyed.com. It reads *"a weekly call"*, *"advice in writing"*,
+  *"a training routine"*, *"$56/mo, 4 sessions, just $14 each vs $24 single"*.
+  Prices unchanged. **The stale half of this note is the drift this file keeps
+  recording: a to-do that was quietly done stays on the list and gets read as
+  outstanding work.**
+- 🔴 **NOTHING IN THIS SYSTEM HAS EVER RUN WITH A REAL FAMILY, AND THAT IS NOW
+  THE LARGEST RISK RATHER THAN ANY REMAINING CODE.** Prod holds 2
+  subscriptions, both declined trials, 0 ACTIVE, 0 slots, 0 past due, 0
+  waitlist; nobody has ever been taken on. So every cron filters on state that
+  is empty, the $56 auto renew charge has never fired once, the recap email has
+  never sent, and `cycle_sessions_delivered` has never been advanced by a real
+  completed call. **Everything shipped this week is verified against fixtures
+  and zero rows.** The next meaningful work is a full lifecycle rehearsal ;
+  take on, schedule, complete a call, mark the outcome, watch the cycle advance
+  and the renewal bill ; rather than more building.
 
 
 ## Locked product decisions
