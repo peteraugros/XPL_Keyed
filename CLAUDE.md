@@ -41,7 +41,7 @@ This file is loaded into any Claude session working in this directory. It captur
 
 - Marketing site is ported into `src/app/page.tsx` (Server Component) with `src/components/MarketingClient.tsx` (Client Component) attaching the hamburger toggle, scroll-reveal IntersectionObserver, and count-up timer. Inline CSS from the original static design lives in `src/app/globals.css` under the same class names. Original `index.html` is archived at `archive/index.html` for parity reference; do not edit it further.
 - Next.js 15 + Supabase scaffold is in place — see "Project files" below. `npm install` and `npm run dev` are working; dev server runs on localhost:3000 or next available port.
-- Database schema, RLS policies, dev seed, and pg_cron jobs are written as Supabase migrations in `supabase/migrations/` (5 files total including `20260517000400_dunning_reminder_columns.sql` added for the cron functions below). **⚠️ STALE: there are 56 migration files, not 5. All 56 are applied LOCALLY (measured 2026-09-20).** The repo is LINKED to a hosted Supabase project (`fmsekesjdkjpvvleefpu`) and **50 of 56 are applied to prod**; `20260525000200_drop_tiktok`, `20260525000300_refund_requests`, `20260919000000` (Phase 1), `20260919000100` (Phase 3), `20260920000000` (Phase 5) and `20260920000100` (bucket policy) are LOCAL ONLY. Prod is therefore SIX behind and has none of the content-to-coaching simplification. 🔴 So prod still has `tiktok_comments`, has NO `refund_requests` table, and its `derived_tasks_view` predates both; the refund feature exists in code against a table prod does not have. 🔵 Prod data is effectively empty: 2 families / 2 players / 2 subscriptions, both `declined` + `CANCELED` + `tier='trial'` with no Stripe customer, and **0 curricula, 0 curriculum_slots, 0 messages, 0 vod_uploads**. Nobody has ever been taken on.
+- Database schema, RLS policies, dev seed, and pg_cron jobs are written as Supabase migrations in `supabase/migrations/` (5 files total including `20260517000400_dunning_reminder_columns.sql` added for the cron functions below). **⚠️ STALE: there are 56 migration files, not 5.** The repo is LINKED to a hosted Supabase project (`fmsekesjdkjpvvleefpu`) and **all 56 are applied to BOTH local and prod as of 2026-09-20**, the first time the two have been in step since May. Prod no longer has `tiktok_comments`, now HAS `refund_requests`, and carries none of the content schema. 🔴 So prod still has `tiktok_comments`, has NO `refund_requests` table, and its `derived_tasks_view` predates both; the refund feature exists in code against a table prod does not have. 🔵 Prod data is effectively empty: 2 families / 2 players / 2 subscriptions, both `declined` + `CANCELED` + `tier='trial'` with no Stripe customer, and **0 curricula, 0 curriculum_slots, 0 messages, 0 vod_uploads**. Nobody has ever been taken on.
 - **All 7 cron Edge Functions are written** under `supabase/functions/`: the original `cron-twenty-min-pre-call-reminder` plus 6 new ones added 2026-05-17 (`day7-dunning-ping`, `dunning-parent-reminders`, `pending-cancel-lifecycle`, `waitlist-offer-lifecycle`, `waitlist-freshness-check`, `sunday-lesson-delivery`). Shared helpers live in `supabase/functions/_shared/` (`discord.ts` with `dmTim` + `sendChannelMessage`; `resend.ts` with `sendEmail` + `brandedEmailHtml` template). Functions are functional stubs at the same fidelity as the existing example: real DB queries, real outbound calls, real idempotency markers, placeholder email/Discord copy (dash-free per Hard rule #8). All await `app_config` rows + env vars at deploy time before they do anything.
 - No auth, payments, or live functionality is wired up. Stripe layer is the next coding task; the Sunday lesson delivery cron has a flagged TODO for the cycle-completion billing trigger that pairs with it.
 - **⚠️ STALE: `npx tsc --noEmit` is CLEAN, 0 errors** (measured 2026-09-19, both before and after a types regen). The 4 errors were cleared at some point and the note was not. Any typecheck error is therefore new.
@@ -97,11 +97,12 @@ Sunday materials email are all being removed. Sequence is additive first, then
 behavioural, then deletion, then schema last; ~9,000 lines come out, about 18%
 of `src`.
 
-**ALL PHASES ARE DONE LOCALLY. Phase 3 was the last fully reversible point and
-it is behind us: Phase 4 deleted the surfaces and Phase 5 dropped the schema.**
-⚠️ **NONE OF IT IS IN PRODUCTION.** Prod sits at `20260525000100` and is SIX
-migrations behind (see "Applying this to production" below). Do not read any
-statement about the simplification as a statement about prod.
+**ALL PHASES ARE DONE AND SHIPPED TO PRODUCTION (2026-09-20).** Phase 3 was the
+last fully reversible point and it is behind us: Phase 4 deleted the surfaces,
+Phase 5 dropped the schema, and all six pending migrations were applied to prod
+and read back before the code was merged. **Local and prod are both at
+`20260920000100`, 56 of 56, with no drift.** The lesson library now needs a
+restore rather than a revert.
 
 ### What Phase 1 added
 
@@ -400,29 +401,45 @@ Same shape as the cleanup cron below, which has reported `succeeded` 118 times
 while deleting nothing.
 
 ⚠️ **`lesson-assets` was the only bucket either environment had**; both now list
-zero, and nothing in `src` reads storage at all. ⚠️ **One divergence to expect
-until prod catches up: the `lesson_assets_coach_all` POLICY still exists on
-prod**, because `20260920000100` has not been applied there. It is inert (it
-governs a bucket that no longer exists) and the migration removes it in the
-catch up.
+zero, and nothing in `src` reads storage at all. ✅ **The `lesson_assets_coach_all` policy is gone from prod too**, applied
+2026-09-20 with the rest; the divergence noted here earlier is closed.
 
-### Applying this to production
+### How this reached production (2026-09-20)
 
-**🔴 PROD IS AT `20260525000100` AND IS SIX MIGRATIONS BEHIND**, measured
-2026-09-20 with `supabase migration list --linked`: `20260525000200_drop_tiktok`,
-`20260525000300_refund_requests`, `20260919000000` (Phase 1), `20260919000100`
-(Phase 3), `20260920000000` (Phase 5) and `20260920000100` (the bucket policy)
-have never been applied. So prod still
-has `tiktok_comments`, no `refund_requests` table, the 17 branch
-`derived_tasks_view`, and the whole content schema.
+**Order was migrations first, then merge, and that is the order to repeat.**
+Prod had been at `20260525000100` since May, six behind. The reason it could not
+be the other way round: Phase 1 adds `training_routine`, `parent_summary` and
+`cycle_counted_at`, the Phase 1/2 code READS them, and **PostgREST rejects a
+select naming an unknown column outright**, so merging first would have 500'd
+`/portal/progress`, the admin calendar and `mark-outcome`.
 
-**They must be applied IN ORDER, never cherry picked.** Phase 5 refuses to run
-before Phase 3 and says so by name, which is the guard doing its job rather
-than an error to work around. Before it runs on prod, two things deserve a
-human first: **the 3 `lessons` rows** (the migration backs them up
-automatically, but somebody should decide whether Tim wants them out of the
-backup table) and **the 6 objects in `lesson-assets`**, which no migration
-touches at all.
+All six applied in one `db push` and were read back out of the catalog rather
+than trusted to the success message: tables dropped, four columns gone,
+`delivered_at` kept, the three new columns present, `derived_tasks_view` down to
+14 branches, both content crons unscheduled, the bucket policy gone.
+
+**🔴 THE WINDOW IS REAL AND RUNS THE OTHER WAY. Between the migration and the
+deploy, prod DB is AHEAD of prod code**, and the still-live old build wrote
+`is_vod_review` / `lesson_id` / `vod_url` on every slot insert. Take-on and a
+single session purchase would both have failed in that gap. **It lasted about
+four minutes** (push 07:34, new build live 07:38) and cost nothing because prod
+had 0 active subscriptions and 0 slots. On a busier system, shrink it
+deliberately rather than assuming it is small.
+
+**✅ Railway DOES auto-deploy from `main`**, which was an open question earlier in
+the session and is now settled by observation rather than inference: `/play/library`
+went 307 to **404** and `/play/training` went 404 to **307** at 07:38:31. Two
+routes, opposite directions, so it cannot be a caching artifact. Afterwards
+every public route answered 200 and every gated route 307, with no 5xx.
+
+**⚠️ THE 3 PRODUCTION LESSONS ARE DELETED, ON TIM'S INSTRUCTION.** The migration
+backed them up to `_backup_lessons_20260920` automatically; the table was then
+dropped by hand. They were exported to JSON first, and reading their titles is
+the best evidence they were drafts rather than a library: *"Mastering
+Mechanics"*, *"Untitled lesson"*, and one whose title is a whole sentence.
+**⚠️ `drop_tiktok` also CASCADE dropped 2 `tiktok_comments` rows**, unrelated to
+the simplification but unavoidable in the chain; exported first as well. Neither
+export is anywhere durable, so treat both as gone.
 
 ### Still to do
 
@@ -431,10 +448,10 @@ touches at all.
   and several readers, so it is a deliberate change, not a sweep.
 - ⚠️ **`cron-rough-draft-cleanup` reports `succeeded` while deleting nothing**,
   118 runs and counting. Phase 3 unschedules it when prod catches up, so this
-  resolves itself ; but the shape is worth remembering, because a pg_cron job
-  whose body is `cron_fire(...)` reports on the DISPATCH and can never report on
-  the work. It now fires daily at a bucket that no longer exists, which is still
-  harmless.
+  resolved itself when Phase 3 reached prod on 2026-09-20 and unscheduled it ;
+  but the shape is worth remembering, because a pg_cron job whose body is
+  `cron_fire(...)` reports on the DISPATCH and can never report on the work. It
+  reported `succeeded` 118 times while deleting nothing.
 - ⚠️ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19).
   Prices unchanged for now: 4 sessions for $56, $24 single. Marketing still
   promises *"Slides and voiceover delivered to keep"* and *"watches a short
