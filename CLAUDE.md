@@ -531,13 +531,70 @@ active subscriptions, 0 past due, 0 waitlist entries and 0 slots; **every one
 of these functions filters on state that is currently empty, which is why the
 first real run is the one to watch.**
 
+### A placeholder is truthy, so the Discord guards never guarded (2026-09-20)
+
+**`"..."` PASSES `if (!process.env.DISCORD_BOT_TOKEN) return;`.** Every Discord
+guard in the codebase asked *is it set* when the question is *is it usable*, so
+with the vars set to the example file's placeholder the guards fell through and
+the code called Discord with a bogus token, failing at the network instead of
+skipping. A guard that only tests presence cannot see this, and the value being
+present is exactly what made it invisible.
+
+**Fixed by checking SHAPE, in both runtimes.** `discordBotToken()`,
+`discordUserId()` and `discordReady()` in `src/lib/discord/bot.ts`, and
+`discordReady()` in `supabase/functions/_shared/discord.ts`. A bot token must
+match Discord's three part form and a user id must be a numeric snowflake, so a
+placeholder, a blank, a padded value and a malformed one all resolve to NOT
+CONFIGURED. Both senders also refuse internally, so a future caller that forgets
+to check gets a named `discord_not_configured` rather than a 401.
+
+**🔴 THE REAL BUG WAS IN THE CRON, NOT THE GUARD.** In
+`cron-day7-dunning-ping`, `dmTim` is awaited INSIDE the loop and ABOVE the
+`notified_at_day7_dunning` stamp. A throw therefore leaves every subscription
+unmarked, so the next run retries the same ones and throws again: **an endless
+retry that can never make progress**, triggered by a misconfiguration that will
+never fix itself. It now checks before touching any row and returns
+`discord_not_configured` with nothing mutated. **A transient Discord error still
+throws and still retries**, which is the distinction worth keeping: a permanent
+misconfiguration is a loop, a temporary failure is resilience.
+
+**⚠️ AND ONE THE OLD GUARD HID IN `admin/stuck`:**
+`DISCORD_DAD_USER_ID ?? DISCORD_TIM_USER_ID` falls through only on
+null/undefined, so a DAD id set to a placeholder would have WON over a real Tim
+id. It now takes the first id that is actually a snowflake. Its warning also
+said "not set", which was the wrong word; the vars are set, to `...`.
+
+**✅ Proven non vacuous rather than asserted**: nine cases through the real
+predicate (placeholder, blank, undefined, each half valid alone, non numeric id,
+short id, whitespace padded, both real) all correct, and **the old `!value`
+check would have wrongly passed six of the nine**. Typecheck and build clean,
+`verify:billing` 33, `verify:coaching` 64, `verify:nocontent` 46, all 0 failed.
+⚠️ **The new `discord_not_configured` branch is UNOBSERVED in production**,
+because with 0 past due subscriptions the function returns `no_subs` first ;
+deliberate ordering, and it means the branch is proven by unit logic rather than
+by a real run.
+
+**⚠️ A TYPE CONSEQUENCE WORTH KNOWING: `if (!process.env.X) return;` NARROWS
+`string | undefined` BY ACCIDENT.** Swapping it for a boolean predicate broke
+the call below it, because a predicate proves nothing to the compiler. The fix
+is for the validator to RETURN the value (`discordUserId`) rather than a
+boolean, so narrowing is earned rather than incidental.
+
 ### Still to do
 
-- ⚠️ **`DISCORD_BOT_TOKEN` and `DISCORD_TIM_USER_ID` ARE NOT SET as Supabase
-  secrets**, and `cron-day7-dunning-ping` imports `_shared/discord.ts` to DM
-  Tim. It throws at CALL time, not at import, so the function deploys and
-  no-ops safely today; **it will throw the first time a subscription actually
-  goes past due.** Set them before the first family is taken on.
+- 🔴 **DISCORD HAS NEVER BEEN CONFIGURED IN ANY ENVIRONMENT, AND THE VALUES DO
+  NOT EXIST ANYWHERE TO COPY.** Measured 2026-09-20: `DISCORD_BOT_TOKEN`,
+  `DISCORD_TIM_USER_ID` and `DISCORD_GUILD_ID` are the literal string `...` in
+  `.env.local` AND on Railway (service `XPL_Keyed`, project
+  `astonishing-ambition`), straight out of `.env.local.example`. They are the
+  only 3 of Railway's 32 variables that are placeholders, so this is specific
+  rather than a general state of neglect. **They must be created**: the bot
+  token from the Discord Developer Portal, Tim's user id from Discord with
+  Developer Mode on. `DISCORD_GUILD_ID` is needed by no Edge Function.
+  ⚠️ **Do not paste them into a chat transcript**; put them in `.env.local`,
+  which is how they reach both Supabase and Railway without being printed.
+  Nothing is broken today because every Discord path no-ops at 0 past due
+  subscriptions, but it must be real before the first family is taken on.
 - ⚠️ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19).
   Prices unchanged for now: 4 sessions for $56, $24 single. Marketing still
   promises *"Slides and voiceover delivered to keep"* and *"watches a short

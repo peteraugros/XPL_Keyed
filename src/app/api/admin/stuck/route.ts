@@ -21,7 +21,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { sendDirectMessage } from "@/lib/discord/bot";
+import { discordReady, discordUserId, sendDirectMessage } from "@/lib/discord/bot";
 import type { TablesInsert } from "@/types/db";
 
 export const runtime = "nodejs";
@@ -142,8 +142,13 @@ export async function POST(req: Request) {
   // TODO: rename DISCORD_TIM_USER_ID to DISCORD_OPERATOR_USER_ID (or add
   // a separate DISCORD_DAD_USER_ID) once Peter's Discord identity is wired.
   // For now, the only operator id we have goes here.
-  const dadDiscordId = process.env.DISCORD_DAD_USER_ID ?? process.env.DISCORD_TIM_USER_ID;
-  if (dadDiscordId) {
+  // ?? only falls through on null/undefined, so a DISCORD_DAD_USER_ID set to
+  // a placeholder would have won over a real DISCORD_TIM_USER_ID. Take the
+  // first id that is actually a snowflake instead.
+  const dadDiscordId =
+    discordUserId(process.env.DISCORD_DAD_USER_ID) ??
+    discordUserId(process.env.DISCORD_TIM_USER_ID);
+  if (dadDiscordId && discordReady(dadDiscordId)) {
     try {
       await sendDirectMessage(
         dadDiscordId,
@@ -154,7 +159,10 @@ export async function POST(req: Request) {
       // Non-fatal — the stuck row is written; the DM is observability.
     }
   } else {
-    console.warn("[admin/stuck] no DISCORD_DAD_USER_ID / DISCORD_TIM_USER_ID set; skipping DM");
+    // "set" was the wrong word: the vars ARE set, to "...". Say usable.
+    console.warn(
+      "[admin/stuck] Discord is not usable (bot token or operator id absent or a placeholder); skipping DM",
+    );
   }
 
   return NextResponse.json({ ok: true, stuck_id: stuckData.id });

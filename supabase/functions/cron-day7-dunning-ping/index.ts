@@ -7,7 +7,7 @@
 // Idempotency: subscriptions.notified_at_day7_dunning.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { dmTim } from "../_shared/discord.ts";
+import { discordReady, dmTim } from "../_shared/discord.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -29,6 +29,18 @@ Deno.serve(async (_req) => {
 
   if (error) return new Response(error.message, { status: 500 });
   if (!subs?.length) return new Response("no_subs", { status: 200 });
+
+  // Skip BEFORE touching any row. dmTim is awaited above the
+  // notified_at_day7_dunning stamp, so a throw leaves every subscription
+  // unmarked and the next run retries the same ones forever. A
+  // misconfiguration is permanent, so retrying it is a loop rather than
+  // resilience; a transient Discord error still throws and still retries.
+  if (!discordReady(DISCORD_BOT_TOKEN, DISCORD_TIM_USER_ID)) {
+    console.warn(
+      "[day7-dunning-ping] Discord is not usable (bot token or user id absent or a placeholder); skipping, no rows touched",
+    );
+    return new Response("discord_not_configured", { status: 200 });
+  }
 
   for (const sub of subs) {
     // deno-lint-ignore no-explicit-any

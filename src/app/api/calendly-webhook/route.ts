@@ -23,7 +23,7 @@ import { stripe } from "@/lib/stripe/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { brandedEmailHtml } from "@/lib/email/template";
 import { sendBrandedEmail } from "@/lib/email/send";
-import { sendDirectMessage } from "@/lib/discord/bot";
+import { discordReady, discordUserId, sendDirectMessage } from "@/lib/discord/bot";
 import { sendPushToCoach, getActiveCoachId } from "@/lib/push/sendTo";
 
 export const runtime = "nodejs";
@@ -911,7 +911,13 @@ async function notifyParent(args: {
 }
 
 async function notifyTimCancelThird(subscription: SubscriptionRow, supabase: Supa) {
-  if (!process.env.DISCORD_BOT_TOKEN || !process.env.DISCORD_TIM_USER_ID) return;
+  // Was `if (!TOKEN || !USER_ID) return;`, which "..." passes because a
+  // placeholder is truthy. discordUserId checks the SHAPE and, by returning
+  // the value rather than a boolean, narrows it for the send below; the old
+  // `!` guard narrowed by accident, which is why swapping in a plain
+  // predicate broke the type.
+  const timUserId = discordUserId(process.env.DISCORD_TIM_USER_ID);
+  if (!timUserId || !discordReady(timUserId)) return;
 
   const { data: player } = await supabase
     .from("players")
@@ -928,7 +934,7 @@ async function notifyTimCancelThird(subscription: SubscriptionRow, supabase: Sup
 
   try {
     await sendDirectMessage(
-      process.env.DISCORD_TIM_USER_ID,
+      timUserId,
       `${name}'s family just hit cancel 3 of 3. Subscription is in pending_cancel for 7 days. Want to reach out before it auto confirms?`,
     );
   } catch (err) {
