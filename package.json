@@ -21,7 +21,8 @@
     "verify:coaching": "node scripts/verify-coaching-session.mjs",
     "verify:nocontent": "node scripts/verify-no-content-creation.mjs",
     "rehearse": "node scripts/rehearse-lifecycle.mjs",
-    "prove:charge": "node scripts/prove-renewal-charge.mjs"
+    "prove:charge": "node scripts/prove-renewal-charge.mjs",
+    "prove:webhooks": "node scripts/prove-renewal-webhooks.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

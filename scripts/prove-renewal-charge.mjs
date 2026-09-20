@@ -139,10 +139,19 @@ async function main() {
   console.log(`$56 auto renew charge proof  [${TAG}]`);
   console.log(`  Stripe: TEST   functions: ${FUNCTIONS_URL}`);
 
+  // Anything but a 200 here means the prerequisite is missing, and it must exit
+  // rather than proceed. The narrow version of this check (0 / ECONNREFUSED /
+  // 404) walked straight past a 503 "name resolution failed", which is what the
+  // local gateway answers when IT is up but the function is not being served.
+  // The run then seeded, charged nothing, and printed fourteen failures that
+  // read exactly like a regression in working code.
   const up = await fire();
-  if (up.status === 0 || up.text.includes("ECONNREFUSED") || up.status === 404) {
-    console.error(`\nEdge Function not reachable at ${FUNCTIONS_URL}.`);
-    console.error("Start it first:  npx supabase functions serve --env-file <env> --no-verify-jwt");
+  if (up.status !== 200) {
+    console.error(`\nPREREQUISITE MISSING, not a test failure.`);
+    console.error(`  ${FUNCTIONS_URL}/cron-auto-renew-detection answered ${up.status || "no response"}`);
+    if (up.text) console.error(`  ${up.text.slice(0, 160)}`);
+    console.error(`\nStart the Edge Function runtime first:`);
+    console.error(`  npx supabase functions serve --env-file <env with TEST Stripe keys> --no-verify-jwt`);
     process.exit(2);
   }
 

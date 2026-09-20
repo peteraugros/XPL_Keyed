@@ -9,11 +9,23 @@
 //   - customer.subscription.updated → sync status, preserving our pending_cancel state
 //   - customer.subscription.deleted → mark canceled
 //
-// Idempotency is intentionally minimal for MVP — Stripe only retries on
-// non-2xx responses, and re-applying any of these state transitions on the
-// same row is safe (set status='active' twice, reset counters to 0 twice, etc).
-// The one minor edge: cycle_started_at can shift forward by seconds if Stripe
-// retries an invoice.paid. Track-by-event-id can be layered in later.
+// Idempotency. For the four events above it really is minimal, and safely so:
+// every one of them re-applies a state transition to the SAME row (set
+// status='active' twice, reset counters to 0 twice), so a redelivery lands on
+// the same answer. The only edge is cycle_started_at shifting by seconds.
+//
+// payment_intent.succeeded is NOT of that kind and must not be lumped in with
+// them. It INSERTS: a new curriculum and four new sessions. Re-applying it does
+// not converge, it multiplies, and one $56 payment buys two cycles of Tim's
+// actual coaching hours. Stripe redelivers whenever it does not see a 2xx,
+// which includes the case where the handler worked and the response was lost.
+//
+// So that handler claims subscriptions.renewal_pi_id before it provisions.
+// That column already IS the renewal idempotency token: cron-auto-renew-detection
+// sets it the moment it fires the PI and filters on it being NULL so a second
+// cron run cannot double-charge. The charge side honoured it and this side only
+// cleared it. Claiming it is a conditional UPDATE, so it is atomic against a
+// concurrent redelivery, and a failed provision puts it back.
 
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
@@ -447,22 +459,39 @@ async function handlePaymentIntentSucceeded(
     return;
   }
 
-  // Provision the next cycle. Dynamic-import the helper to avoid pulling
-  // node:crypto into the top-level module graph until needed.
+  // Claim this PaymentIntent. One conditional UPDATE: it only matches while the
+  // marker is still THIS pi, so a Stripe redelivery of the same event matches
+  // nothing and returns without provisioning a second cycle.
+  const claim = await supabase
+    .from("subscriptions")
+    .update({ renewal_pi_id: null } as never)
+    .eq("id", subscriptionId)
+    .eq("renewal_pi_id", pi.id)
+    .select("id");
+  if (claim.error) {
+    console.error("[stripe-webhook] renewal claim failed", subscriptionId, claim.error);
+    throw new Error(claim.error.message);
+  }
+  if (!claim.data || claim.data.length === 0) {
+    // Already handled, by an earlier delivery of this same event.
+    console.log("[stripe-webhook] renewal already provisioned, ignoring redelivery", pi.id);
+    return;
+  }
+
+  // Dynamic import keeps node:crypto out of the top-level module graph.
   const { provisionNextCycle } = await import("@/lib/lessons/auto-renew");
   try {
     await provisionNextCycle({ supabase, subscriptionId });
   } catch (err) {
-    console.error("[stripe-webhook][renewal] provision failed", subscriptionId, err);
+    // Put the marker back, or the retry would skip and the family would have
+    // paid for a cycle that never got laid down.
+    await supabase
+      .from("subscriptions")
+      .update({ renewal_pi_id: pi.id } as never)
+      .eq("id", subscriptionId);
+    console.error("[stripe-webhook] provisionNextCycle failed", subscriptionId, err);
     throw err;
   }
-
-  // Clear the renewal-in-flight marker so the NEXT cycle's renewal can
-  // fire when this newly-provisioned cycle eventually completes.
-  await supabase
-    .from("subscriptions")
-    .update({ renewal_pi_id: null } as never)
-    .eq("id", subscriptionId);
 }
 
 async function handlePaymentIntentFailed(

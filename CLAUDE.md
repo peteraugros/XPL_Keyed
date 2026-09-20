@@ -665,10 +665,95 @@ $56 taken from a real parent. The card is `pm_card_visa`, attached and made
 default, which is what `setup_future_usage='off_session'` does at real checkout
 ; the one step a script cannot drive, because it needs Stripe's hosted page.
 
-**⚠️ STILL NOT COVERED**: the `invoice.paid` and `payment_intent.succeeded`
-webhooks that should react to this charge are not exercised here, so what
-happens AFTER the money arrives is still untested. Calendly, Discord, dunning,
-cancellation and the no show path remain untouched by both harnesses.
+**⚠️ WHAT IT DOES NOT COVER, and it is now covered separately**: the webhooks
+that react to this charge are not exercised here, so what happens AFTER the
+money arrives was untested. **✅ `npm run prove:webhooks`, below, closes that.**
+Calendly, Discord, dunning, cancellation and the no show path remain untouched
+by all three harnesses.
+
+### What happens after the money arrives (`npm run prove:webhooks`)
+
+**36 assertions, 0 failed, and it found a real bug that would have cost Tim
+actual coaching hours.** Events are built from REAL Stripe test PaymentIntents
+(a succeeded one and a genuinely DECLINED one) and **signed the way Stripe signs
+them**, so the route's own signature verification runs rather than being
+bypassed.
+
+**🔴🔴 THE BUG: A STRIPE REDELIVERY PROVISIONED A SECOND CYCLE. One $56 payment
+bought two cycles, which is eight sessions of Tim's time for one month's
+money.** Measured before the fix: deliver the same `payment_intent.succeeded`
+twice and the player ends with **three** curricula instead of two.
+
+**🔴 AND THE ROUTE'S OWN COMMENT SAID IT WAS SAFE, WHICH IS WHY NOBODY LOOKED.**
+It read *"re-applying any of these state transitions on the same row is safe
+(set status='active' twice, reset counters to 0 twice)"*. That was TRUE of the
+four events it was written for, every one of which re-applies a transition to
+the SAME row and therefore converges. **`payment_intent.succeeded` is not of
+that kind: it INSERTS a curriculum and four sessions, so re-applying it does not
+converge, it multiplies.** The comment was accurate when written, the handler
+grew past it, and the stale reassurance is the thing that made it invisible.
+**A comment claiming idempotency must name WHICH handlers it is claiming it
+for.**
+
+**🔵 THE FIX NEEDED NO NEW TABLE, BECAUSE THE IDEMPOTENCY TOKEN ALREADY
+EXISTED AND ONE SIDE SIMPLY WAS NOT CHECKING IT.**
+`cron-auto-renew-detection`'s own header states the design: *"renewal_pi_id is
+set the moment we fire the PI ... the webhook clears the field once the PI
+settles either way."* The charge side **honoured** it (its eligibility query
+filters on `renewal_pi_id IS NULL`, which is what stops a double charge); the
+webhook only **cleared** it. So the handler now CLAIMS it first, as one
+conditional `UPDATE ... WHERE renewal_pi_id = <this pi>` returning the row,
+which is atomic against a concurrent redelivery. A second delivery matches
+nothing and returns.
+
+**🔴 AND THE HALF THAT IS EASY TO GET WRONG: A FAILED PROVISION PUTS THE MARKER
+BACK.** Claim-then-provision without a restore trades a double cycle for a
+silently LOST one ; the family pays and no cycle is laid down, and Stripe's
+retry skips because the marker is gone. Asserted by inducing a genuine failure
+(deleting the active curriculum so `provisionNextCycle` throws
+`active_curriculum_not_found` for real rather than being mocked).
+
+**✅ BOTH HALVES PROVEN NON-VACUOUS BY MUTATION, each failing EXACTLY ONE
+assertion**: ignoring the claim's verdict brings back the third cycle, and
+removing the restore leaves the marker null.
+
+**Nine behaviours proven.** A uniform cycle renews straight to **ACTIVE with all
+four sessions soft booked on the weekday the family already had**; a
+**scattered** one goes to `SCHEDULING_IN_PROGRESS` instead of guessing (the
+discriminating pair ; without it the pattern detection could return one answer
+always and every other assertion would still pass); a **forged signature is
+refused and changes nothing**, which matters because the endpoint is public and
+provisioning is worth money; a **non renewal PaymentIntent is ignored**, since
+first cycle money settles through `checkout.session.completed`; and a
+**declined card** lands the family in `PAST_DUE` with the dunning clock started
+and the marker cleared so the cron retries.
+
+**🔵 STAGE H IS THE SEAM NEITHER OTHER PROOF COVERS.** `prove:charge` shows the
+Edge Function WRITES the metadata; stages A to F show the webhook READS it.
+**Both pass in full while a typo in `kind` or `subscription_id` breaks the loop,
+because each side supplies its own.** So stage H fires a real charge through the
+real Edge Function and hands that PaymentIntent, with its own untouched
+metadata, to the real webhook. It SKIPS with an instruction when the function
+runtime is not serving.
+
+**⚠️ AND A HARNESS FIX THAT IS THE SAME LESSON ONE LEVEL OUT:
+`prove:charge`'s preflight only caught `0` / `ECONNREFUSED` / `404`, so a
+**`503 "name resolution failed"` ; what the local gateway answers when IT is up
+but the function is not served ; walked straight past it.** The run then seeded,
+charged nothing, and printed **fourteen failures that read exactly like a
+regression in working code**. It now refuses on any non-200 and says
+`PREREQUISITE MISSING, not a test failure`.
+
+**⚠️ SIX FIXTURE FIELDS WERE GUESSED WRONG ACROSS THIS SESSION AND EVERY ONE
+WAS ONE QUERY AWAY**: `curricula.created_by` is NOT NULL and references
+`coaches(id)`; `curriculum_slots` has **no `status` column** (delivery is
+`delivered_at`, which is exactly what Phase 5 kept); `stripe_customer_id` is on
+**families**, not subscriptions; and the cron reports `pi_id`, not
+`payment_intent_id`. **⚠️ Plus one worse: I ran a diagnostic psql against port
+54322, which is CURRICULUM_OS's database, not XPL's (54422).** The shipped
+suites use 54422 correctly and were unaffected, but a schema assertion pointed
+at the wrong database would have passed trivially ; *"the lessons table does not
+exist"* is true of any database that never had one.
 
 ### Still to do
 
