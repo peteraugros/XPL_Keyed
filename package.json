@@ -22,7 +22,8 @@
     "verify:nocontent": "node scripts/verify-no-content-creation.mjs",
     "rehearse": "node scripts/rehearse-lifecycle.mjs",
     "prove:charge": "node scripts/prove-renewal-charge.mjs",
-    "prove:webhooks": "node scripts/prove-renewal-webhooks.mjs"
+    "prove:webhooks": "node scripts/prove-renewal-webhooks.mjs",
+    "dev:login": "node scripts/dev-login.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

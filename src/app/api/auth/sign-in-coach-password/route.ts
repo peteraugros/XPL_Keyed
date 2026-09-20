@@ -1,7 +1,13 @@
 // POST /api/auth/sign-in-coach-password
 //
-// Hidden password-auth path for coaches (currently just Tim). Surfaces
-// behind the triple-tap-the-brand mechanic on /login.
+// Hidden password-auth path for coaches (currently just Tim). Surfaces on
+// /login by clicking the wordmark, or directly via /login?coach=1.
+//
+// This comment used to say "triple-tap-the-brand". LoginForm has no tap
+// counter: onClick reveals the panel on the FIRST click. So the obscurity is
+// one click, not three, for any visitor who clicks the logo. Whether that is
+// enough is a product call, but the comment should not claim more than the
+// code does.
 //
 // Maps username → coach.email → signInWithPassword. Cookie session is
 // set by the @supabase/ssr server client automatically. Returns { ok }
