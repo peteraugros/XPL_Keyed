@@ -2,23 +2,23 @@ project_id = "xpl-keyed"
 
 [api]
 enabled = true
-port = 54321
+port = 54421
 schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54322
-shadow_port = 54320
+port = 54422
+shadow_port = 54420
 major_version = 15
 
 [studio]
 enabled = true
-port = 54323
+port = 54423
 
 [inbucket]
 enabled = true
-port = 54324
+port = 54424
 
 [auth]
 enabled = true
@@ -34,3 +34,12 @@ enable_confirmations = false
 
 [edge_runtime]
 enabled = true
+
+# Port block moved to 544xx on 2026-09-19 so XPL Keyed can run alongside
+# the Curriculum OS stack. Both projects defaulted to 5432x, which meant
+# `npm run gen:types` here would silently generate from whichever project
+# happened to be up. Analytics is declared explicitly because its default
+# (54327) collides even when every other port is moved.
+[analytics]
+enabled = true
+port = 54427

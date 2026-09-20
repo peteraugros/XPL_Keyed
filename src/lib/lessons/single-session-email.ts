@@ -70,8 +70,8 @@ export async function sendSingleSessionPaidEmail(subscriptionId: string) {
 
   // Resolve the single curriculum + its slot. The slot's live_call_at
   // was populated by the Calendly webhook BEFORE Stripe ran (new
-  // pre-pay-schedule order). lesson_id is NULL — Tim assigns it after
-  // payment via the existing admin lesson-swap UI.
+  // pre-pay-schedule order). Nothing else is attached to it: there is no
+  // lesson to assign, and no lesson-swap surface to assign one from.
   const curriculumResp = await supabase
     .from("curricula")
     .select("id")
@@ -102,7 +102,7 @@ export async function sendSingleSessionPaidEmail(subscriptionId: string) {
 <p>Payment received. ${escapeHtml(player.first_name)}'s single coaching session is locked in${callDateTime ? ` for <strong>${escapeHtml(callDateTime)}</strong>` : ""}.</p>
 <p>The call happens on Discord. Tim will send ${escapeHtml(player.first_name)} the XPL Keyed server invite before we start.</p>
 <p>Tap below to open your dashboard. The session details, your intake note, and the message thread with Tim live there.</p>
-<p style="font-size:13px;color:rgba(255,255,255,0.6);">After the call, the lesson slides and voiceover land in the player view so ${escapeHtml(player.first_name)} can review.</p>`;
+<p style="font-size:13px;color:rgba(255,255,255,0.6);">After the call, Tim writes up the advice and a training routine in the player view for ${escapeHtml(player.first_name)}, plus a plain summary for you.</p>`;
 
   const result = await sendParentMagicLink(supabase, parent.email, {
     next: "/portal",

@@ -192,7 +192,7 @@ async function applyParentCancel(args: ApplyParentCancelArgs) {
   // (>=24hr) and forfeit (<24hr) cancels count as 1 skip. Forfeit also
   // advances cycle_lessons_delivered (kid keeps materials). Allowance
   // is 2 skips per cycle; the 3rd skip flips auto_renew_enabled=FALSE.
-  // Current cycle still continues through lesson 4, then ends. No
+  // Current cycle still continues through session 4, then ends. No
   // more pending_cancel triggered from here — that path is retired in
   // favor of the auto-renew model.
   const newSkipsUsed = subscription.cycle_skips_used + 1;
@@ -284,7 +284,7 @@ async function notifyParentAutoRenewOff(
   const html = brandedEmailHtml({
     headline: "Auto renew is off for the next cycle",
     bodyHtml: `<p>Hi ${p.first_name},</p>
-<p>${kidFirstName} hit their 3rd skip this cycle, so auto renew is off for the next cycle. The current cycle still finishes through lesson 4 as planned. No surprise charges.</p>
+<p>${kidFirstName} hit their 3rd skip this cycle, so auto renew is off for the next cycle. The current cycle still finishes through session 4 as planned. No surprise charges.</p>
 <p>If you want to keep going after this cycle, sign back into your dashboard and book a new cycle. Your progress and history are saved.</p>
 <p>Anything to share? Have ${kidFirstName} message me in the chat. You see everything in your dashboard.</p>
 <p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,
@@ -783,8 +783,10 @@ async function applyCoachCancel(slot: SlotRow, supabase: Supa) {
   if (error) throw error;
 
   // Per CLAUDE.md: coach cancels pause the family's cycle 1 week, no cap
-  // impact, no cycle_lessons_delivered increment. Mark the slot delivered_at
-  // so the Sunday cron skips it; the next Sunday picks up the next slot.
+  // impact, no cycle_lessons_delivered increment. delivered_at is the settled
+  // flag: it marks the session as consumed so the scheduling and cancel paths
+  // skip it. (It used to also mean "the Sunday cron already sent the
+  // materials"; there is no cron and there are no materials.)
   await supabase.from("curriculum_slots").update({ delivered_at: nowIso }).eq("id", slot.id);
 }
 
@@ -890,10 +892,10 @@ async function notifyParent(args: {
     subject = `Confirming the end of ${player.first_name}'s coaching`;
     body = pendingCancelEmail(player.first_name, parent.first_name);
   } else if (classification === "credit") {
-    subject = `${player.first_name}'s lesson is rescheduled`;
+    subject = `${player.first_name}'s session is rescheduled`;
     body = creditEmail(player.first_name, parent.first_name);
   } else {
-    subject = `${player.first_name}'s lesson materials are ready`;
+    subject = `About ${player.first_name}'s cancelled session`;
     body = forfeitEmail(player.first_name, parent.first_name);
   }
 
@@ -941,13 +943,13 @@ async function notifyTimCancelThird(subscription: SubscriptionRow, supabase: Sup
 
 function creditEmail(kid: string, parent: string): string {
   return `<p>Hi ${parent},</p>
-<p>${kid}'s lesson this week is on hold. The cycle pauses one week and picks up where we left off next Sunday. No charge, no impact on next week.</p>
+<p>${kid}'s session this week is on hold. The cycle pauses one week and picks up where we left off. No charge, no impact on next week.</p>
 <p>Tim</p>`;
 }
 
 function forfeitEmail(kid: string, parent: string): string {
   return `<p>Hi ${parent},</p>
-<p>${kid} will still get this week's lesson materials. The live call portion is forfeit since the cancel came under the 24 hour window, but ${kid} keeps the slides and voiceover and the cycle continues as usual.</p>
+<p>The call is the session, so this one is forfeit: the cancel came under the 24 hour window. The cycle continues as usual, and ${kid} keeps every write up from the sessions already done.</p>
 <p>Tim</p>`;
 }
 
@@ -955,8 +957,8 @@ function pendingCancelEmail(kid: string, parent: string): string {
   const confirmUrl = `${APP_URL}/billing/end?confirm=1`;
   const undoUrl = `${APP_URL}/billing/end?undo=1`;
   return `<p>Hi ${parent},</p>
-<p>${kid}'s third cancellation this cycle has come through. Kids who skip more than two lessons in a cycle don't see meaningful progress, so the subscription is paused while you decide.</p>
-<p>No new charges and no new lessons for the next 7 days. After that, the subscription ends automatically unless you tell us to keep it.</p>
+<p>${kid}'s third cancellation this cycle has come through. Kids who skip more than two sessions in a cycle don't see meaningful progress, so the subscription is paused while you decide.</p>
+<p>No new charges and no new sessions for the next 7 days. After that, the subscription ends automatically unless you tell us to keep it.</p>
 <p><a href="${confirmUrl}">Confirm end subscription</a> &nbsp;&nbsp; <a href="${undoUrl}">Undo cancel and keep going</a></p>
 <p>Tim</p>`;
 }

@@ -39,5 +39,8 @@ supabase/.temp
 # Generated PWA
 public/sw.js
 public/sw.js.map
+# Serwist emits a hashed worker chunk beside sw.js on `npm run build`.
+# Build output, same as public/sw.js; it was landing untracked.
+public/swe-worker-*.js
 public/workbox-*.js
 public/workbox-*.js.map

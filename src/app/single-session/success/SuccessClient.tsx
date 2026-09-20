@@ -138,8 +138,8 @@ export default function SuccessClient({
                 call.
               </li>
               <li>
-                Slides and voiceover drop into the player view after the
-                call so they can review.
+                After the call Tim writes up the advice and a training
+                routine in the player view, plus a plain summary for you.
               </li>
             </ol>
           </div>

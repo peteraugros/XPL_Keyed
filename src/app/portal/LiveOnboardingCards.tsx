@@ -8,7 +8,7 @@
 // onboarding rather than ongoing operations:
 //
 //   1. Next session       — week + date/time/duration of next slot
-//   2. Progress overview  — "X of 4 lessons booked" + lifecycle nudge
+//   2. Progress overview  — "X of 4 sessions booked" + lifecycle nudge
 //   3. Quick actions      — contextual CTA stack (schedule / pay,
 //                            message tutor, view plan)
 //
@@ -155,16 +155,16 @@ export default function LiveOnboardingCards(props: Props) {
   let progressTitle: string;
   let progressBody: string;
   if (lifecycleState === "PENDING_PAYMENT") {
-    progressTitle = "All 4 lessons booked";
+    progressTitle = "All 4 sessions booked";
     progressBody = `${playerFirstName}'s slots are reserved. Complete payment to lock them in. Card details are entered on the Sessions page.`;
   } else if (slotsBookedCount === 0) {
-    progressTitle = `0 of ${totalSlots} lessons booked`;
-    progressBody = `Pick times that work for your family. ${playerFirstName}'s lessons run in the order you book them, one per week.`;
+    progressTitle = `0 of ${totalSlots} sessions booked`;
+    progressBody = `Pick times that work for your family. ${playerFirstName}'s sessions run in the order you book them, one per week.`;
   } else if (slotsBookedCount < totalSlots) {
-    progressTitle = `${slotsBookedCount} of ${totalSlots} lessons booked`;
+    progressTitle = `${slotsBookedCount} of ${totalSlots} sessions booked`;
     progressBody = `${totalSlots - slotsBookedCount} more to go. Finish booking to move to payment.`;
   } else {
-    progressTitle = `All ${totalSlots} lessons booked`;
+    progressTitle = `All ${totalSlots} sessions booked`;
     progressBody = `Final step: confirm payment from the Sessions page.`;
   }
 

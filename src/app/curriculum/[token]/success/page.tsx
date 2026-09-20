@@ -5,12 +5,11 @@
 // curricula.status='active', cycle anchor). This page just renders the
 // welcome moment.
 //
-// Server Component fetches the kid's first name via the token so the
-// modal copy can be personalized ("Jake receives his first PDF lesson
-// today" rather than generic "your child").
+// Server Component fetches the kid's first name and their first call time
+// via the token so the modal copy can be personalized ("Jake's first call is
+// Tuesday" rather than generic "your child").
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { shouldDeliverWeek1Immediately } from "@/lib/lessons/timing";
 import SuccessClient from "./SuccessClient";
 
 export const runtime = "nodejs";
@@ -32,7 +31,7 @@ export default async function CurriculumSuccessPage({
   // — the success page should still render cleanly even if a token
   // doesn't resolve.
   let kidFirstName: string | null = null;
-  let immediateDelivery = false;
+  let firstCallAt: string | null = null;
   try {
     const curriculumLookup = await supabase
       .from("curricula")
@@ -55,13 +54,12 @@ export default async function CurriculumSuccessPage({
         .eq("curriculum_id", curriculum.id)
         .eq("week_number", 1)
         .maybeSingle();
+      // Was: decide whether Week 1's materials needed shipping today or
+      // could wait for the Sunday cron. There are no materials. What the
+      // parent actually wants to know is when the first CALL is, which the
+      // same lookup already has.
       const week1 = week1Lookup.data as Week1Lookup | null;
-      if (week1?.live_call_at) {
-        immediateDelivery = shouldDeliverWeek1Immediately(
-          new Date(),
-          new Date(week1.live_call_at),
-        );
-      }
+      firstCallAt = week1?.live_call_at ?? null;
     }
   } catch (err) {
     console.error("[curriculum/success] lookup failed", err);
@@ -70,7 +68,7 @@ export default async function CurriculumSuccessPage({
   return (
     <SuccessClient
       kidFirstName={kidFirstName}
-      immediateDelivery={immediateDelivery}
+      firstCallAt={firstCallAt}
     />
   );
 }

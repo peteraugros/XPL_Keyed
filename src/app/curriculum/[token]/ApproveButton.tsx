@@ -45,7 +45,7 @@ export default function ApproveButton({ token }: { token: string }) {
         disabled={submitting}
         className={styles.primaryBtn}
       >
-        {submitting ? "Opening scheduling..." : "Reserve lesson times"}
+        {submitting ? "Opening scheduling..." : "Reserve session times"}
       </button>
       {error ? <div className={styles.errorNote}>{error}</div> : null}
     </div>

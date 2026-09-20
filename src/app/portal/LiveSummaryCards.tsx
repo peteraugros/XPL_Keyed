@@ -140,7 +140,7 @@ export default function LiveSummaryCards(props: Props) {
         <div className={styles.summaryEyebrow}>Next session</div>
         <div className={styles.summaryTitle}>
           {phase === "active"
-            ? "Sunday lesson drop"
+            ? "Your next call"
             : phase === "past_due"
               ? "Paused"
               : phase === "pending_cancel"
@@ -151,11 +151,11 @@ export default function LiveSummaryCards(props: Props) {
         </div>
         <div className={styles.summaryBody}>
           {phase === "active"
-            ? "Tim ships the slides and voiceover every Sunday. Your kid sees them in the player view."
+            ? "One call a week on Discord. Open Sessions for the exact times."
             : phase === "past_due"
-              ? "No Sunday drops or live calls run during the payment hold. Update your card to resume."
+              ? "No calls run during the payment hold. Update your card to resume."
               : phase === "pending_cancel"
-                ? "Nothing new ships during the 7 day undo window. Undo at any time to resume."
+                ? "No new calls are booked during the 7 day undo window. Undo at any time to resume."
                 : phase === "ended"
                   ? "No sessions on the books. Your past history is still here when you come back."
                   : callDateTime
@@ -184,7 +184,7 @@ export default function LiveSummaryCards(props: Props) {
         </div>
         <div className={styles.summaryTitle}>
           {showCycleSnapshot
-            ? `Lesson ${cycleProgress} of 4`
+            ? `Session ${cycleProgress} of 4`
             : showQuestSnapshot
               ? `${completedQuests} of 4 quests done`
               : "Saved for later"}
@@ -195,7 +195,7 @@ export default function LiveSummaryCards(props: Props) {
               ? `${cancelsUsed} cancellation${cancelsUsed === 1 ? "" : "s"} used this cycle. ${2 - cancelsUsed} remaining.`
               : "Both of your 2 cancellations this cycle are still available."
             : phase === "past_due"
-              ? "Cycle is frozen at this lesson. It will resume from here once payment is updated."
+              ? "Cycle is frozen at this session. It will resume from here once payment is updated."
               : phase === "pending_cancel"
                 ? "Cycle paused while the undo window is open. Nothing advances until you decide."
                 : phase === "ended"

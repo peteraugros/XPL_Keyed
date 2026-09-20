@@ -2,7 +2,7 @@
 
 // Kid-side sidebar shell. Same mechanic as the parent's PortalShell but
 // kid-tone: bigger labels, rarity accents on nav items, friendlier
-// section names (HQ / Squad / Library / Loadout). Hamburger drawer
+// section names (HQ / My training / Chat / Loadout). Hamburger drawer
 // below 768px. Sign out in the sidebar footer.
 
 import { useState } from "react";
@@ -15,7 +15,7 @@ type NavItem = { href: string; label: string };
 
 const NAV: NavItem[] = [
   { href: "/play", label: "HQ" },
-  { href: "/play/library", label: "Lesson library" },
+  { href: "/play/training", label: "My training" },
   { href: "/play/squad", label: "Chat" },
   { href: "/play/loadout", label: "Loadout" },
 ];

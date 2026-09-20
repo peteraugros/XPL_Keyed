@@ -447,14 +447,6 @@
   font-size: 12px;
   color: var(--text-faint);
 }
-.slotLink {
-  font-size: 12.5px;
-  color: var(--lime);
-  text-decoration: none;
-}
-.slotLink:hover {
-  text-decoration: underline;
-}
 .slotNote {
   font-size: 12px;
   color: var(--text-dim);
@@ -496,43 +488,6 @@
 }
 .slotPillMuted {
   opacity: 0.7;
-}
-.slotControls {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.slotBtn {
-  background: transparent;
-  border: 1px solid rgba(199, 255, 61, 0.4);
-  color: var(--lime);
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-family: var(--font-display);
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.slotBtn:hover {
-  background: rgba(199, 255, 61, 0.06);
-}
-.slotBtnGhost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-family: var(--font-display);
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.slotBtnGhost:hover {
-  border-color: var(--lime);
-  color: var(--lime);
 }
 
 /* --- Past cycles --- */
@@ -632,33 +587,6 @@
   margin: 0;
   line-height: 1.5;
 }
-.modalLabel {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--text-faint);
-  font-family: var(--font-display);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.modalInput,
-.modalTextarea {
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: var(--text);
-  font-size: 14px;
-  font-family: inherit;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.modalInput:focus,
-.modalTextarea:focus {
-  outline: none;
-  border-color: var(--lime);
-}
 .modalError {
   font-size: 13px;
   color: var(--epic);
@@ -668,23 +596,6 @@
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 6px;
-}
-.modalPrimary {
-  background: var(--lime);
-  color: var(--bg);
-  border: none;
-  border-radius: 8px;
-  padding: 12px 18px;
-  font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  min-height: 44px;
-}
-.modalPrimary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 .modalSecondary {
   background: transparent;

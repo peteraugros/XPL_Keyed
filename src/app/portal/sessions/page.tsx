@@ -52,20 +52,11 @@ type CurriculumLookup = {
 type SlotLookup = {
   id: string;
   week_number: number;
-  is_vod_review: boolean;
-  lesson_id: string | null;
   live_call_at: string | null;
   live_call_event_id: string | null;
   live_call_completed_at: string | null;
   no_show_at: string | null;
 };
-type LessonLookup = {
-  id: string;
-  fortnite_label: string;
-  parent_label: string;
-  parent_skill_description: string;
-};
-
 // "Repeat at this time" computes the expected datetime for week N as
 // cycle_anchor_at + (N - 1) * 7 days, in the local timezone of the
 // anchor. Returns ISO of the predicted slot so the wizard can format
@@ -106,27 +97,15 @@ export default async function SessionsPage() {
   const curriculum = curriculumResp.data as CurriculumLookup | null;
 
   let slots: SlotLookup[] = [];
-  const lessonsById = new Map<string, LessonLookup>();
   if (curriculum) {
     const slotResp = await supabase
       .from("curriculum_slots")
       .select(
-        "id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id, live_call_completed_at, no_show_at",
+        "id, week_number, live_call_at, live_call_event_id, live_call_completed_at, no_show_at",
       )
       .eq("curriculum_id", curriculum.id)
       .order("week_number", { ascending: true });
     slots = (slotResp.data ?? []) as SlotLookup[];
-
-    const lessonIds = slots.map((s) => s.lesson_id).filter((id): id is string => !!id);
-    if (lessonIds.length > 0) {
-      const lessonResp = await supabase
-        .from("lessons")
-        .select("id, fortnite_label, parent_label, parent_skill_description")
-        .in("id", lessonIds);
-      for (const l of (lessonResp.data ?? []) as LessonLookup[]) {
-        lessonsById.set(l.id, l);
-      }
-    }
   }
 
   const lifecycle = sub?.lifecycle_state ?? "TRIAL_PREP";
@@ -140,19 +119,12 @@ export default async function SessionsPage() {
   const inPayment = !isSingleSession && lifecycle === "PENDING_PAYMENT";
   const isActive = !isSingleSession && lifecycle === "ACTIVE";
 
-  const slotsForClient = slots.map((s) => {
-    const lesson = s.lesson_id ? lessonsById.get(s.lesson_id) ?? null : null;
-    return {
-      id: s.id,
-      week_number: s.week_number,
-      is_vod_review: s.is_vod_review,
-      live_call_at: s.live_call_at,
-      live_call_event_id: s.live_call_event_id,
-      fortnite_label: lesson?.fortnite_label ?? null,
-      parent_label: lesson?.parent_label ?? null,
-      parent_skill_description: lesson?.parent_skill_description ?? null,
-    };
-  });
+  const slotsForClient = slots.map((s) => ({
+    id: s.id,
+    week_number: s.week_number,
+    live_call_at: s.live_call_at,
+    live_call_event_id: s.live_call_event_id,
+  }));
 
   // "Repeat at this time" suggestion: when cycle_anchor_at is set (i.e.,
   // the parent already booked at least one slot), compute the expected

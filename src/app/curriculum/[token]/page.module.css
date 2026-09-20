@@ -96,7 +96,7 @@
   line-height: 1.5;
 }
 
-.lessonsHeader {
+.detailHeader {
   font-family: var(--font-display);
   font-size: 14px;
   letter-spacing: 1.5px;
@@ -144,10 +144,6 @@
   font-size: 15px;
   color: var(--text);
   line-height: 1.45;
-}
-.weekTerm {
-  font-size: 13px;
-  color: var(--text-faint);
 }
 
 .terms {

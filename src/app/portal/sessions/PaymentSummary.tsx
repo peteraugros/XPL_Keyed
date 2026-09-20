@@ -13,9 +13,6 @@ type Slot = {
   id: string;
   week_number: number;
   live_call_at: string | null;
-  fortnite_label: string | null;
-  parent_label: string | null;
-  is_vod_review: boolean;
 };
 
 import { formatCallDateTime } from "@/lib/datetime";
@@ -71,17 +68,14 @@ export default function PaymentSummary({
       <p className={styles.body}>
         All four sessions are reserved. Approve the $56 first-cycle charge
         to lock everything in. Future cycles bill automatically every four
-        delivered lessons; no extra clicks needed.
+        completed sessions; no extra clicks needed.
       </p>
 
       <ul className={styles.weekList}>
         {slots.map((s) => (
           <li key={s.id} className={`${styles.weekRow} ${styles.weekRowDone}`}>
-            <span className={styles.weekNum}>Week {s.week_number}</span>
+            <span className={styles.weekNum}>Session {s.week_number}</span>
             <span className={styles.weekCopy}>
-              <span className={styles.weekLabel}>
-                {s.is_vod_review ? "VOD review" : s.parent_label ?? "Lesson"}
-              </span>
               <span className={styles.weekTime}>
                 {s.live_call_at ? formatSlotDateTime(s.live_call_at) : "(no time)"}
               </span>

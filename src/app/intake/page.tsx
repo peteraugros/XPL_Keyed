@@ -861,7 +861,7 @@ function Level3({ state, setField, lockedByCoppa }: Level3Props) {
           onChange={(e) => setField("parent_email", e.target.value)}
           placeholder="parent@example.com"
         />
-        <span className={styles.fieldHint}>We send call reminders, post lesson notes, and your parent's dashboard link here.</span>
+        <span className={styles.fieldHint}>We send call reminders, post session notes, and your parent's dashboard link here.</span>
       </label>
     </>
   );

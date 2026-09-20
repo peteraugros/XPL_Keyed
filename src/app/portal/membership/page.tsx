@@ -76,7 +76,7 @@ function cancellationCopy(c: CancellationRow): string {
 
 function countedTowardCap(c: CancellationRow): boolean {
   // parent_advance increments cycle_cancels_used. parent_late and no_show
-  // don't (kid keeps the material, lesson forfeit). coach_cancel never
+  // don't (the session itself is forfeit). coach_cancel never
   // touches the cap. triggered_pending_cancel always counts.
   if (c.triggered_pending_cancel) return true;
   return c.classification === "parent_advance";
@@ -116,7 +116,7 @@ export default async function MembershipPage() {
     sub?.tier === "monthly"
       ? "Monthly subscription"
       : sub?.tier === "single"
-        ? "Single lesson"
+        ? "Single session"
         : "Free trial";
 
   return (
@@ -149,7 +149,7 @@ export default async function MembershipPage() {
               <dd className={styles.dd}>
                 {formatDate(sub?.cycle_started_at ?? null)}
               </dd>
-              <dt className={styles.dt}>Lessons delivered</dt>
+              <dt className={styles.dt}>Sessions done</dt>
               <dd className={styles.dd}>{sub.cycle_lessons_delivered} of 4</dd>
               <dt className={styles.dt}>Cancellations used</dt>
               <dd className={styles.dd}>
@@ -208,9 +208,10 @@ export default async function MembershipPage() {
         <div className={styles.cardEyebrow}>Add another kid</div>
         <h2 className={styles.cardTitle}>One subscription per kid</h2>
         <p className={styles.cardBody}>
-          Each kid has their own 4-lesson cycle, their own curriculum, their own
-          private Discord channel. Same price per kid: $56 for 4 lessons. No
-          sibling discount because Tim does fully separate work per kid.
+          Each kid has their own 4 session cycle, their own advice and routines,
+          their own private Discord channel. Same price per kid: $56 for 4
+          sessions. No sibling discount because Tim does fully separate work
+          per kid.
         </p>
         <p className={styles.cardSubtle}>
           The multi-kid flow is coming next phase. For now, email{" "}

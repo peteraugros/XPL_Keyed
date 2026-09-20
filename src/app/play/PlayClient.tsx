@@ -16,6 +16,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import styles from "./page.module.css";
 
 type QuestKey = "signup" | "drop_vod" | "answer_questions" | "join_discord";
@@ -57,12 +58,6 @@ const RARITY: Record<QuestKey, string> = {
   join_discord: styles.legendary,
 };
 
-type CurriculumWeek = {
-  week_number: number;
-  is_vod_review: boolean;
-  fortnite_label: string | null;
-};
-
 export default function PlayClient({
   playerFirstName,
   fortniteUsername,
@@ -72,10 +67,9 @@ export default function PlayClient({
   subscriptionStatus,
   subscriptionTier,
   cycleLessonsDelivered,
-  curriculumWeeks,
   trialCallAt,
   discordChannelUrl,
-  singleSessionLesson,
+  singleSession,
 }: {
   playerFirstName: string;
   fortniteUsername: string | null;
@@ -84,15 +78,12 @@ export default function PlayClient({
   subscriptionStatus: string;
   subscriptionTier: string | null;
   cycleLessonsDelivered: number;
-  curriculumWeeks: CurriculumWeek[];
   initialPrep: PrepState;
   trialCallAt: string | null;
   discordChannelUrl: string | null;
-  singleSessionLesson: {
-    fortnite_label: string;
-    video_url: string | null;
-    delivered_at: string | null;
+  singleSession: {
     live_call_at: string | null;
+    has_write_up: boolean;
   } | null;
 }) {
   const router = useRouter();
@@ -261,13 +252,13 @@ export default function PlayClient({
         <h1 className={styles.heroTitle}>What up, {playerFirstName}.</h1>
         <p className={styles.heroBody}>
           {isSingleSession
-            ? singleSessionLesson?.video_url
-              ? "Tim assigned a lesson. Watch it whenever. The live call is on your dashboard."
-              : "Tim's picking your lesson. It'll show up here as soon as he does."
+            ? singleSession?.has_write_up
+              ? "Tim wrote up your advice and your routine. It's in My Training."
+              : "Your call with Tim is the main event. After it he writes up your advice and your routine."
             : isActive
-              ? `Lesson ${cycleLessonsDelivered + 1} of 4 incoming Sunday. Hit Tim in Comms for anything between drops.`
+              ? `Session ${cycleLessonsDelivered} of 4 done. Your advice and routine are in My Training.`
               : isPaused
-                ? "Lessons are on a brief hold. Your parents are sorting it. Tim still sees your messages in Comms."
+                ? "Coaching is on a brief hold. Your parents are sorting it. Tim still sees your messages in Comms."
                 : isEnded
                   ? "Coaching wrapped for now. Your thread with Tim is still open from Comms."
                   : "Your free call is locked in. Finish your prep so we can hit the ground running."}
@@ -288,33 +279,29 @@ export default function PlayClient({
 
       {isSingleSession ? (
         <section className={styles.card}>
-          <div className={styles.cardEyebrow}>Your lesson</div>
-          {singleSessionLesson?.video_url ? (
+          <div className={styles.cardEyebrow}>Your session</div>
+          {singleSession?.has_write_up ? (
             <>
-              <h2 className={styles.cardTitle}>
-                {singleSessionLesson.fortnite_label || "Your coaching lesson"}
-              </h2>
+              <h2 className={styles.cardTitle}>Tim wrote it up</h2>
               <p className={styles.cardBody}>
-                Tim picked this for you. Watch when you have time. The live
-                call with him is on your dashboard schedule.
+                Your advice from the call and the routine he wants you
+                working on are both in My Training.
               </p>
-              <a
-                href={singleSessionLesson.video_url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/play/training"
                 className={styles.discordBtn}
                 style={{ display: "inline-block", marginTop: 6 }}
               >
-                Watch the lesson →
-              </a>
+                Open My Training &rarr;
+              </Link>
             </>
           ) : (
             <>
-              <h2 className={styles.cardTitle}>Tim is picking your lesson</h2>
+              <h2 className={styles.cardTitle}>The call is the session</h2>
               <p className={styles.cardBody}>
-                He&apos;s building this around what you said you wanted help
-                with. It shows up here the moment he picks it. No waiting
-                until Sunday.
+                You get Tim on a call, you work through what you actually
+                want to fix, and afterwards he writes up your advice and a
+                routine to drill. That lands in My Training.
               </p>
             </>
           )}
@@ -322,39 +309,24 @@ export default function PlayClient({
       ) : null}
 
       {isActive ? (
-        <>
-          <section className={styles.card}>
-            <div className={styles.cardEyebrow}>This cycle</div>
-            <h2 className={styles.cardTitle}>
-              Lesson {cycleLessonsDelivered} of 4 dropped
-            </h2>
-            <p className={styles.cardBody}>
-              One lesson lands every Sunday. Tim sends it with a voiceover.
-              You watch when you have time before the live call that week.
-            </p>
-          </section>
-
-          {curriculumWeeks.length === 4 ? (
-            <section className={styles.card}>
-              <div className={styles.cardEyebrow}>Your 4 week plan</div>
-              <h2 className={styles.cardTitle}>What Tim is teaching</h2>
-              <ul className={styles.activeWeekList}>
-                {curriculumWeeks.map((w) => (
-                  <li key={w.week_number} className={styles.activeWeekRow}>
-                    <span className={styles.activeWeekNum}>Wk {w.week_number}</span>
-                    <span className={styles.activeWeekLabel}>
-                      {w.is_vod_review ? "VOD review" : (w.fortnite_label ?? "Coming")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className={styles.subtle}>
-                Tim is putting the slides and voiceover together. They drop
-                here Sunday by Sunday.
-              </p>
-            </section>
-          ) : null}
-        </>
+        <section className={styles.card}>
+          <div className={styles.cardEyebrow}>This cycle</div>
+          <h2 className={styles.cardTitle}>
+            Session {cycleLessonsDelivered} of 4 done
+          </h2>
+          <p className={styles.cardBody}>
+            Each session is a call with Tim. After it he writes up what to
+            work on and the routine he wants you drilling before the next
+            one. It all lands in My Training.
+          </p>
+          <Link
+            href="/play/training"
+            className={styles.discordBtn}
+            style={{ display: "inline-block", marginTop: 6 }}
+          >
+            Open My Training &rarr;
+          </Link>
+        </section>
       ) : null}
 
       {isTrial ? (
@@ -375,7 +347,7 @@ export default function PlayClient({
       {isPaused ? (
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>On hold</div>
-          <h2 className={styles.cardTitle}>Lessons paused</h2>
+          <h2 className={styles.cardTitle}>Coaching paused</h2>
           <p className={styles.cardBody}>
             {subscriptionStatus === "past_due"
               ? "We hit a payment snag. Your parents are sorting it. Nothing about your progress changes, the cycle just waits."

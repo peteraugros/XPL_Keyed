@@ -242,7 +242,7 @@ export default async function BillingPage() {
           <span className={`${styles.pill} ${statusKlass}`}>{statusText}</span>
           <span className={styles.pill}>{tierLabel}</span>
           {sub?.tier === "monthly" && isPaying ? (
-            <span className={styles.pill}>$56 every 4 lessons</span>
+            <span className={styles.pill}>$56 every 4 sessions</span>
           ) : null}
         </div>
 
@@ -255,7 +255,7 @@ export default async function BillingPage() {
           ) : null}
           {isPaying && !isSingleSession ? (
             <>
-              <dt className={styles.dt}>Lessons this cycle</dt>
+              <dt className={styles.dt}>Sessions this cycle</dt>
               <dd className={styles.dd}>
                 {sub?.cycle_lessons_delivered ?? 0} of 4
               </dd>
@@ -296,7 +296,7 @@ export default async function BillingPage() {
         <div className={styles.cardEyebrow}>Payment method</div>
         <h2 className={styles.cardTitle}>
           {sub?.status === "past_due"
-            ? "Update your card to resume lessons"
+            ? "Update your card to resume sessions"
             : "Manage your card and invoices"}
         </h2>
         <p className={styles.cardBody}>
@@ -329,7 +329,7 @@ export default async function BillingPage() {
             <ul className={styles.bullets}>
               <li>
                 {player.first_name}&apos;s current cycle still completes through
-                lesson 4.
+                session 4.
               </li>
               <li>No further charge after this cycle.</li>
               <li>
@@ -339,7 +339,7 @@ export default async function BillingPage() {
             </ul>
           ) : (
             <p className={styles.cardBody}>
-              The current cycle finishes through lesson 4 either way. Re enable
+              The current cycle finishes through session 4 either way. Re enable
               below to keep things running after that, or let it end naturally.
             </p>
           )}
@@ -357,11 +357,11 @@ export default async function BillingPage() {
           <p className={styles.cardBody}>
             You bought one coaching session for $24. There&apos;s no
             subscription, no recurring charge, and nothing to cancel.
-            The lesson stays in {player.first_name}&apos;s library to rewatch
-            any time.
+            Tim&apos;s advice and the training routine from that session stay
+            in {player.first_name}&apos;s training page.
           </p>
           <p className={styles.cardBody}>
-            Want another lesson with Tim?
+            Want another session with Tim?
           </p>
           <a
             href="/single-session"
@@ -388,8 +388,8 @@ export default async function BillingPage() {
               charge is complete.
             </li>
             <li>
-              The lesson stays in {player.first_name}&apos;s library
-              permanently. Rewatch any time.
+              The advice and the routine from that session stay in{" "}
+              {player.first_name}&apos;s training page.
             </li>
             <li>
               Want another session later? Book it from the link above; same
@@ -398,22 +398,22 @@ export default async function BillingPage() {
           </ul>
         ) : (
           <ul className={styles.bullets}>
-            <li>$56 for 4 lessons. One lesson drops every Sunday.</li>
+            <li>$56 for 4 coaching sessions. One call a week.</li>
             <li>
-              The next $56 charge fires after the 4th lesson lands, not every 30
-              days.
+              The next $56 charge fires after the 4th session is done, not
+              every 30 days.
             </li>
             <li>
               If a week is paused (illness, vacation, coach time off), the cycle
-              pauses too. You are never charged for lessons you did not get.
+              pauses too. You are never charged for sessions you did not get.
             </li>
             <li>
-              Up to 2 skips per 4 lesson cycle. A 3rd skip turns off auto renew
+              Up to 2 skips per 4 session cycle. A 3rd skip turns off auto renew
               automatically.
             </li>
             <li>
               If a card declines, the cycle freezes. Stripe retries automatically.
-              No new lessons run until payment is sorted.
+              No new sessions run until payment is sorted.
             </li>
             <li>Cancel any time from this page. Current cycle still completes.</li>
           </ul>

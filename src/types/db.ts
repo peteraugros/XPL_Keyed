@@ -202,6 +202,7 @@ export type Database = {
           approved_at: string | null
           created_at: string
           created_by: string
+          curriculum_type: Database["public"]["Enums"]["curriculum_type_t"]
           cycle_anchor_at: string | null
           id: string
           personalization_note: string | null
@@ -215,6 +216,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           created_by: string
+          curriculum_type?: Database["public"]["Enums"]["curriculum_type_t"]
           cycle_anchor_at?: string | null
           id?: string
           personalization_note?: string | null
@@ -228,6 +230,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           created_by?: string
+          curriculum_type?: Database["public"]["Enums"]["curriculum_type_t"]
           cycle_anchor_at?: string | null
           id?: string
           personalization_note?: string | null
@@ -259,18 +262,20 @@ export type Database = {
           coach_note_at: string | null
           created_at: string
           curriculum_id: string
+          cycle_counted_at: string | null
           delivered_at: string | null
           id: string
-          is_vod_review: boolean
-          lesson_id: string | null
           live_call_at: string | null
           live_call_completed_at: string | null
           live_call_event_id: string | null
           no_show_at: string | null
           notified_at_20min: string | null
+          parent_summary: string | null
+          parent_summary_at: string | null
+          push_outcome_pending_sent_at: string | null
+          training_routine: string | null
+          training_routine_at: string | null
           updated_at: string
-          vod_talking_points: Json | null
-          vod_url: string | null
           week_number: number
         }
         Insert: {
@@ -278,18 +283,20 @@ export type Database = {
           coach_note_at?: string | null
           created_at?: string
           curriculum_id: string
+          cycle_counted_at?: string | null
           delivered_at?: string | null
           id?: string
-          is_vod_review?: boolean
-          lesson_id?: string | null
           live_call_at?: string | null
           live_call_completed_at?: string | null
           live_call_event_id?: string | null
           no_show_at?: string | null
           notified_at_20min?: string | null
+          parent_summary?: string | null
+          parent_summary_at?: string | null
+          push_outcome_pending_sent_at?: string | null
+          training_routine?: string | null
+          training_routine_at?: string | null
           updated_at?: string
-          vod_talking_points?: Json | null
-          vod_url?: string | null
           week_number: number
         }
         Update: {
@@ -297,18 +304,20 @@ export type Database = {
           coach_note_at?: string | null
           created_at?: string
           curriculum_id?: string
+          cycle_counted_at?: string | null
           delivered_at?: string | null
           id?: string
-          is_vod_review?: boolean
-          lesson_id?: string | null
           live_call_at?: string | null
           live_call_completed_at?: string | null
           live_call_event_id?: string | null
           no_show_at?: string | null
           notified_at_20min?: string | null
+          parent_summary?: string | null
+          parent_summary_at?: string | null
+          push_outcome_pending_sent_at?: string | null
+          training_routine?: string | null
+          training_routine_at?: string | null
           updated_at?: string
-          vod_talking_points?: Json | null
-          vod_url?: string | null
           week_number?: number
         }
         Relationships: [
@@ -317,13 +326,6 @@ export type Database = {
             columns: ["curriculum_id"]
             isOneToOne: false
             referencedRelation: "curricula"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "curriculum_slots_lesson_id_fkey"
-            columns: ["lesson_id"]
-            isOneToOne: false
-            referencedRelation: "lessons"
             referencedColumns: ["id"]
           },
         ]
@@ -348,65 +350,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      lessons: {
-        Row: {
-          author_id: string
-          created_at: string
-          difficulty_level: string
-          duration_minutes: number
-          fortnite_label: string
-          id: string
-          is_published: boolean
-          parent_label: string
-          parent_skill_description: string
-          parent_talking_points: Json
-          slides: Json
-          title: string
-          topic: string
-          updated_at: string
-        }
-        Insert: {
-          author_id: string
-          created_at?: string
-          difficulty_level: string
-          duration_minutes: number
-          fortnite_label: string
-          id?: string
-          is_published?: boolean
-          parent_label: string
-          parent_skill_description: string
-          parent_talking_points: Json
-          slides: Json
-          title: string
-          topic: string
-          updated_at?: string
-        }
-        Update: {
-          author_id?: string
-          created_at?: string
-          difficulty_level?: string
-          duration_minutes?: number
-          fortnite_label?: string
-          id?: string
-          is_published?: boolean
-          parent_label?: string
-          parent_skill_description?: string
-          parent_talking_points?: Json
-          slides?: Json
-          title?: string
-          topic?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lessons_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "coaches"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       messages: {
         Row: {
@@ -707,6 +650,47 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          coach_id: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          coach_id: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          coach_id?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quest_completions: {
         Row: {
           completed_at: string
@@ -735,6 +719,89 @@ export type Database = {
             columns: ["player_id"]
             isOneToOne: false
             referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refund_requests: {
+        Row: {
+          amount_cents: number
+          charge_date: string
+          created_at: string
+          decided_at: string | null
+          decided_by_coach_id: string | null
+          decision_note: string | null
+          family_id: string
+          id: string
+          reason: string
+          requested_by_parent_id: string | null
+          status: string
+          stripe_payment_intent_id: string
+          stripe_refund_id: string | null
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          charge_date: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by_coach_id?: string | null
+          decision_note?: string | null
+          family_id: string
+          id?: string
+          reason: string
+          requested_by_parent_id?: string | null
+          status?: string
+          stripe_payment_intent_id: string
+          stripe_refund_id?: string | null
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          charge_date?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by_coach_id?: string | null
+          decision_note?: string | null
+          family_id?: string
+          id?: string
+          reason?: string
+          requested_by_parent_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string
+          stripe_refund_id?: string | null
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_decided_by_coach_id_fkey"
+            columns: ["decided_by_coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_requested_by_parent_id_fkey"
+            columns: ["requested_by_parent_id"]
+            isOneToOne: false
+            referencedRelation: "parents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]
@@ -832,6 +899,7 @@ export type Database = {
           tier: string
           trial_call_at: string | null
           trial_call_event_uri: string | null
+          uniform_schedule_acknowledged_at: string | null
           updated_at: string
           waiting_on: Database["public"]["Enums"]["waiting_on_t"]
           welcomed_at: string | null
@@ -871,6 +939,7 @@ export type Database = {
           tier: string
           trial_call_at?: string | null
           trial_call_event_uri?: string | null
+          uniform_schedule_acknowledged_at?: string | null
           updated_at?: string
           waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
           welcomed_at?: string | null
@@ -910,6 +979,7 @@ export type Database = {
           tier?: string
           trial_call_at?: string | null
           trial_call_event_uri?: string | null
+          uniform_schedule_acknowledged_at?: string | null
           updated_at?: string
           waiting_on?: Database["public"]["Enums"]["waiting_on_t"]
           welcomed_at?: string | null
@@ -956,35 +1026,48 @@ export type Database = {
           },
         ]
       }
-      tiktok_comments: {
+      task_dismissals: {
         Row: {
-          coach_id: string
-          created_at: string
+          dismiss_reason: string | null
+          dismissed_at: string
+          dismissed_by: string
           id: string
-          logged_at: string
-          logged_date: string | null
-          note: string | null
+          restored_at: string | null
+          restored_by: string | null
+          source_object_id: string
+          task_type: string
         }
         Insert: {
-          coach_id: string
-          created_at?: string
+          dismiss_reason?: string | null
+          dismissed_at?: string
+          dismissed_by: string
           id?: string
-          logged_at?: string
-          logged_date?: string | null
-          note?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          source_object_id: string
+          task_type: string
         }
         Update: {
-          coach_id?: string
-          created_at?: string
+          dismiss_reason?: string | null
+          dismissed_at?: string
+          dismissed_by?: string
           id?: string
-          logged_at?: string
-          logged_date?: string | null
-          note?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          source_object_id?: string
+          task_type?: string
         }
         Relationships: [
           {
-            foreignKeyName: "tiktok_comments_coach_id_fkey"
-            columns: ["coach_id"]
+            foreignKeyName: "task_dismissals_dismissed_by_fkey"
+            columns: ["dismissed_by"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dismissals_restored_by_fkey"
+            columns: ["restored_by"]
             isOneToOne: false
             referencedRelation: "coaches"
             referencedColumns: ["id"]
@@ -1159,6 +1242,7 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
+      curriculum_type_t: "subscription" | "single_session"
       lifecycle_state_t:
         | "TRIAL_PREP"
         | "TRIAL_SCHEDULED"
@@ -1302,6 +1386,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      curriculum_type_t: ["subscription", "single_session"],
       lifecycle_state_t: [
         "TRIAL_PREP",
         "TRIAL_SCHEDULED",

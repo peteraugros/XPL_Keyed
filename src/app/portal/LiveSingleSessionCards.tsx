@@ -3,13 +3,14 @@
 // LiveSingleSessionCards
 // ----------------------
 // Replacement for LiveSummaryCards when the family bought a $24 single
-// coaching session. Cycle framing (Lesson X of 4, Sunday drops,
-// cancellations remaining) does not apply. Three cards instead:
+// coaching session. Cycle framing (Session X of 4, cancellations
+// remaining) does not apply. Three cards instead:
 //
 //   1. Coaching session — date/time if scheduled, "Pick a time" prompt
 //      if not. Links to /portal/sessions.
-//   2. What we're working on — shows the parent's intake note plus the
-//      lesson Tim picked (when he has). Links to /portal/progress.
+//   2. What we're working on — the parent's intake note before the call,
+//      and Tim's plain summary of the session afterwards. Links to
+//      /portal/progress.
 //   3. Messages — same shape as the cycle card. Links to /portal/messages.
 //
 // Polls router.refresh() every 5 seconds when the tab is visible, same
@@ -30,7 +31,7 @@ type Props = {
   callDateTime: string | null;
   callCompleted: boolean;
   intakeNote: string | null;
-  lessonParentLabel: string | null;
+  parentSummary: string | null;
   latestMessage: LatestMessage;
   playerFirstName: string;
 };
@@ -55,7 +56,7 @@ export default function LiveSingleSessionCards(props: Props) {
     callDateTime,
     callCompleted,
     intakeNote,
-    lessonParentLabel,
+    parentSummary,
     latestMessage,
     playerFirstName,
   } = props;
@@ -66,7 +67,7 @@ export default function LiveSingleSessionCards(props: Props) {
   const prevRef = useRef({
     callDateTime,
     callCompleted,
-    lessonParentLabel,
+    parentSummary,
     latestMessageId: latestMessage?.id ?? null,
   });
 
@@ -74,13 +75,13 @@ export default function LiveSingleSessionCards(props: Props) {
     const prev = prevRef.current;
     const changes: Highlights = {
       session: prev.callDateTime !== callDateTime || prev.callCompleted !== callCompleted,
-      prep: prev.lessonParentLabel !== lessonParentLabel,
+      prep: prev.parentSummary !== parentSummary,
       messages: prev.latestMessageId !== (latestMessage?.id ?? null),
     };
     prevRef.current = {
       callDateTime,
       callCompleted,
-      lessonParentLabel,
+      parentSummary,
       latestMessageId: latestMessage?.id ?? null,
     };
     if (changes.session || changes.prep || changes.messages) {
@@ -88,7 +89,7 @@ export default function LiveSingleSessionCards(props: Props) {
       const timer = setTimeout(() => setHighlights(NO_HIGHLIGHTS), HIGHLIGHT_DURATION_MS);
       return () => clearTimeout(timer);
     }
-  }, [callDateTime, callCompleted, lessonParentLabel, latestMessage?.id]);
+  }, [callDateTime, callCompleted, parentSummary, latestMessage?.id]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -119,7 +120,7 @@ export default function LiveSingleSessionCards(props: Props) {
         <div className={styles.summaryBody}>
           {callCompleted ? (
             <>
-              Slides and voiceover land in the player view so {playerFirstName} can review.
+              Tim&apos;s advice and the training routine land in the player view for {playerFirstName}.
             </>
           ) : callDateTime ? (
             <>
@@ -147,28 +148,29 @@ export default function LiveSingleSessionCards(props: Props) {
         {highlights.prep ? <span className={styles.justUpdatedPill}>Just updated</span> : null}
         <div className={styles.summaryEyebrow}>What we&apos;re working on</div>
         <div className={styles.summaryTitle}>
-          {lessonParentLabel
-            ? lessonParentLabel
-            : "Tim is picking the lesson"}
+          {parentSummary ? "Tim wrote up the session" : "Tim writes it up after the call"}
         </div>
         <div className={styles.summaryBody}>
-          {intakeNote ? (
+          {parentSummary ? (
+            <span className={styles.summarySubBody}>
+              &ldquo;{parentSummary.slice(0, 160).trim()}
+              {parentSummary.length > 160 ? "..." : ""}&rdquo;
+            </span>
+          ) : intakeNote ? (
             <>
               <span className={styles.summarySubBody}>
                 You told Tim: &ldquo;{intakeNote.slice(0, 140).trim()}
                 {intakeNote.length > 140 ? "..." : ""}&rdquo;
               </span>
-              {lessonParentLabel ? null : (
-                <span className={styles.summarySubBody}>
-                  Tim builds the session around this. The lesson lands here
-                  once he picks it.
-                </span>
-              )}
+              <span className={styles.summarySubBody}>
+                He builds the call around this, then writes you a plain
+                summary of what they actually worked on.
+              </span>
             </>
           ) : (
             <>
-              Tim picks a lesson based on what you shared at signup. It
-              shows up here when ready.
+              Tim builds the call around what you shared at signup, then
+              writes you a plain summary of what they worked on.
             </>
           )}
         </div>

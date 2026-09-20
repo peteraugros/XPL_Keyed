@@ -5,7 +5,7 @@
 //
 // Handles four events:
 //   - invoice.payment_failed       → mark subscription past_due (Day 0 dunning)
-//   - invoice.paid                 → start a fresh 4-lesson cycle
+//   - invoice.paid                 → start a fresh 4-session cycle
 //   - customer.subscription.updated → sync status, preserving our pending_cancel state
 //   - customer.subscription.deleted → mark canceled
 //
@@ -185,32 +185,23 @@ async function handleCheckoutSessionCompleted(
     throw new Error("subscription_update_failed");
   }
 
-  // Decide whether Week 1 needs immediate delivery. Rule (per Peter,
-  // 2026-05-19): deliver immediately if there is NO Sunday between
-  // today and Week 1's live call. Otherwise wait for the Sunday cron.
-  // Defensive: if anything in this branch fails, we log + continue —
-  // the Sunday cron will catch the slot on its next run.
-  try {
-    const week1Resp = await supabase
-      .from("curriculum_slots")
-      .select("id, live_call_at")
-      .eq("curriculum_id", curriculumId)
-      .eq("week_number", 1)
-      .maybeSingle();
-    const week1 = week1Resp.data as { id: string; live_call_at: string | null } | null;
-    if (week1?.live_call_at) {
-      const { shouldDeliverWeek1Immediately } = await import("@/lib/lessons/timing");
-      if (shouldDeliverWeek1Immediately(paidAt, new Date(week1.live_call_at))) {
-        const { deliverWeekOneImmediately } = await import("@/lib/lessons/deliver-week-one");
-        const result = await deliverWeekOneImmediately(subscriptionId);
-        if (!result.ok) {
-          console.warn("[stripe-webhook] immediate week-1 delivery skipped:", result.reason);
-        }
-      }
-    }
-  } catch (err) {
-    console.error("[stripe-webhook] immediate-delivery branch threw", err);
-  }
+  // Week 1 immediate delivery is RETIRED (Phase 3, 2026-09-19).
+  //
+  // What this branch did: if there was no Sunday between payment and Week 1's
+  // live call, the Sunday cron would miss Week 1 entirely, so it shipped that
+  // week's slides and voiceover straight away and incremented
+  // cycle_lessons_delivered.
+  //
+  // Both halves are gone. There are no materials to ship, and the counter is
+  // now advanced by a COMPLETED CALL and nothing else (see advanceCycleOnce in
+  // /api/admin/calendar/mark-outcome). Leaving this in would have been the one
+  // remaining way for the cycle to advance without a call happening, which is
+  // exactly the coupling Phase 1 removed.
+  //
+  // The parent is not left in silence: they get the post session recap email
+  // when Tim writes the session up (src/lib/coaching/session-recap-email.ts),
+  // which is triggered by real work rather than by a calendar.
+
 }
 
 // $24 single coaching session activation. Mirrors the relevant subset

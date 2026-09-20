@@ -6,13 +6,14 @@
 // via the service-role client (this page is public — no auth required,
 // possession of the token is the gate).
 //
-// Renders the 4 week plan in the parent-translation rule (real-world
-// skill first, Fortnite term in italicized parens) + Tim's
-// personalization note + a single "Approve plan and subscribe" CTA.
+// Renders what the parent is buying + Tim's personalization note + a
+// single approve-and-subscribe CTA.
 //
-// **Phase 1: the Stripe Elements checkout is NOT wired.** Clicking the
-// approve button shows a "Coming next phase" placeholder. Parent has
-// the preview; the actual payment lands in the Stripe Elements phase.
+// It USED to render a 4 week content plan, one row per week with a lesson
+// title and its Hard rule #4 translation. There is no plan to preview any
+// more: what a session covers is decided on the call, so the page describes
+// the shape of the coaching instead. Hard rule #4 is easier here than it was,
+// because describing calls and a routine needs no Fortnite vocabulary at all.
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import styles from "./page.module.css";
@@ -30,16 +31,6 @@ type CurriculumLookup = {
 
 type SlotLookup = {
   week_number: number;
-  is_vod_review: boolean;
-  lesson_id: string | null;
-  vod_url: string | null;
-};
-
-type LessonLookup = {
-  id: string;
-  fortnite_label: string;
-  parent_label: string;
-  parent_skill_description: string;
 };
 
 type PlayerLookup = {
@@ -78,7 +69,7 @@ export default async function CurriculumApprovalPage({
   const [slotsLookup, playerLookupRaw] = await Promise.all([
     supabase
       .from("curriculum_slots")
-      .select("week_number, is_vod_review, lesson_id, vod_url")
+      .select("week_number")
       .eq("curriculum_id", curriculum.id)
       .order("week_number", { ascending: true }),
     supabase
@@ -90,19 +81,6 @@ export default async function CurriculumApprovalPage({
   const slots = (slotsLookup.data ?? []) as SlotLookup[];
   const player = playerLookupRaw.data as PlayerLookup | null;
   if (!player) return <NotFound />;
-
-  const lessonIds = slots
-    .map((s) => s.lesson_id)
-    .filter((id): id is string => Boolean(id));
-  const lessonLookup =
-    lessonIds.length > 0
-      ? await supabase
-          .from("lessons")
-          .select("id, fortnite_label, parent_label, parent_skill_description")
-          .in("id", lessonIds)
-      : { data: [] as LessonLookup[], error: null };
-  const lessonsById = new Map<string, LessonLookup>();
-  for (const l of (lessonLookup.data ?? []) as LessonLookup[]) lessonsById.set(l.id, l);
 
   const parentLookup = await supabase
     .from("parents")
@@ -122,31 +100,31 @@ export default async function CurriculumApprovalPage({
           <div className={styles.card}>
             <h1 className={styles.headline}>You're all set</h1>
             <p className={styles.body}>
-              You already approved this curriculum. Sign in to your dashboard
-              for the live progress.
+              You already approved this. Sign in to your dashboard for the
+              live progress.
             </p>
             <a href="/portal" className={styles.primaryBtn}>Open your dashboard</a>
           </div>
         ) : (
           <div className={styles.card}>
-            <div className={styles.eyebrow}>{player.first_name}&apos;s 4 week plan</div>
+            <div className={styles.eyebrow}>{player.first_name}&apos;s coaching</div>
             <h1 className={styles.headline}>Tim wants to coach {player.first_name}</h1>
             <p className={styles.body}>
               Hi {parent.first_name}. Here is the deal.
             </p>
 
             {/* The sell + CTA up top — that's the action the parent
-                came here to take. The full 4 week plan is below for
-                review but doesn't block reaching the button. */}
+                came here to take. The detail is below it, and never
+                blocks reaching the button. */}
             <div className={styles.terms}>
               <p>
-                <strong>$56 for 4 lessons</strong> (one per week). Cancel the
-                subscription any time.
+                <strong>$56 for 4 coaching sessions</strong> (one per week).
+                Cancel the subscription any time.
               </p>
               <p className={styles.termsSubtle}>
-                Cancel a paid lesson more than 24 hours out and the cycle pauses
-                one week, full credit. Up to 2 cancellations per 4 lesson cycle.
-                A 3rd cancel ends the subscription.
+                Cancel a session more than 24 hours out and the cycle pauses
+                one week, full credit. Up to 2 cancellations per 4 session
+                cycle. A 3rd cancel ends the subscription.
               </p>
             </div>
 
@@ -159,30 +137,46 @@ export default async function CurriculumApprovalPage({
               </div>
             ) : null}
 
-            <div className={styles.lessonsHeader}>The 4 week plan</div>
+            <div className={styles.detailHeader}>
+              What {slots.length === 1 ? "the session" : `the ${slots.length} sessions`} look like
+            </div>
             <ul className={styles.weekList}>
-              {slots.map((slot) => {
-                const lesson = slot.lesson_id ? lessonsById.get(slot.lesson_id) : null;
-                const fortniteTerm = slot.is_vod_review
-                  ? "VOD review"
-                  : lesson?.fortnite_label ?? "Lesson";
-                const skill = slot.is_vod_review
-                  ? `Review and break down ${player.first_name}'s game clip together.`
-                  : lesson?.parent_skill_description ??
-                    lesson?.parent_label ??
-                    "Skill description coming soon.";
-                return (
-                  <li key={slot.week_number} className={styles.weekRow}>
-                    <div className={styles.weekNum}>Week {slot.week_number}</div>
-                    <div className={styles.weekCopy}>
-                      <div className={styles.weekSkill}>{skill}</div>
-                      <div className={styles.weekTerm}>
-                        <em>(Fortnite term: {fortniteTerm}.)</em>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
+              <li className={styles.weekRow}>
+                <div className={styles.weekNum}>Call</div>
+                <div className={styles.weekCopy}>
+                  <div className={styles.weekSkill}>
+                    Thirty minutes with Tim on Discord, one a week. You are
+                    welcome to listen in.
+                  </div>
+                </div>
+              </li>
+              <li className={styles.weekRow}>
+                <div className={styles.weekNum}>Advice</div>
+                <div className={styles.weekCopy}>
+                  <div className={styles.weekSkill}>
+                    After each call Tim writes {player.first_name} personal
+                    advice on what to change, in their own language.
+                  </div>
+                </div>
+              </li>
+              <li className={styles.weekRow}>
+                <div className={styles.weekNum}>Routine</div>
+                <div className={styles.weekCopy}>
+                  <div className={styles.weekSkill}>
+                    A specific training routine to work through before the next
+                    call, so the week in between counts.
+                  </div>
+                </div>
+              </li>
+              <li className={styles.weekRow}>
+                <div className={styles.weekNum}>Summary</div>
+                <div className={styles.weekCopy}>
+                  <div className={styles.weekSkill}>
+                    A plain summary for you of what each session worked on and
+                    why, without the game jargon.
+                  </div>
+                </div>
+              </li>
             </ul>
           </div>
         )}

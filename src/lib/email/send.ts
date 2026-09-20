@@ -20,7 +20,15 @@ export type EmailTrigger =
   | "branded_booking_confirmation"
   | "stage_c_take_on"
   | "stage_c_decline"
-  | "lesson_delivery_week1"
+  // Post session recap to the parent. Replaces the Sunday content delivery
+  // email as the routine parent touchpoint. notification_log.trigger is a
+  // free TEXT column with no CHECK constraint, so this union is the only
+  // place the vocabulary is enforced and no migration is needed.
+  //
+  // "lesson_delivery_week1" was removed with the content system. It is a
+  // WRITE vocabulary only, so historical notification_log rows carrying it
+  // still read fine; nothing sends it any more.
+  | "session_recap"
   | "auto_renew_off"
   | "coach_cancel"
   | "coach_cancel_late"

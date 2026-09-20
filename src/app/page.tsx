@@ -107,29 +107,29 @@ export default function HomePage() {
         <div className="container">
           <div className="section-eyebrow reveal">How it works</div>
           <div className="section-title-wrap reveal">
-            <h2 className="section-title">A weekly rhythm.<br />Real homework.</h2>
+            <h2 className="section-title">A weekly call.<br />Real homework.</h2>
           </div>
 
           <div className="steps">
             <div className="step step-1 reveal">
-              <div className="step-day">Sunday</div>
-              <div className="step-title">Lesson lands in inbox</div>
-              <div className="step-desc">Video lesson walking through that week&apos;s focus area. Built around your specific gaps.</div>
+              <div className="step-day">Before</div>
+              <div className="step-title">Drop a clip</div>
+              <div className="step-desc">Student sends a game clip and says what they want fixed, so Keyed walks into the call already knowing their gaps.</div>
             </div>
             <div className="step step-2 reveal">
-              <div className="step-day">Mon to Tue</div>
-              <div className="step-title">Watch the lesson</div>
-              <div className="step-desc">Student reviews on their own time. Rewatch as needed. Take notes.</div>
+              <div className="step-day">The session</div>
+              <div className="step-title">30 min live call</div>
+              <div className="step-desc">On Discord. Keyed watches them play, breaks down the clip, and drills the concepts in real time.</div>
             </div>
             <div className="step step-3 reveal">
-              <div className="step-day">Midweek</div>
-              <div className="step-title">30 min live call</div>
-              <div className="step-desc">Keyed quizzes the material, answers questions, drills the concepts in real time.</div>
+              <div className="step-day">After</div>
+              <div className="step-title">Advice, in writing</div>
+              <div className="step-desc">Keyed writes up what he saw and the one thing to change next, in the student&apos;s own language.</div>
             </div>
             <div className="step step-4 reveal">
-              <div className="step-day">Or</div>
-              <div className="step-title">VOD review week</div>
-              <div className="step-desc">Swap the lesson for a full breakdown of student&apos;s own gameplay, frame by frame.</div>
+              <div className="step-day">The week</div>
+              <div className="step-title">A training routine</div>
+              <div className="step-desc">Specific practice to work through before the next call, so the week in between actually counts.</div>
             </div>
           </div>
         </div>
@@ -137,11 +137,11 @@ export default function HomePage() {
 
       <section>
         <div className="container">
-          <div className="section-eyebrow reveal">Curriculum</div>
+          <div className="section-eyebrow reveal">What gets worked on</div>
           <div className="section-title-wrap reveal">
             <h2 className="section-title">Every part of your game.</h2>
           </div>
-          <p className="section-lede reveal">Nothing about your game is too small to fix. Lessons rotate through every dimension of high level play.</p>
+          <p className="section-lede reveal">Nothing about your game is too small to fix. Sessions go wherever the student&apos;s weakness actually is, not down a fixed syllabus.</p>
 
           <div className="curriculum">
             <div className="skill reveal">
@@ -233,9 +233,9 @@ export default function HomePage() {
               <div className="price-amount">$24</div>
               <div className="price-cycle">One coaching session, no commitment</div>
               <ul className="price-features">
-                <li>Pick the lesson that matters most</li>
                 <li>30 min live coaching call on Discord</li>
-                <li>Slides and voiceover delivered to keep</li>
+                <li>Personal advice written up afterwards</li>
+                <li>A training routine to work through</li>
               </ul>
               <a href="/single-session" className="btn btn-ghost">Book a single session</a>
             </div>
@@ -245,11 +245,11 @@ export default function HomePage() {
               <div className="price-tier">Monthly</div>
               <div className="price-amount">$56<span className="price-unit">/mo</span></div>
               <div className="price-cycle">
-                4 lessons · just $14 each vs $24 single
+                4 sessions · just $14 each vs $24 single
               </div>
               <ul className="price-features">
-                <li>Weekly lesson rhythm</li>
-                <li>Curriculum that builds week over week</li>
+                <li>A call every week</li>
+                <li>Advice and a new routine after each one</li>
                 <li>24 hour cancel = full credit refund</li>
                 <li>Cancel anytime, no questions</li>
               </ul>
@@ -267,14 +267,14 @@ export default function HomePage() {
               <div className="section-title-wrap reveal">
                 <h3 className="section-title">Screen time<br />with structure.</h3>
               </div>
-              <p>Lessons are studied like school material. Your kid watches a short lesson video, takes notes, and gets quizzed on it. Sessions are short (30 minutes) and scheduled in advance. No late night calls. No surprise charges.</p>
+              <p>It is treated like school work. The call is 30 minutes and scheduled in advance, and afterwards your kid gets written advice and a training routine to work through, the same way they would get homework. No late night calls. No surprise charges.</p>
             </div>
             <div className="audience-block reveal">
               <div className="section-eyebrow">For Players</div>
               <div className="section-title-wrap reveal">
                 <h3 className="section-title">Climb faster.<br />Stay there.</h3>
               </div>
-              <p>Skip the YouTube rabbit holes. Get a real curriculum from someone who&apos;s actually Unreal and competing in tournaments, and who&apos;s close enough to your age to know what&apos;s holding you back.</p>
+              <p>Skip the YouTube rabbit holes. Get real coaching from someone who&apos;s actually Unreal and competing in tournaments, and who&apos;s close enough to your age to know what&apos;s holding you back.</p>
             </div>
           </div>
         </div>
@@ -291,7 +291,7 @@ export default function HomePage() {
           <div className="faq reveal">
             <details>
               <summary>How is this different from YouTube tutorials?</summary>
-              <p>YouTube is general. These lessons are built around your specific weaknesses. Keyed watches your gameplay, identifies what&apos;s holding you back, and builds a lesson that targets exactly that. Then he quizzes you on it live.</p>
+              <p>YouTube is general. This is built around your specific weaknesses. Keyed watches your gameplay, works out what&apos;s holding you back, and drills exactly that on the call. Then he writes you a routine that targets it.</p>
             </details>
             <details>
               <summary>What platform does my kid need to play on?</summary>
@@ -303,7 +303,7 @@ export default function HomePage() {
             </details>
             <details>
               <summary>What&apos;s the cancellation policy?</summary>
-              <p>Cancel the subscription anytime, no penalty. For an individual scheduled session, give at least 24 hours&apos; notice and you get full credit toward a future lesson.</p>
+              <p>Cancel the subscription anytime, no penalty. For an individual scheduled session, give at least 24 hours&apos; notice and you get full credit toward a future session.</p>
             </details>
             <details>
               <summary>Who is XPL Keyed?</summary>
@@ -314,7 +314,7 @@ export default function HomePage() {
             </details>
             <details>
               <summary>What if my kid is a total beginner?</summary>
-              <p>That&apos;s fine, the free intro call is partly a skill assessment. If the fit is right, lessons start from wherever the student is. If not, Keyed will say so honestly.</p>
+              <p>That&apos;s fine, the free intro call is partly a skill assessment. If the fit is right, coaching starts from wherever the student is. If not, Keyed will say so honestly.</p>
             </details>
           </div>
 

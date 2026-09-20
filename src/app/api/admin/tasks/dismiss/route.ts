@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isProtectedTask } from "@/lib/tasks/protected";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +54,24 @@ export async function POST(req: Request) {
   const coach = coachLookup.data as { id: string; is_active: boolean } | null;
   if (!coach || !coach.is_active) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  // Some tasks may not be cleared without resolving them. See
+  // src/lib/tasks/protected.ts for why call_outcome_pending is one: after
+  // this project, a marked call is the only thing that advances the billing
+  // cycle, so dismissing the reminder is how renewal stops silently.
+  //
+  // 409 rather than 403: the caller is allowed to dismiss things, just not
+  // this thing, and in this state.
+  if (isProtectedTask(body.task_type)) {
+    return NextResponse.json(
+      {
+        error: "task_not_dismissible",
+        task_type: body.task_type,
+        detail: "Mark the call outcome to clear this.",
+      },
+      { status: 409 },
+    );
   }
 
   const insert = await supabase.from("task_dismissals").insert({

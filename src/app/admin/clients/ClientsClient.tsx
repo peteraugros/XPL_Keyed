@@ -15,7 +15,6 @@ import {
   type CurriculumSlotRow,
 } from "../AdminClient";
 import MessageThread from "@/components/MessageThread";
-import LessonPicker from "@/components/LessonPicker";
 import styles from "./clients.module.css";
 
 export type ClientItem = {
@@ -192,7 +191,7 @@ function ActiveDetail({ row }: { row: ActiveRow }) {
         prep={row.prep}
       />
 
-      <LessonPlanPanel
+      <SessionPlanPanel
         playerId={row.player_id}
         kidFirstName={row.player_first_name}
         curricula={row.curricula}
@@ -221,27 +220,18 @@ function ActiveDetail({ row }: { row: ActiveRow }) {
 }
 
 // ---------------------------------------------------------------------------
-// LessonPlanPanel — current cycle + past cycles + swap/VOD controls
+// SessionPlanPanel — current cycle + past cycles
 // ---------------------------------------------------------------------------
+//
+// Was LessonPlanPanel, and it carried the content controls: a Swap button that
+// opened a LessonPicker over the published library, a VOD button that turned a
+// week into a clip review, and a "Pick lesson" button for a week that had no
+// lesson yet. All three are gone with the library.
+//
+// What a session row shows now is what a session IS: when the call is, whether
+// it happened, and whether Tim has written it up.
 
-type LibraryLesson = {
-  id: string;
-  title: string;
-  fortnite_label: string;
-  parent_label: string;
-  topic: string;
-  difficulty_level: string;
-  duration_minutes: number;
-  is_published: boolean;
-  already_done: boolean;
-};
-
-type ModalKind =
-  | { type: "swap"; slot: CurriculumSlotRow }
-  | { type: "vod_on"; slot: CurriculumSlotRow }
-  | null;
-
-function LessonPlanPanel({
+function SessionPlanPanel({
   playerId,
   kidFirstName,
   curricula,
@@ -250,9 +240,6 @@ function LessonPlanPanel({
   kidFirstName: string;
   curricula: CurriculumWithSlots[];
 }) {
-  const router = useRouter();
-  const [modal, setModal] = useState<ModalKind>(null);
-
   const active = curricula.find((c) => c.status === "active");
   const past = curricula
     .filter((c) => c.status === "completed" || c.status === "superseded")
@@ -261,16 +248,10 @@ function LessonPlanPanel({
 
   return (
     <section className={styles.lessonPanel}>
-      <div className={styles.sectionLabel}>Lesson plan</div>
+      <div className={styles.sectionLabel}>Sessions</div>
 
       {active ? (
-        <CurriculumBlock
-          curriculum={active}
-          kidFirstName={kidFirstName}
-          onSwap={(slot) => setModal({ type: "swap", slot })}
-          onVodOn={(slot) => setModal({ type: "vod_on", slot })}
-          onVodOff={(slot) => setModal({ type: "swap", slot })}
-        />
+        <CurriculumBlock curriculum={active} kidFirstName={kidFirstName} />
       ) : pending ? (
         <div className={styles.curriculumBlock}>
           <div className={styles.curriculumStatus}>Pending parent approval</div>
@@ -281,7 +262,7 @@ function LessonPlanPanel({
           />
         </div>
       ) : (
-        <p className={styles.subtle}>No active curriculum yet.</p>
+        <p className={styles.subtle}>No sessions booked yet.</p>
       )}
 
       {past.length > 0 ? (
@@ -302,13 +283,11 @@ function LessonPlanPanel({
                     : "draft"}
                 </span>
                 <span className={styles.pastLessons}>
-                  {c.slots
-                    .map((s) =>
-                      s.is_vod_review
-                        ? "VOD"
-                        : s.lesson?.fortnite_label ?? "Lesson",
-                    )
-                    .join(" · ")}
+                  {/* Was a list of lesson labels. A past cycle is now
+                      summarised by how many of its four sessions actually
+                      happened, which is the thing worth seeing at a glance. */}
+                  {c.slots.filter((s) => s.live_call_completed_at).length} of{" "}
+                  {c.slots.length} sessions completed
                 </span>
               </li>
             ))}
@@ -316,29 +295,6 @@ function LessonPlanPanel({
         </div>
       ) : null}
 
-      {modal?.type === "swap" ? (
-        <SwapLessonModal
-          slot={modal.slot}
-          playerId={playerId}
-          kidFirstName={kidFirstName}
-          onClose={() => setModal(null)}
-          onDone={() => {
-            setModal(null);
-            router.refresh();
-          }}
-        />
-      ) : null}
-      {modal?.type === "vod_on" ? (
-        <VodOnModal
-          slot={modal.slot}
-          kidFirstName={kidFirstName}
-          onClose={() => setModal(null)}
-          onDone={() => {
-            setModal(null);
-            router.refresh();
-          }}
-        />
-      ) : null}
     </section>
   );
 }
@@ -346,15 +302,9 @@ function LessonPlanPanel({
 function CurriculumBlock({
   curriculum,
   kidFirstName,
-  onSwap,
-  onVodOn,
-  onVodOff,
 }: {
   curriculum: CurriculumWithSlots;
   kidFirstName: string;
-  onSwap: (slot: CurriculumSlotRow) => void;
-  onVodOn: (slot: CurriculumSlotRow) => void;
-  onVodOff: (slot: CurriculumSlotRow) => void;
 }) {
   return (
     <div className={styles.curriculumBlock}>
@@ -362,38 +312,24 @@ function CurriculumBlock({
       {curriculum.personalization_note ? (
         <p className={styles.personalNote}>{curriculum.personalization_note}</p>
       ) : null}
-      <CurriculumSlots
-        slots={curriculum.slots}
-        kidFirstName={kidFirstName}
-        onSwap={onSwap}
-        onVodOn={onVodOn}
-        onVodOff={onVodOff}
-      />
+      <CurriculumSlots slots={curriculum.slots} kidFirstName={kidFirstName} />
     </div>
   );
 }
 
 function CurriculumSlots({
   slots,
-  kidFirstName,
-  readOnly,
-  onSwap,
-  onVodOn,
-  onVodOff,
 }: {
   slots: CurriculumSlotRow[];
-  kidFirstName: string;
+  // kidFirstName was used by the swap and VOD modal copy. Both are gone; the
+  // prop is kept off the type rather than accepted and ignored.
+  kidFirstName?: string;
   readOnly?: boolean;
-  onSwap?: (slot: CurriculumSlotRow) => void;
-  onVodOn?: (slot: CurriculumSlotRow) => void;
-  onVodOff?: (slot: CurriculumSlotRow) => void;
 }) {
   return (
     <ul className={styles.slotList}>
       {slots.map((s) => {
         const status = slotStatus(s);
-        const editable =
-          !readOnly && !s.delivered_at && !s.live_call_completed_at;
         return (
           <li
             key={s.id}
@@ -402,23 +338,8 @@ function CurriculumSlots({
             <span className={styles.slotWeek}>W{s.week_number}</span>
             <span className={styles.slotBody}>
               <span className={styles.slotTitle}>
-                {s.is_vod_review
-                  ? "VOD review"
-                  : s.lesson?.fortnite_label ?? "Lesson"}
+                Session {s.week_number}
               </span>
-              {s.lesson?.parent_label && !s.is_vod_review ? (
-                <span className={styles.slotSub}>{s.lesson.parent_label}</span>
-              ) : null}
-              {s.is_vod_review && s.vod_url ? (
-                <a
-                  href={s.vod_url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className={styles.slotLink}
-                >
-                  Watch clip
-                </a>
-              ) : null}
               {s.live_call_at ? (
                 <span className={styles.slotWhen}>
                   {new Intl.DateTimeFormat("en-US", {
@@ -429,44 +350,31 @@ function CurriculumSlots({
                   }).format(new Date(s.live_call_at))}
                 </span>
               ) : null}
+              {/* What Tim wrote up. A completed call with neither is one he
+                  has not written up yet, which is worth seeing here. */}
               {s.coach_note ? (
-                <span className={styles.slotNote}>Note: {s.coach_note}</span>
+                <span className={styles.slotNote}>Advice: {s.coach_note}</span>
+              ) : null}
+              {s.training_routine ? (
+                <span
+                  className={styles.slotNote}
+                  /* The advice beside this renders in full, so the routine
+                     should too, and a routine is the field that HAS line
+                     breaks. Without pre-wrap it collapsed to a run on line
+                     here while the student and the parent both saw a list. */
+                  style={{ whiteSpace: "pre-wrap" }}
+                >
+                  Routine: {s.training_routine}
+                </span>
+              ) : null}
+              {s.live_call_completed_at && !s.coach_note && !s.training_routine ? (
+                <span className={styles.slotSub}>Not written up yet</span>
               ) : null}
             </span>
             <span className={styles.slotRight}>
               <span className={`${styles.slotPill} ${styles[status.pillCls] ?? ""}`}>
                 {status.label}
               </span>
-              {editable ? (
-                <span className={styles.slotControls}>
-                  {s.is_vod_review ? (
-                    <button
-                      type="button"
-                      className={styles.slotBtn}
-                      onClick={() => onVodOff?.(s)}
-                    >
-                      Pick lesson
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.slotBtn}
-                        onClick={() => onSwap?.(s)}
-                      >
-                        Swap
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.slotBtnGhost}
-                        onClick={() => onVodOn?.(s)}
-                      >
-                        VOD
-                      </button>
-                    </>
-                  )}
-                </span>
-              ) : null}
             </span>
           </li>
         );
@@ -493,254 +401,4 @@ function slotStatus(s: CurriculumSlotRow): {
   if (s.live_call_at)
     return { label: "Upcoming", cls: "slotRowNext", pillCls: "slotPillNext" };
   return { label: "Not scheduled", cls: null, pillCls: "slotPillMuted" };
-}
-
-// ---------------------------------------------------------------------------
-// Swap lesson modal — also handles VOD-off (target lesson selection)
-// ---------------------------------------------------------------------------
-
-function SwapLessonModal({
-  slot,
-  playerId,
-  kidFirstName,
-  onClose,
-  onDone,
-}: {
-  slot: CurriculumSlotRow;
-  playerId: string;
-  kidFirstName: string;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const [loading, setLoading] = useState(true);
-  const [library, setLibrary] = useState<LibraryLesson[]>([]);
-  const [submitting, setSubmitting] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load library on mount.
-  if (loading && library.length === 0 && !error) {
-    void (async () => {
-      try {
-        const res = await fetch(
-          `/api/admin/lessons/library?player_id=${encodeURIComponent(playerId)}`,
-        );
-        const body = (await res.json().catch(() => ({}))) as {
-          lessons?: LibraryLesson[];
-          error?: string;
-        };
-        if (!res.ok || !body.lessons) {
-          setError(body.error ?? "Failed to load library.");
-        } else {
-          setLibrary(body.lessons);
-        }
-        setLoading(false);
-      } catch {
-        setError("Could not reach the server.");
-        setLoading(false);
-      }
-    })();
-  }
-
-  async function pick(lessonId: string) {
-    setError(null);
-    setSubmitting(lessonId);
-    try {
-      // If the slot is currently VOD, the swap-lesson endpoint flips
-      // it off VOD automatically (clears vod fields). Same call path.
-      const endpoint = slot.is_vod_review
-        ? `/api/admin/curriculum-slots/${slot.id}/toggle-vod`
-        : `/api/admin/curriculum-slots/${slot.id}/swap-lesson`;
-      const payload = slot.is_vod_review
-        ? { mode: "vod_off", lesson_id: lessonId }
-        : { lesson_id: lessonId };
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(body.error ?? "Swap failed. Try again.");
-        setSubmitting(null);
-        return;
-      }
-      onDone();
-    } catch {
-      setError("Could not reach the server.");
-      setSubmitting(null);
-    }
-  }
-
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className={styles.modalClose}
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <div className={styles.modalEyebrow}>Week {slot.week_number}</div>
-        <h2 className={styles.modalTitle}>
-          {slot.is_vod_review
-            ? `Pick a lesson for ${kidFirstName}`
-            : `Swap ${kidFirstName}'s Week ${slot.week_number} lesson`}
-        </h2>
-
-        {loading ? (
-          <p className={styles.modalBody}>Loading library...</p>
-        ) : error ? (
-          <p className={styles.modalError}>{error}</p>
-        ) : (
-          <LessonPicker
-            lessons={library.map((l) => ({
-              id: l.id,
-              title: l.fortnite_label || l.parent_label || "Lesson",
-              fortnite_label: l.fortnite_label,
-              parent_label: l.parent_label,
-              topic: l.topic,
-              difficulty_level: l.difficulty_level,
-              duration_minutes: l.duration_minutes,
-              is_published: l.is_published,
-              already_done: l.already_done,
-            }))}
-            onPick={(id) => pick(id)}
-            submittingId={submitting}
-            emptyMessage={
-              library.length === 0
-                ? "No lessons in the library yet. Author some at /admin/lessons/new."
-                : undefined
-            }
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// VOD-on modal — paste a VOD URL + optional talking point
-// ---------------------------------------------------------------------------
-
-function VodOnModal({
-  slot,
-  kidFirstName,
-  onClose,
-  onDone,
-}: {
-  slot: CurriculumSlotRow;
-  kidFirstName: string;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const [vodUrl, setVodUrl] = useState("");
-  const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit() {
-    setError(null);
-    if (!vodUrl.trim()) {
-      setError("Paste a VOD URL.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/admin/curriculum-slots/${slot.id}/toggle-vod`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "vod_on",
-          vod_url: vodUrl.trim(),
-          vod_note: note.trim() || undefined,
-        }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(body.error ?? "Couldn't switch to VOD. Try again.");
-        setSubmitting(false);
-        return;
-      }
-      onDone();
-    } catch {
-      setError("Could not reach the server.");
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className={styles.modalClose}
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <div className={styles.modalEyebrow}>Week {slot.week_number}</div>
-        <h2 className={styles.modalTitle}>
-          Switch to a VOD review for {kidFirstName}
-        </h2>
-        <p className={styles.modalBody}>
-          Replaces the assigned lesson with a review of a clip {kidFirstName}{" "}
-          dropped. Paste the clip URL below.
-        </p>
-        <label className={styles.modalLabel}>
-          <span>VOD URL</span>
-          <input
-            type="url"
-            value={vodUrl}
-            onChange={(e) => setVodUrl(e.target.value)}
-            placeholder="https://..."
-            className={styles.modalInput}
-            autoComplete="off"
-          />
-        </label>
-        <label className={styles.modalLabel}>
-          <span>Talking point for the parent email (optional)</span>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            maxLength={2000}
-            className={styles.modalTextarea}
-            placeholder={`e.g. ${kidFirstName} was W keying through endgame. We're going to fix that.`}
-          />
-        </label>
-        {error ? <p className={styles.modalError}>{error}</p> : null}
-        <div className={styles.modalActions}>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={submitting}
-            className={styles.modalPrimary}
-          >
-            {submitting ? "Saving..." : "Switch to VOD"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            className={styles.modalSecondary}
-          >
-            Never mind
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }

@@ -193,33 +193,17 @@ export default async function PortalHome({
     };
   }
 
-  // Week-1-delivered signal for the welcome state copy. If Week 1's
-  // delivered_at is set, the parent has received the PDF today.
-  // Otherwise the lesson is queued for the next Sunday.
-  let week1Delivered = false;
-  if (showWelcome) {
-    const week1Lookup = await supabase
-      .from("curriculum_slots")
-      .select("delivered_at, curricula!inner(player_id, status)")
-      .eq("curricula.player_id", player.id)
-      .eq("curricula.status", "active")
-      .eq("week_number", 1)
-      .maybeSingle();
-    const week1 = week1Lookup.data as { delivered_at: string | null } | null;
-    week1Delivered = !!week1?.delivered_at;
-  }
-
   // Single-session families pay $24 for one coaching call and don't have
-  // a cycle, auto-renew, or Sunday lesson drops. Detect off subscription
-  // tier and branch the hero + bottom cards. The cycle-subscriber UI
-  // (Lesson X of 4, cancellations remaining) does not apply to them.
+  // a cycle or auto-renew. Detect off subscription tier and branch the hero
+  // + bottom cards. The cycle-subscriber UI (Session X of 4, cancellations
+  // remaining) does not apply to them.
   const isSingleSession = sub?.tier === "single_lesson";
 
   let singleSessionData: {
     callAtIso: string | null;
     callCompleted: boolean;
     intakeNote: string | null;
-    lessonParentLabel: string | null;
+    parentSummary: string | null;
   } | null = null;
   if (isSingleSession) {
     const currResp = await supabase
@@ -235,7 +219,7 @@ export default async function PortalHome({
     if (curr) {
       const slotResp = await supabase
         .from("curriculum_slots")
-        .select("live_call_at, live_call_completed_at, no_show_at, lesson_id")
+        .select("live_call_at, live_call_completed_at, no_show_at, parent_summary")
         .eq("curriculum_id", curr.id)
         .order("week_number", { ascending: true })
         .limit(1)
@@ -245,24 +229,14 @@ export default async function PortalHome({
             live_call_at: string | null;
             live_call_completed_at: string | null;
             no_show_at: string | null;
-            lesson_id: string | null;
+            parent_summary: string | null;
           }
         | null;
-      let lessonParentLabel: string | null = null;
-      if (slot?.lesson_id) {
-        const lessonResp = await supabase
-          .from("lessons")
-          .select("parent_label")
-          .eq("id", slot.lesson_id)
-          .maybeSingle();
-        const lesson = lessonResp.data as { parent_label: string } | null;
-        lessonParentLabel = lesson?.parent_label ?? null;
-      }
       singleSessionData = {
         callAtIso: slot?.live_call_at ?? null,
         callCompleted: !!(slot?.live_call_completed_at || slot?.no_show_at),
         intakeNote: curr.personalization_note,
-        lessonParentLabel,
+        parentSummary: slot?.parent_summary ?? null,
       };
     }
   }
@@ -326,11 +300,11 @@ export default async function PortalHome({
     },
     active: {
       eyebrow: "Subscription active",
-      body: `${player.first_name}'s lessons are running. One drops every Sunday.`,
+      body: `${player.first_name}'s coaching sessions are running. One call a week.`,
     },
     past_due: {
       eyebrow: "Payment hold",
-      body: `${player.first_name}'s lessons are paused while we sort payment.`,
+      body: `${player.first_name}'s sessions are paused while we sort payment.`,
     },
     pending_cancel: {
       eyebrow: "Subscription ending",
@@ -440,18 +414,16 @@ export default async function PortalHome({
             {player.first_name}&apos;s program is active
           </h2>
           <p className={styles.alertBody}>
-            Your subscription is confirmed and your lessons are scheduled.{" "}
-            {week1Delivered
-              ? `${player.first_name}'s first PDF lesson has been delivered today.`
-              : `${player.first_name}'s first PDF lesson drops this Sunday.`}
-            {" "}New lessons arrive every Sunday.
+            Your subscription is confirmed and {player.first_name}&apos;s
+            coaching calls are scheduled. After each call Tim writes up the
+            advice and the training routine, plus a plain summary for you.
           </p>
           <p className={styles.alertBody}>
             You can:
           </p>
           <ul className={styles.alertList}>
             <li>Reserve upcoming coaching sessions</li>
-            <li>Track progress and lesson history</li>
+            <li>Read each session write up and track progress</li>
             <li>Have {player.first_name} message me from the player view. You see every message here.</li>
           </ul>
           <div className={styles.alertCtaRow}>
@@ -487,10 +459,10 @@ export default async function PortalHome({
           </h2>
           <p className={styles.alertBody}>
             {sub?.lifecycle_state === "PENDING_PAYMENT"
-              ? `All 4 lessons are on the calendar. Complete payment to lock them in.`
+              ? `All 4 sessions are on the calendar. Complete payment to lock them in.`
               : sub?.lifecycle_state === "SCHEDULING_IN_PROGRESS"
                 ? `You started scheduling. Pick the remaining slots when you're ready.`
-                : `Tim accepted ${player.first_name} as a student. When you're ready, book the 4 lessons. They'll run in the order you pick.`}
+                : `Tim accepted ${player.first_name} as a student. When you're ready, book the 4 coaching calls.`}
           </p>
           <Link
             href={"/portal/sessions" as never}
@@ -504,21 +476,21 @@ export default async function PortalHome({
           </Link>
         </section>
       ) : pendingCurriculum && phase === "trial" ? (
-        /* Pre-acceptance. Tim has drafted a curriculum but the parent
-           hasn't clicked the acceptance email yet. Point them at the
-           curriculum overview to review before kicking off scheduling. */
+        /* Pre-acceptance. Tim has taken the kid on but the parent hasn't
+           clicked the acceptance email yet. Point them at the overview page
+           before kicking off scheduling. */
         <section className={styles.alertCelebrate}>
           <div className={styles.alertEyebrowCelebrate}>Congratulations</div>
           <h2 className={styles.alertTitleLarge}>You are in.</h2>
           <p className={styles.alertBody}>
-            Tim accepted {player.first_name} as a student. Review the 4 week
-            plan he drafted and approve to lock it in.
+            Tim accepted {player.first_name} as a student. Review the details
+            and approve to lock in the first four coaching sessions.
           </p>
           <Link
             href={`/curriculum/${pendingCurriculum.approval_token}` as never}
             className={styles.alertCta}
           >
-            Review the plan
+            Review the details
           </Link>
         </section>
       ) : null}
@@ -526,7 +498,7 @@ export default async function PortalHome({
       {phase === "past_due" ? (
         <section className={styles.alert}>
           <div className={styles.alertEyebrow}>Payment hold</div>
-          <h2 className={styles.alertTitle}>Update your card to resume lessons</h2>
+          <h2 className={styles.alertTitle}>Update your card to resume sessions</h2>
           <p className={styles.alertBody}>
             The cycle is paused. No charge during the hold, no impact on your
             cancel allowance.
@@ -546,7 +518,7 @@ export default async function PortalHome({
           <p className={styles.alertBody}>
             We sent you an email with an Undo link. Click it to revert the
             third cancel, restore your slot, and resume the cycle. No new
-            lessons or charges run until you decide.
+            sessions or charges run until you decide.
           </p>
           <p className={styles.alertSubtle}>
             Or reply to the email and Tim will sort it with you directly.
@@ -597,7 +569,7 @@ export default async function PortalHome({
           callDateTime={singleSessionCallDateTime}
           callCompleted={singleSessionData?.callCompleted ?? false}
           intakeNote={singleSessionData?.intakeNote ?? null}
-          lessonParentLabel={singleSessionData?.lessonParentLabel ?? null}
+          parentSummary={singleSessionData?.parentSummary ?? null}
           latestMessage={latestMessage}
           playerFirstName={player.first_name}
         />

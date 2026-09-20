@@ -22,7 +22,6 @@ export type CalendarEvent =
       when_iso: string;
       delivered_at: string | null;
       week_number: number;
-      is_vod_review: boolean;
       slot_id: string;
       player_id: string;
       kid_first_name: string;
@@ -31,10 +30,9 @@ export type CalendarEvent =
       kid_current_rank: string | null;
       parent_first_name: string | null;
       parent_email: string | null;
-      lesson_fortnite_label: string | null;
-      lesson_parent_label: string | null;
-      lesson_skill_description: string | null;
-      lesson_is_stub: boolean;
+      coach_note: string | null;
+      training_routine: string | null;
+      parent_summary: string | null;
       cancelled: boolean;
       cancel_reason: string | null;
       cancel_source: "coach" | "parent" | null;
@@ -579,15 +577,12 @@ function MonthChip({
   onOpen: () => void;
 }) {
   const isPaid = event.kind === "paid_lesson";
-  const isVod = isPaid && event.is_vod_review;
   const isCancelled = isPaid && event.cancelled;
   const past = isPast(event.when_iso);
   const cls = isCancelled
     ? styles.monthChipCancelled
     : isPaid
-      ? isVod
-        ? styles.monthChipVod
-        : styles.monthChipPaid
+      ? styles.monthChipPaid
       : styles.monthChipTrial;
   return (
     <button
@@ -660,18 +655,15 @@ function PositionedEvent({
   if (!visible) return null;
   const top = (hourFloat - HOUR_START) * PX_PER_HOUR;
   const isPaid = event.kind === "paid_lesson";
-  const isVod = isPaid && event.is_vod_review;
   const isCancelled = isPaid && event.cancelled;
   const past = isPast(event.when_iso);
   const cls = isCancelled
     ? styles.gridEventCancelled
     : isPaid
-      ? isVod
-        ? styles.gridEventVod
-        : styles.gridEventPaid
+      ? styles.gridEventPaid
       : styles.gridEventTrial;
   const title = isPaid
-    ? (event.lesson_fortnite_label ?? (isVod ? "VOD review" : "Lesson"))
+    ? `Session ${event.week_number}`
     : "Free trial call";
   return (
     <button
@@ -698,13 +690,12 @@ function EventRow({
   onOpen: () => void;
 }) {
   const isPaid = event.kind === "paid_lesson";
-  const isVod = isPaid && event.is_vod_review;
   const isCancelled = isPaid && event.cancelled;
   const title = isPaid
-    ? (event.lesson_fortnite_label ?? (isVod ? "VOD review" : "Lesson"))
+    ? `Session ${event.week_number}`
     : "Free trial call";
   const subtitle = isPaid
-    ? `Week ${event.week_number} · ${event.kid_first_name}`
+    ? `${event.kid_first_name} · coaching call`
     : event.kid_first_name;
   return (
     <li>
@@ -732,11 +723,11 @@ function EventRow({
             isCancelled
               ? styles.pillCancelled
               : isPaid
-                ? (isVod ? styles.pillVod : styles.pillPaid)
+                ? styles.pillPaid
                 : styles.pillTrial
           }`}
         >
-          {isCancelled ? "CANCELLED" : isPaid ? (isVod ? "VOD" : "LIVE") : "TRIAL"}
+          {isCancelled ? "CANCELLED" : isPaid ? "LIVE" : "TRIAL"}
         </span>
       </button>
     </li>
@@ -755,7 +746,6 @@ function EventModal({
   onClose: () => void;
 }) {
   const isPaid = event.kind === "paid_lesson";
-  const isVod = isPaid && event.is_vod_review;
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -774,43 +764,45 @@ function EventModal({
           ×
         </button>
         <div className={styles.modalEyebrow}>
-          {isPaid ? (isVod ? "VOD review" : `Week ${event.week_number}`) : "Free trial call"}
+          {isPaid ? `Session ${event.week_number}` : "Free trial call"}
         </div>
         <h2 className={styles.modalTitle}>
           {isPaid
-            ? (event.lesson_fortnite_label ?? "Lesson")
+            ? `Coaching call with ${event.kid_first_name}`
             : `Intro call with ${event.kid_first_name}`}
         </h2>
         <p className={styles.modalWhen}>{fmtFullDateTime(event.when_iso)}</p>
 
-        {/* Lesson plan */}
-        {isPaid ? (
+        {/* What Tim wrote up after this call. Empty before the call, and
+            empty after it until he marks the outcome, so this section only
+            renders once there is something in it. The OutcomeForm below is
+            where it gets written. */}
+        {isPaid && (event.coach_note || event.training_routine || event.parent_summary) ? (
           <div className={styles.modalSection}>
-            <div className={styles.modalSectionLabel}>Lesson plan</div>
-            {event.lesson_is_stub ? (
-              <div className={styles.modalWarn}>
-                This lesson is still a stub. Author the slides + voiceover
-                before the call.
-              </div>
-            ) : event.lesson_parent_label ? (
-              <>
-                <div className={styles.modalSectionText}>
-                  <strong>Kid facing:</strong> {event.lesson_fortnite_label}
-                </div>
-                <div className={styles.modalSectionText}>
-                  <strong>Parent facing:</strong> {event.lesson_parent_label}
-                </div>
-                {event.lesson_skill_description ? (
-                  <div className={styles.modalSectionSub}>
-                    {event.lesson_skill_description}
-                  </div>
-                ) : null}
-              </>
-            ) : (
+            <div className={styles.modalSectionLabel}>Session write up</div>
+            {event.coach_note ? (
               <div className={styles.modalSectionText}>
-                {event.lesson_fortnite_label ?? "Lesson"}
+                <strong>Advice for {event.kid_first_name}:</strong>{" "}
+                {event.coach_note}
               </div>
-            )}
+            ) : null}
+            {event.training_routine ? (
+              <div
+                className={styles.modalSectionText}
+                /* pre-wrap is load-bearing: a routine is written as lines and
+                   must render as lines. */
+                style={{ whiteSpace: "pre-wrap" }}
+              >
+                <strong>Training routine:</strong>
+                {"\n"}
+                {event.training_routine}
+              </div>
+            ) : null}
+            {event.parent_summary ? (
+              <div className={styles.modalSectionSub}>
+                <strong>Summary for the parent:</strong> {event.parent_summary}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -851,9 +843,16 @@ function EventModal({
 
         {/* Decision tree for the action section:
               cancelled                 → status banner (terminal)
-              past + not yet outcome'd  → OutcomeForm (mark done / no_show / late cancel)
+              past + not yet settled    → OutcomeForm (mark done / no_show / late cancel)
+              past + settled            → status banner (terminal)
               upcoming                  → CoachCancelForm (proactive cancel)
-              trial                     → placeholder */}
+              trial                     → placeholder
+
+            delivered_at is the settled flag: every outcome stamps it and no
+            creation path sets it. Gating on it matters because mark-outcome is
+            write once (a second call returns already_marked and writes
+            nothing), so rendering the form again would be a control that
+            silently discards whatever Tim typed into it. */}
         {isPaid && event.cancelled ? (
           <div className={styles.modalSection}>
             <div className={styles.modalSectionLabel}>Status</div>
@@ -866,6 +865,18 @@ function EventModal({
                   ? ` Family was notified. Cycle pauses one week.`
                   : null}
             </div>
+          </div>
+        ) : isPaid && event.delivered_at ? (
+          <div className={styles.modalSection}>
+            <div className={styles.modalSectionLabel}>Status</div>
+            <div className={styles.modalSectionText}>
+              This session is settled. It counted toward{" "}
+              {event.kid_first_name}&apos;s cycle.
+            </div>
+            <p className={styles.modalSectionSub}>
+              To change the write up, message the family directly. The outcome
+              itself is recorded once and does not get re marked.
+            </p>
           </div>
         ) : isPaid && hoursUntil(event.when_iso) <= 0 ? (
           <OutcomeForm
@@ -1052,8 +1063,14 @@ function CoachCancelForm({
 // ---------------------------------------------------------------------------
 // Post-call outcome form (Round 2)
 // ---------------------------------------------------------------------------
-// Renders inside the event modal once live_call_at has passed. Three
-// outcomes: It happened / Student no-show / I had to cancel last minute.
+// Renders inside the event modal once live_call_at has passed and while the
+// session is still unsettled. Three outcomes: It happened / Student no-show /
+// I had to cancel last minute.
+//
+// On "It happened" this is the ONLY place in the product that writes a
+// training_routine, which is the thing the family is paying for. The route has
+// accepted all three fields since the additive phase; until this form asked
+// for them, two of the three were unreachable.
 
 type Outcome = "done" | "no_show" | "coach_cancel_late" | null;
 
@@ -1069,6 +1086,8 @@ function OutcomeForm({
   const router = useRouter();
   const [outcome, setOutcome] = useState<Outcome>(null);
   const [coachNote, setCoachNote] = useState("");
+  const [routine, setRoutine] = useState("");
+  const [parentSummary, setParentSummary] = useState("");
   const [chargeSkip, setChargeSkip] = useState(true);
   const [reason, setReason] =
     useState<typeof REASONS[number]["value"]>("sick");
@@ -1082,7 +1101,11 @@ function OutcomeForm({
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = { slot_id: slotId, outcome };
-      if (outcome === "done") body.coach_note = coachNote.trim() || undefined;
+      if (outcome === "done") {
+        body.coach_note = coachNote.trim() || undefined;
+        body.training_routine = routine.trim() || undefined;
+        body.parent_summary = parentSummary.trim() || undefined;
+      }
       if (outcome === "no_show") body.charge_skip = chargeSkip;
       if (outcome === "coach_cancel_late") body.reason = reason;
 
@@ -1091,15 +1114,35 @@ function OutcomeForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const r = (await res.json().catch(() => ({}))) as { error?: string };
+      const r = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        already_marked?: boolean;
+        cycle?: string;
+      };
       if (!res.ok) {
         setError(r.error ?? "Mark failed. Try again.");
         setSubmitting(false);
         return;
       }
+      if (r.already_marked) {
+        setError(
+          "This session was already settled, so nothing was changed. Reopen the card to see what is recorded.",
+        );
+        setSubmitting(false);
+        return;
+      }
+      const wroteUp = [
+        coachNote.trim() ? "advice" : null,
+        routine.trim() ? "a routine" : null,
+        parentSummary.trim() ? "a parent summary" : null,
+      ].filter(Boolean);
       const msg =
         outcome === "done"
-          ? "Marked done. Cycle counter advanced."
+          ? `Marked done. Session ${r.cycle === "already_counted" ? "was already counted" : "counted toward the cycle"}.${
+              wroteUp.length > 0
+                ? ` You sent ${wroteUp.join(", ")}.`
+                : " You did not write anything up, so nothing was sent."
+            }`
           : outcome === "no_show"
             ? chargeSkip
               ? `Marked no show. 1 skip charged. ${kidFirstName}'s parent emailed.`
@@ -1162,19 +1205,62 @@ function OutcomeForm({
       {outcome === "done" ? (
         <>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>Note for the parent (optional)</span>
+            <span className={styles.fieldLabel}>
+              Advice for {kidFirstName} (optional)
+            </span>
             <textarea
               value={coachNote}
               onChange={(e) => setCoachNote(e.target.value)}
               className={styles.fieldInput}
               rows={3}
               maxLength={2000}
-              placeholder={`e.g. ${kidFirstName} crushed the tunneling drills today. Working on edit-confirm timing next.`}
+              placeholder={`e.g. ${kidFirstName} crushed the tunneling drills today. Next thing to fix is edit confirm timing.`}
             />
           </label>
           <p className={styles.modalSectionSub}>
-            Surfaces on the parent&apos;s Progress page. Strategic moat
-            material; specifics &gt; generic praise.
+            {kidFirstName} reads this in My Training, and the parent sees it on
+            their Progress page. Specifics beat generic praise.
+          </p>
+
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              Training routine (optional)
+            </span>
+            <textarea
+              value={routine}
+              onChange={(e) => setRoutine(e.target.value)}
+              className={styles.fieldInput}
+              rows={6}
+              maxLength={4000}
+              placeholder={
+                "One thing per line. e.g.\n" +
+                "10 min edit course, focus on confirm timing\n" +
+                "5 box fight games, tunnel out every time you lose height\n" +
+                "Watch one replay of a fight you lost"
+              }
+            />
+          </label>
+          <p className={styles.modalSectionSub}>
+            What {kidFirstName} works on before the next call. Line breaks are
+            kept, so write it as a list.
+          </p>
+
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              Summary for the parent (optional)
+            </span>
+            <textarea
+              value={parentSummary}
+              onChange={(e) => setParentSummary(e.target.value)}
+              className={styles.fieldInput}
+              rows={3}
+              maxLength={2000}
+              placeholder={`e.g. We worked on staying calm when ${kidFirstName} is behind, and on rebuilding a plan instead of forcing a fight.`}
+            />
+          </label>
+          <p className={styles.modalSectionSub}>
+            The parent reads this first, above the advice. Plain language, no
+            game jargon. It is also what the email to them quotes.
           </p>
         </>
       ) : null}
@@ -1193,7 +1279,7 @@ function OutcomeForm({
           </label>
           <p className={styles.modalSectionSub}>
             {chargeSkip
-              ? `${kidFirstName} keeps the slides + voiceover. Cycle advances. Parent gets "Hope all is well" email.`
+              ? `Cycle advances, the session is used up. Parent gets a "Hope all is well" email.`
               : `No skip charged. Cycle pauses one week. Parent still gets "Hope all is well, no charge" email. Use only for real emergencies.`}
           </p>
         </>

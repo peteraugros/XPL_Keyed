@@ -142,8 +142,8 @@ export async function POST(
         price_data: {
           currency: "usd",
           product_data: {
-            name: `${player.first_name}'s 4 lesson cycle`,
-            description: "XPL Keyed coaching. $56 for 4 weekly lessons.",
+            name: `${player.first_name}'s 4 coaching sessions`,
+            description: "XPL Keyed coaching. $56 for 4 weekly calls, each with written advice and a training routine.",
           },
           unit_amount: 5600,
         },

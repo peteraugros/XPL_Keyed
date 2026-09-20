@@ -1,7 +1,7 @@
 // POST /api/portal/subscription/cancel-auto-renew
 //
 // Parent-initiated cancel. Flips auto_renew_enabled=FALSE on the
-// family's subscription. Current cycle continues to lesson 4 normally;
+// family's subscription. Current cycle continues to session 4 normally;
 // the next-cycle PaymentIntent will NOT fire, and the cron-auto-renew-
 // detection job will transition the subscription to canceled when the
 // current cycle wraps.

@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "XPL Keyed | Fortnite Coaching",
   description:
-    "Personalized async Fortnite coaching from XPL Keyed, Unreal ranked tournament player. Weekly lessons with voiceover plus a live 30 minute Discord call. First call free.",
+    "Personalized Fortnite coaching from XPL Keyed, Unreal ranked tournament player. A live 30 minute Discord call each week, then personal advice and a training routine to work between calls. First call free.",
   manifest: "/manifest.json",
   applicationName: "XPL Keyed",
   appleWebApp: {

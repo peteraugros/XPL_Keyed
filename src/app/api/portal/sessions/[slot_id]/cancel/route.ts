@@ -1,9 +1,12 @@
 // POST /api/portal/sessions/[slot_id]/cancel
 //
 // State B path: within 24hr of the live call.
-// Per the reschedule spec: kid keeps the slides + voiceover, the live
-// call is forfeit, counter +1. If counter hits 3, auto_renew_enabled
-// flips off and the parent is notified.
+// Per the reschedule spec: the live call is forfeit, counter +1. If the
+// counter hits 3, auto_renew_enabled flips off and the parent is notified.
+//
+// The spec also said the kid "keeps the slides and voiceover". There are no
+// slides to keep since Phase 5; a session that is cancelled inside 24hr is
+// simply spent. The behaviour below is unchanged, only the reason is.
 //
 // Defensive 24hr re-check on the server — the modal routes based on
 // the same boundary, but we never trust the client to enforce policy.
@@ -132,8 +135,10 @@ export async function POST(
   const triggeredAutoRenewOff = newSkipsUsed >= 3 && sub.auto_renew_enabled;
   const nowIso = new Date().toISOString();
 
-  // Mark slot: kid keeps the materials (forfeit pattern, same as the
-  // existing webhook forfeit path), so delivered_at advances. Sentinel
+  // Mark slot settled (forfeit pattern, same as the existing webhook forfeit
+  // path), so delivered_at advances. delivered_at does NOT mean "materials
+  // were delivered" and never did here: it means this session is done with,
+  // which is why Phase 5 kept the column when the content era went. Sentinel
   // the event id so we never re-ship + retain audit trail.
   const slotUpd = await service
     .from("curriculum_slots")
@@ -198,7 +203,7 @@ async function sendAutoRenewOffEmail(
   const html = brandedEmailHtml({
     headline: "Auto renew is off for the next cycle",
     bodyHtml: `<p>Hi ${parentFirstName},</p>
-<p>${kidFirstName} hit their 3rd skip this cycle, so auto renew is off for the next cycle. The current cycle still finishes through lesson 4 as planned. No surprise charges.</p>
+<p>${kidFirstName} hit their 3rd skip this cycle, so auto renew is off for the next cycle. The current cycle still finishes through session 4 as planned. No surprise charges.</p>
 <p>If you want to keep going after this cycle, sign back into your dashboard and book a new cycle. Your progress and history are saved.</p>
 <p>Anything to share? Have ${kidFirstName} message me in the chat. You see everything in your dashboard.</p>
 <p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,

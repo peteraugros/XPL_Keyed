@@ -54,9 +54,9 @@ export async function POST(req: Request) {
 
   const supabase = createServiceRoleClient();
 
-  // No lesson validation step — single-session sales no longer ask the
-  // parent to pick from a catalog. Tim assigns a lesson after payment
-  // via the existing /admin lesson-swap flow.
+  // No lesson validation step. A single session sale buys a call, so there
+  // is no catalog for the parent to pick from and nothing for Tim to assign
+  // afterwards; the lesson-swap surface was removed in Phase 4.
 
   // ---- 1. COPPA gate for under-13. ------------------------------------
   if (parsed.kid_age < 13) {
@@ -288,15 +288,16 @@ export async function POST(req: Request) {
     );
   }
 
-  // Slot created with lesson_id NULL. Tim picks (or builds) the lesson
-  // post-payment via the existing /admin lesson-swap surface. Sunday
-  // delivery cron will skip a slot with no lesson, so materials only
-  // ship once Tim assigns one — which is what we want.
+  // A bare session. The call time lands when the parent schedules it, and
+  // Tim writes the note, the routine and the parent summary onto this row
+  // afterwards.
+  //
+  // This comment used to say Tim would pick a lesson post-payment and the
+  // Sunday cron would ship materials once he had. Both of those are gone:
+  // the cron was unscheduled in Phase 3 and the columns dropped in Phase 5.
   const slotInsert = await supabase.from("curriculum_slots").insert({
     curriculum_id: curriculum.id,
     week_number: 1,
-    is_vod_review: false,
-    lesson_id: null,
     live_call_at: null,
     live_call_event_id: null,
   } as never);

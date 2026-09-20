@@ -20,7 +20,6 @@ import type {
   Prep,
   CurriculumWithSlots,
   CurriculumSlotRow,
-  LessonSummary,
 } from "../AdminClient";
 import type { MessageRow } from "@/components/MessageThread";
 
@@ -49,7 +48,6 @@ type CurriculumWithPlayer = {
 };
 type SlotWithCurriculum = CurriculumSlotRow & {
   curriculum_id: string;
-  lesson_id: string | null;
 };
 
 const QUEST_TOTAL = 4;
@@ -82,7 +80,6 @@ export default async function AdminClientsPage() {
   let messages: MessageWithPlayer[] = [];
   let curricula: CurriculumWithPlayer[] = [];
   let slotRows: SlotWithCurriculum[] = [];
-  let lessonRows: LessonSummary[] = [];
   if (playerIds.length > 0) {
     const playerLookup = await supabase
       .from("players")
@@ -136,22 +133,11 @@ export default async function AdminClientsPage() {
       const slotsLookup = await supabase
         .from("curriculum_slots")
         .select(
-          "id, curriculum_id, week_number, is_vod_review, lesson_id, vod_url, live_call_at, live_call_event_id, delivered_at, live_call_completed_at, no_show_at, coach_note",
+          "id, curriculum_id, week_number, live_call_at, live_call_event_id, delivered_at, live_call_completed_at, no_show_at, coach_note, training_routine, parent_summary",
         )
         .in("curriculum_id", curriculumIds)
         .order("week_number", { ascending: true });
-      slotRows = (slotsLookup.data ?? []) as (CurriculumSlotRow & { curriculum_id: string; lesson_id: string | null })[];
-
-      const lessonIds = Array.from(
-        new Set(slotRows.map((s) => s.lesson_id).filter((id): id is string => !!id)),
-      );
-      if (lessonIds.length > 0) {
-        const lessonsLookup = await supabase
-          .from("lessons")
-          .select("id, fortnite_label, parent_label, is_published")
-          .in("id", lessonIds);
-        lessonRows = (lessonsLookup.data ?? []) as LessonSummary[];
-      }
+      slotRows = (slotsLookup.data ?? []) as (CurriculumSlotRow & { curriculum_id: string })[];
     }
   }
 
@@ -173,26 +159,23 @@ export default async function AdminClientsPage() {
     arr.push(m);
     messagesByPlayer.set(m.player_id, arr);
   }
-  // Build the per-player curricula → slots → lessons graph for the
-  // lesson-plan panel on the active client detail view.
-  const lessonById = new Map(lessonRows.map((l) => [l.id, l]));
+  // Build the per-player curricula to sessions graph for the session panel on
+  // the active client detail view. There is no second round trip to `lessons`
+  // any more: everything a session carries is on the slot row.
   const slotsByCurriculum = new Map<string, CurriculumSlotRow[]>();
   for (const s of slotRows) {
-    const lesson = s.lesson_id ? lessonById.get(s.lesson_id) ?? null : null;
     const arr = slotsByCurriculum.get(s.curriculum_id) ?? [];
     arr.push({
       id: s.id,
       week_number: s.week_number,
-      is_vod_review: s.is_vod_review,
-      lesson_id: s.lesson_id,
-      vod_url: s.vod_url,
       live_call_at: s.live_call_at,
       live_call_event_id: s.live_call_event_id,
       delivered_at: s.delivered_at,
       live_call_completed_at: s.live_call_completed_at,
       no_show_at: s.no_show_at,
       coach_note: s.coach_note,
-      lesson,
+      training_routine: s.training_routine,
+      parent_summary: s.parent_summary,
     });
     slotsByCurriculum.set(s.curriculum_id, arr);
   }

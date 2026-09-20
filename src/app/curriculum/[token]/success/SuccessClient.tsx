@@ -38,10 +38,10 @@ function makeParticles(count: number): Particle[] {
 
 export default function SuccessClient({
   kidFirstName,
-  immediateDelivery,
+  firstCallAt,
 }: {
   kidFirstName: string | null;
-  immediateDelivery: boolean;
+  firstCallAt: string | null;
 }) {
   // Particles are randomized via Math.random(), which produces different
   // values on the server and the client — running it during SSR would
@@ -82,9 +82,12 @@ export default function SuccessClient({
         <div className={styles.eyebrow}>Congratulations</div>
         <h1 className={styles.headline}>You&apos;re booked.</h1>
         <p className={styles.bodyText}>
-          {immediateDelivery
-            ? `${kid} receives his first PDF lesson today and new lessons will arrive every Sunday after that.`
-            : `${kid}'s first PDF lesson drops this Sunday and new lessons will arrive every Sunday after that.`}
+          {/* Was a choice between two sentences about when a PDF lesson would
+              arrive. Nothing arrives: the session IS the call, and what comes
+              out of it is advice plus a routine, written up afterwards. */}
+          {firstCallAt
+            ? `${kid}'s first call is ${new Date(firstCallAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}. After every call I write up what to work on and it lands in ${kid}'s training page and yours.`
+            : `Once your session times are set, ${kid} is good to go. After every call I write up what to work on and it lands in ${kid}'s training page and yours.`}
         </p>
         <p className={styles.bodyText}>
           Have {kid} message me from the player view if anything comes up.

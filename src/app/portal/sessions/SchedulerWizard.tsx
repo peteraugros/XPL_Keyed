@@ -19,12 +19,8 @@ import styles from "./sessions.module.css";
 type Slot = {
   id: string;
   week_number: number;
-  is_vod_review: boolean;
   live_call_at: string | null;
   live_call_event_id: string | null;
-  fortnite_label: string | null;
-  parent_label: string | null;
-  parent_skill_description: string | null;
 };
 
 // Hardcoded for now. When Peter sets up the "Paid lesson 30 min" event
@@ -309,9 +305,6 @@ export default function SchedulerWizard({
         {slots.map((s) => {
           const isBooked = !!s.live_call_at;
           const isCurrent = !isBooked && s.id === nextPending?.id;
-          const lessonLabel = s.is_vod_review
-            ? "VOD review"
-            : s.parent_label ?? "Lesson";
           return (
             <li
               key={s.id}
@@ -323,9 +316,8 @@ export default function SchedulerWizard({
                     : styles.weekRowLocked
               }`}
             >
-              <span className={styles.weekNum}>Week {s.week_number}</span>
+              <span className={styles.weekNum}>Session {s.week_number}</span>
               <span className={styles.weekCopy}>
-                <span className={styles.weekLabel}>{lessonLabel}</span>
                 <span className={styles.weekTime}>
                   {isBooked
                     ? formatSlotDateTime(s.live_call_at!)

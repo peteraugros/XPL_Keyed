@@ -41,12 +41,15 @@ This file is loaded into any Claude session working in this directory. It captur
 
 - Marketing site is ported into `src/app/page.tsx` (Server Component) with `src/components/MarketingClient.tsx` (Client Component) attaching the hamburger toggle, scroll-reveal IntersectionObserver, and count-up timer. Inline CSS from the original static design lives in `src/app/globals.css` under the same class names. Original `index.html` is archived at `archive/index.html` for parity reference; do not edit it further.
 - Next.js 15 + Supabase scaffold is in place — see "Project files" below. `npm install` and `npm run dev` are working; dev server runs on localhost:3000 or next available port.
-- Database schema, RLS policies, dev seed, and pg_cron jobs are written as Supabase migrations in `supabase/migrations/` (5 files total including `20260517000400_dunning_reminder_columns.sql` added for the cron functions below). Not yet applied to any environment (requires Docker for `npm run db:start`).
+- Database schema, RLS policies, dev seed, and pg_cron jobs are written as Supabase migrations in `supabase/migrations/` (5 files total including `20260517000400_dunning_reminder_columns.sql` added for the cron functions below). **⚠️ STALE: there are 56 migration files, not 5. All 56 are applied LOCALLY (measured 2026-09-20).** The repo is LINKED to a hosted Supabase project (`fmsekesjdkjpvvleefpu`) and **50 of 56 are applied to prod**; `20260525000200_drop_tiktok`, `20260525000300_refund_requests`, `20260919000000` (Phase 1), `20260919000100` (Phase 3), `20260920000000` (Phase 5) and `20260920000100` (bucket policy) are LOCAL ONLY. Prod is therefore SIX behind and has none of the content-to-coaching simplification. 🔴 So prod still has `tiktok_comments`, has NO `refund_requests` table, and its `derived_tasks_view` predates both; the refund feature exists in code against a table prod does not have. 🔵 Prod data is effectively empty: 2 families / 2 players / 2 subscriptions, both `declined` + `CANCELED` + `tier='trial'` with no Stripe customer, and **0 curricula, 0 curriculum_slots, 0 messages, 0 vod_uploads**. Nobody has ever been taken on.
 - **All 7 cron Edge Functions are written** under `supabase/functions/`: the original `cron-twenty-min-pre-call-reminder` plus 6 new ones added 2026-05-17 (`day7-dunning-ping`, `dunning-parent-reminders`, `pending-cancel-lifecycle`, `waitlist-offer-lifecycle`, `waitlist-freshness-check`, `sunday-lesson-delivery`). Shared helpers live in `supabase/functions/_shared/` (`discord.ts` with `dmTim` + `sendChannelMessage`; `resend.ts` with `sendEmail` + `brandedEmailHtml` template). Functions are functional stubs at the same fidelity as the existing example: real DB queries, real outbound calls, real idempotency markers, placeholder email/Discord copy (dash-free per Hard rule #8). All await `app_config` rows + env vars at deploy time before they do anything.
 - No auth, payments, or live functionality is wired up. Stripe layer is the next coding task; the Sunday lesson delivery cron has a flagged TODO for the cycle-completion billing trigger that pairs with it.
-- Scaffold has 4 pre-existing typecheck errors deferred for later (Stripe API version literal, service worker types, Supabase cookie callback typings). Not blocking marketing-site work; will be cleared when each corresponding build phase begins.
+- **⚠️ STALE: `npx tsc --noEmit` is CLEAN, 0 errors** (measured 2026-09-19, both before and after a types regen). The 4 errors were cleared at some point and the note was not. Any typecheck error is therefore new.
 
 ---
+
+- **🔴 LOCAL PORTS ARE 544xx, AND THE REASON IS A TRAP THAT WAS LIVE UNTIL 2026-09-19.** XPL Keyed and Curriculum OS both defaulted to `5432x`, and `analytics` collides on 54327 even when the declared ports are moved. COS's stack is usually the one running, so **`npm run gen:types` here would silently regenerate `src/types/db.ts` from the CURRICULUM OS schema** — no error, just a wrong file. Now: api 54421, db 54422, studio 54423, mailpit 54424, analytics 54427 (declared explicitly), shadow 54420, and `.env.local`'s `NEXT_PUBLIC_SUPABASE_URL` points at 54421. Both stacks can run side by side. **Before trusting a `gen:types` run, confirm the DB you are on: `psql postgresql://postgres:postgres@127.0.0.1:54422/postgres -tAc "select count(*) from coaches"` answers only on XPL.**
+- **⚠️ The local PG15 volume from May is gone.** The CLI now ships Postgres 17.6 and refused the old `supabase_db_xpl-keyed` data directory ("initialized by PostgreSQL version 15"). It was tarred to a backup first, then removed, and the stack was rebuilt from migrations — all 52 apply cleanly from scratch.
 
 ## Stack (target)
 
@@ -74,6 +77,369 @@ This file is loaded into any Claude session working in this directory. It captur
 8. **No dash characters in any user-facing copy.** No em dashes (—), no en dashes (–), no hyphens (-) anywhere a parent, kid, or visitor sees rendered text: marketing pages, transactional emails, push notifications, in-app UI labels, error messages, parent-facing translation strings. Replace with periods, commas, "to", spaces, or closed compounds (e.g., "Unreal-ranked" → "Unreal ranked", "Mid-Week" → "Midweek", "30-min" → "30 min", "Mon–Tue" → "Mon to Tue", " — " → ". " or ", "). Exempt: code identifiers (CSS class names, HTML IDs, file names), URL slugs, internal dev docs (CLAUDE.md, code comments, decision memories). Memory: `feedback_no_dashes_in_user_facing_copy.md`.
 
 ---
+
+---
+
+## Content to coaching simplification (started 2026-09-19)
+
+**The product is no longer a content platform.** Peter's decision, in his words:
+*"Tim should not have to become a content creator in order to coach."* The
+session is now:
+
+```
+call  ->  coach_note (advice)  ->  training_routine  ->  next call
+```
+
+Hard rule #6 (the 7 step video first planner) is therefore **RETIRED**, along
+with the slide era it replaced. The lesson library, the planner, bundles, AI
+lesson generation, video transcription, Tim authored VOD deliverables and the
+Sunday materials email are all being removed. Sequence is additive first, then
+behavioural, then deletion, then schema last; ~9,000 lines come out, about 18%
+of `src`.
+
+**ALL PHASES ARE DONE LOCALLY. Phase 3 was the last fully reversible point and
+it is behind us: Phase 4 deleted the surfaces and Phase 5 dropped the schema.**
+⚠️ **NONE OF IT IS IN PRODUCTION.** Prod sits at `20260525000100` and is SIX
+migrations behind (see "Applying this to production" below). Do not read any
+statement about the simplification as a statement about prod.
+
+### What Phase 1 added
+
+- **Migration `20260919000000_coaching_session_fields.sql`**, additive only,
+  applied locally. Five nullable columns on `curriculum_slots`:
+  `training_routine` + `training_routine_at`, `parent_summary` +
+  `parent_summary_at`, `cycle_counted_at`.
+- **`training_routine` is a TEXT column, NOT a new table, and that is
+  deliberate.** It belongs to one session exactly as `coach_note` does, has no
+  independent lifecycle, is never shared between players and is never queried
+  across rows. A second table would be the lesson library growing back under a
+  new name. Normalise it only when a routine needs real structure.
+- **`parent_summary` is how Hard rule #4 survives the lesson library.** The
+  translation pair lived only on `lessons.parent_label` /
+  `parent_skill_description`, which the Sunday email read, so dropping the
+  library would have deleted the only storage for a launch blocker rule.
+  `coach_note` and `training_routine` are written for the PLAYER in the game's
+  vocabulary; `parent_summary` is the parent legible line.
+- **`mark-outcome` now takes all three in one submission** and is the
+  authoritative path for advancing the cycle.
+
+### The billing guard, which is the load bearing part
+
+**$56 buys 4 sessions and `cron-auto-renew-detection` fires the next charge on
+`cycle_lessons_delivered = 4`.** That counter has five writers and two of them
+(`cron-sunday-lesson-delivery`, `deliver-week-one`) are being removed, so a
+completed call becomes the ONLY thing that advances the cycle. Two things made
+that unsafe to rely on:
+
+1. **The increment discarded its error** (`await ...update()`, no check), so a
+   failed write marked the call done and silently never billed the family.
+2. **It was not idempotent**, so a retry could bill twice.
+
+`advanceCycleOnce()` fixes both via a conditional claim on `cycle_counted_at`.
+**The ordering is chosen for which way it fails:** claim then increment means a
+crash between the two leaves the cycle one short (recoverable, and a retry
+repairs it), where increment then claim would leave a retry billing the parent
+twice. **When you cannot be atomic, fail in the direction that does not
+overcharge a customer.** The `already_marked` early return also no longer
+short circuits a `done` retry, so a failed advance can actually be repaired.
+
+**`call_outcome_pending` is now non dismissible** (`src/lib/tasks/protected.ts`,
+enforced in the dismiss route AND in `DismissButton` from one shared constant).
+It had been freely dismissible: the route took `task_type: z.string()` with no
+allow list and the button rendered for every task. Note this creates no task Tim
+is stuck with: the task only exists while a call is unsettled, so marking the
+outcome is what clears it. **Discord was considered and is NOT needed** ;
+`cron-call-outcome-push` already pings Tim out of app every 5 minutes for
+exactly this case, scheduled, idempotent, already shipped.
+
+### Verification
+
+`npm run verify:billing` (`scripts/verify-billing-lifecycle.mjs`), **33
+assertions**, drives the REAL route as a REAL signed in coach against the REAL
+local database. Non vacuous, proven by three mutations: removing the claim
+fails with **`counter is STILL 1 — expected 1, got 2`** (the double billing bug
+reproduced), removing the route refusal fails 3, and removing the UI guard
+fails 1. Section I holds source invariants the driven half cannot see. Fixtures
+are removed and the row counts checked back to baseline.
+
+### What Phase 2 added
+
+**All additive. The lesson library is still there.**
+
+- **`/play/training` "My Training"** ; the player's current routine and Tim's
+  advice, earlier sessions underneath. Deliberately NOT a library: no
+  catalogue, no browsing, no watching. It answers "what am I supposed to be
+  doing right now".
+- **`parent_summary` leads on `/portal/progress`**, then the note written for
+  the player, then the routine. That order is Hard rule #4: the parent legible
+  line first, the game's vocabulary after, because the parent is entitled to
+  read everything but should not have to decode it to find out what happened.
+- **The post session recap email** (`src/lib/coaching/`), fired from
+  `mark-outcome` when Tim writes the session up. This is what replaces
+  `cron-sunday-lesson-delivery` as the routine parent touchpoint, and it is a
+  better trigger: the cron fired on a calendar, this fires because Tim did the
+  work.
+
+**Three things worth not undoing:**
+
+1. **`white-space: pre-wrap` on both routine bodies is LOAD BEARING, not
+   styling.** A routine is a list Tim types across lines. `.coachNote` never
+   had it (a note is prose), so a routine rendered through it arrives as one
+   run on paragraph. Asserted two ways, because either alone passes while the
+   feature is broken: that the rule is declared, and that the newlines
+   actually reach the markup for it to act on.
+2. **`session-recap-copy.ts` MUST IMPORT NOTHING**, and there is an assertion
+   that it has no imports. The copy and the Hard rule #4 / #8 compliance live
+   there, split from the sender, so the suite can load it directly and check
+   them. Keeping the builder beside the sender was the first attempt and the
+   test could not import it at all, because the sender pulls in the mail
+   infrastructure and the `@/` alias. A rule you can only check by sending an
+   email is a rule nobody checks.
+3. **The email is never given the routine TEXT, only `hasRoutine`.** Hard rule
+   #4 therefore holds by construction: the email cannot carry untranslated
+   Fortnite jargon even if Tim writes the whole note in it. It quotes only
+   `parent_summary`; with none written it still sends and quotes nothing, which
+   is the right failure direction. **And it does not fire at all when Tim wrote
+   neither a note nor a routine** ; marking a call done and writing it up later
+   is legitimate, and an empty recap teaches parents to ignore the next one.
+
+**Verification.** `npm run verify:coaching`, **38 assertions**: the email body
+asserted purely, the route driven as Tim, and both pages rendered as a real
+signed in player and a real signed in parent. Non vacuous, proven by four
+mutations ; leaking the routine into the email, dropping pre-wrap, showing
+`parent_summary` to the player, and emailing when nothing was written.
+`verify:billing` still 33 of 33.
+
+⚠️ **The player nav shows BOTH "My training" and "Lesson library"** for now, on
+purpose, so the two can be compared against real data before the old one goes.
+Prod has 0 active families so nobody sees the transient state. **Delete the nav
+entry and the route together in Phase 4**, never separately: a nav item
+pointing at a deleted page is a dead control.
+
+⚠️ **Three harness traps paid for here, all recorded in the suite itself.** A
+script outside the repo cannot resolve `node_modules`. `/auth/callback` cannot
+be driven with `fetch`, because it is a client page (the project layout above
+claimed `route.ts` for four months). And a fixture that guesses at columns
+fails twice before you read `information_schema`: `parents` has no `last_name`,
+`players` has no `display_name`.
+
+### What Phase 3 changed (migration `20260919000100`)
+
+**Behavioural. Nothing dropped: no table, no column, no code.** After this, no
+NEW lesson content can be created while everything that exists still reads.
+
+- **`take-on` creates 4 BARE sessions** and no stub lessons. It used to insert
+  one `lessons` row per non VOD week purely to satisfy `lesson_xor_vod`, then
+  chase Tim to author slides into each (the `lesson_authoring_needed` task).
+  **No constraint work was needed**: `20260523000000_lesson_xor_vod_allow_tbd`
+  already permits a bare slot, added for single sessions.
+- **`auto-renew.ts` stops selecting lessons.** The renewal still creates the
+  cycle, predicts uniform call times, transitions the lifecycle and bills; only
+  the content attachment is gone.
+- **`deliver-week-one` is retired from the Stripe webhook.** It was the last
+  remaining way for the billing cycle to advance WITHOUT a call happening,
+  which is precisely the coupling Phase 1 removed.
+- **`derived_tasks_view` re emitted with 14 branches instead of 17**, losing
+  `lesson_authoring_needed`, `library_running_low` and
+  `single_session_needs_lesson`.
+- **Both content crons unscheduled**, source left on disk so it is one
+  statement to reverse.
+
+**Four things worth knowing:**
+
+1. **The view was rebuilt PROGRAMMATICALLY, not by hand.** It is one
+   `CREATE OR REPLACE` with `UNION ALL` branches and no way to remove one in
+   place, so it was extracted from `20260525000300_refund_requests.sql` (the
+   live definition), the three branches were removed by matching on
+   `task_type`, and the result was asserted before being written. 430 lines
+   copied by hand would have been a silent error.
+2. **`next_stub_slot` went with them, and that is what unblocks Phase 5.** It
+   was referenced ONLY by `lesson_authoring_needed`, and it was the sole place
+   the view joined `lessons` (counting `jsonb_array_length(slides)`). The view
+   now references neither, verified by reading `pg_get_viewdef` back out of
+   Postgres rather than trusting the file.
+3. **⚠️ THE CRON JOB NAMES ARE INCONSISTENT AND MY FIRST VERSION GUESSED BOTH
+   WRONG.** They are `sunday_lesson_delivery` (underscores) and
+   `cron-rough-draft-cleanup` (hyphens). The first attempt wrapped each
+   unschedule in `IF EXISTS (... jobname = ...)`, so a wrong name simply
+   skipped, **silently**, and the migration reported success having disabled
+   nothing. **A guard that turns a typo into a no op is worse than no guard.**
+   It now counts what it removed and RAISES if it found neither.
+4. **`weeks` is still ACCEPTED AND IGNORED by `take-on`**, kept optional so the
+   route and `StageCPanel` can change in separate phases. ⚠️ **This means Tim
+   can currently type 4 week titles that go nowhere.** Harmless today (prod has
+   0 active families) and closed in Phase 4, which stops asking. Do not start
+   reading the field again.
+
+**Also changed, because leaving it would have been a lie:** the booking
+confirmation promised *"his first PDF lesson today"*. It now names the actual
+first call date, from a lookup that was already happening. And the conversion
+email describes what is bought (four calls, advice after each, a routine
+between, a plain summary for the parent) instead of rendering a 4 week content
+plan. Hard rule #4 is easier there than before: describing calls and a routine
+needs no Fortnite vocabulary, so there is nothing to translate.
+
+**Verification.** `npm run verify:nocontent`, **36 assertions**. The central one
+is blunt on purpose: count `lessons`, perform every action that used to create
+one, count again. Non vacuous by three mutations ; restoring stub creation in
+`take-on` fails 4, restoring lesson selection on renewal fails 5, and
+re-scheduling the Sunday cron fails 2. Section C asserts against
+`pg_get_viewdef` and `cron.job`, not against the migration file, because a
+migration that failed halfway still reads correctly on disk.
+
+⚠️ **Two of my own assertions were wrong before the code was, and the second was
+the useful one.** The first forbade the STRING `parent_facing_skill`, which
+still legitimately appears in the retained `WeekSchema` ; the right word in the
+wrong place. The second asserted every lesson writer lived under
+`src/app/api/admin/lessons`, and it failed on `auto-renew.ts`, which still
+CONTAINS the stub fallback (kept so Phase 3 is revertible). **A file list cannot
+tell dead code from live**, so it now asserts REACHABILITY instead: the fallback
+must have zero callers, which is the assertion that would catch someone wiring
+it back up.
+
+### What Phase 5 dropped (migration `20260920000000`)
+
+**Destructive, and the first step that a code revert cannot undo.** After this
+the lesson library needs a restore, not a checkout.
+
+Gone: the `lessons` and `lesson_bundles` tables, and four columns on
+`curriculum_slots` ; `lesson_id`, `is_vod_review`, `vod_url`,
+`vod_talking_points` ; plus the `lesson_xor_vod` CHECK, which went with the
+columns it governed. What is left of a session now reads exactly like the
+product: a call time, then `coach_note`, `training_routine`, `parent_summary`.
+
+**Four things were deliberately KEPT, and three of them are easy to drop by
+accident:**
+
+1. **`curriculum_slots.delivered_at`.** It does not mean "materials
+   delivered", it means "this session is settled". Coach cancel, no show,
+   scheduling and the cancel paths all read it. ⚠️ **Two comments said it
+   advanced because "the kid keeps the materials"** ; right behaviour, stale
+   reason, and both now say what it actually means.
+2. **`vod_uploads`, the whole table. DIFFERENT THING, SAME WORD.** That is the
+   KID's own gameplay clip, pasted at intake and read by `/play`,
+   `/portal/progress`, the clients page and take-on. Only the COACH authored
+   review deliverable went. The admin card's `latest_vod_url` comes from here,
+   not from the dropped column, which is exactly how a careless sweep would
+   have broken it.
+3. **`subscriptions.cycle_lessons_delivered`.** Named for the content era and
+   counts SESSIONS; it is what advances the billing cycle. Renaming it touches
+   `derived_tasks_view` and several readers, so it is its own change.
+4. **The `lesson-assets` storage bucket ; ✅ NOW GONE, see below.** It was kept
+   out of the schema migration deliberately, because that was a decision about
+   SCHEMA and this is one about FILES.
+
+**⚠️ FOUR TRAPS PAID FOR HERE. The first is the reusable one.**
+
+1. **🔴 `supabase-js` WITH `{ count: "exact", head: true }` RETURNS NO ERROR AND
+   A NULL COUNT FOR A TABLE THAT DOES NOT EXIST** (status 204, where the raw
+   REST call 404s with PGRST205). So `verify:nocontent`'s `countLessons()`
+   returned `count ?? 0` = **0**, and its central assertion "ZERO lesson rows
+   were created" PASSED ; identically whether the table was empty, dropped or
+   renamed. **A probe that cannot fail.** A plain select does surface the error;
+   a head count does not. Schema questions now go to Postgres via `psql`.
+2. **PostgREST rejects a select naming a dropped column outright**, so three
+   fixtures that still asked for `lesson_id` came back `data: null`, and
+   `(data ?? []).length` turned that into a confident **"four sessions exist ;
+   got 0"**. That reads as a broken route and is a false accusation against
+   working code. Worse, the sibling assertions went VACUOUS rather than red,
+   because `.every()` on an empty array is true. The reads now throw.
+3. **⚠️ `npm run build` CLOBBERS `.next` UNDER A RUNNING DEV SERVER**, and the
+   verify suites all drive `:3100`. Running a production build mid session took
+   all three suites from green to **12/33, 48/64 and 2/46**, with
+   `/api/auth/sign-in-coach-password` answering 500 so every later assertion
+   401'd. It reads exactly like the change under test having broken
+   authentication. Kill the server, `rm -rf .next`, restart, before believing a
+   sudden mass failure.
+4. **🔴 `as never` CASTS MEAN TYPECHECK CANNOT SEE A SCHEMA DROP.** Both slot
+   insert sites still wrote `is_vod_review` and `lesson_id` after the columns
+   were gone, and `npx tsc --noEmit` was CLEAN both before and after the
+   migration. They would have failed at runtime, in take-on and in the single
+   session purchase. **Find these by grep, never by the compiler.**
+
+**Verification.** `verify:nocontent` **46 assertions** (was 43 with 2 failing
+and 4 vacuous), `verify:coaching` **64**, `verify:billing` **33**; typecheck and
+a production build clean, and no lesson, library or bundle route in the route
+table. The "every session is bare" assertions stopped reading nulls back and
+became assertions about the SCHEMA, which no row can contradict and which is
+strictly stronger.
+
+### The `lesson-assets` bucket is gone (2026-09-20, migration `20260920000100`)
+
+Removed from **local and production** at Peter's instruction, after listing what
+was in it. **⚠️ MY FIRST NOTE ABOUT IT WAS AN OVERSTATEMENT AND IS CORRECTED
+HERE:** I recorded its 6 prod objects as "Tim's real slide, audio and video
+files" without looking. Listed and hashed, they are **two distinct files** ; one
+11.4 MB `.mov` stored four times and its 1.2 MB `.mp4` transcode stored twice,
+all under `rough-drafts/`, all dated 2026-05-24. 48 MB holding 12.6 MB. One clip
+re-uploaded while the transcribe pipeline was being built, and
+`20260524000300` had already classified exactly these as deletable after 24h.
+**There was never any lesson material in the bucket.** All six were downloaded
+and hashed before anything was deleted.
+
+**🔴 A MIGRATION CANNOT DROP A BUCKET, AND MUST NOT TRY.** Postgres refuses:
+*"Direct deletion from storage tables is not allowed. Use the Storage API
+instead"* (SQLSTATE 42501), enforced by the `protect_buckets_delete` and
+`protect_objects_delete` triggers. That is correct rather than an obstacle,
+because deleting `storage.objects` rows in SQL removes the METADATA and
+**orphans the blobs in the storage backend**, where they bill forever and
+appear in no listing. Buckets and objects go through the Storage API; only the
+POLICY belonged in a migration, and that is all `20260920000100` does.
+⚠️ **A `db reset` will therefore recreate the bucket locally**, empty and with
+no policy, because `20260518000000` inserts it and applied migrations are never
+rewritten. Inert, and not worth corrupting history to prevent.
+
+**⚠️ AND THE TRAP THAT NEARLY LET IT LOOK DONE WHEN IT WAS NOT: `supabase
+storage rm` AT CLI 2.117.0 REPORTS SUCCESS AND DELETES NOTHING.** It answered
+`{"deleted":[],"buckets_deleted":[],"message":""}` for a recursive prefix AND
+for a single explicit file path, while all six objects stayed. The REST
+endpoint (`DELETE /storage/v1/object/lesson-assets` with a JSON `prefixes`
+array, then `DELETE /storage/v1/bucket/lesson-assets`) works. **Verify a storage
+deletion by counting what is left, never by reading the command's own summary.**
+Same shape as the cleanup cron below, which has reported `succeeded` 118 times
+while deleting nothing.
+
+⚠️ **`lesson-assets` was the only bucket either environment had**; both now list
+zero, and nothing in `src` reads storage at all. ⚠️ **One divergence to expect
+until prod catches up: the `lesson_assets_coach_all` POLICY still exists on
+prod**, because `20260920000100` has not been applied there. It is inert (it
+governs a bucket that no longer exists) and the migration removes it in the
+catch up.
+
+### Applying this to production
+
+**🔴 PROD IS AT `20260525000100` AND IS SIX MIGRATIONS BEHIND**, measured
+2026-09-20 with `supabase migration list --linked`: `20260525000200_drop_tiktok`,
+`20260525000300_refund_requests`, `20260919000000` (Phase 1), `20260919000100`
+(Phase 3), `20260920000000` (Phase 5) and `20260920000100` (the bucket policy)
+have never been applied. So prod still
+has `tiktok_comments`, no `refund_requests` table, the 17 branch
+`derived_tasks_view`, and the whole content schema.
+
+**They must be applied IN ORDER, never cherry picked.** Phase 5 refuses to run
+before Phase 3 and says so by name, which is the guard doing its job rather
+than an error to work around. Before it runs on prod, two things deserve a
+human first: **the 3 `lessons` rows** (the migration backs them up
+automatically, but somebody should decide whether Tim wants them out of the
+backup table) and **the 6 objects in `lesson-assets`**, which no migration
+touches at all.
+
+### Still to do
+
+- ⚠️ **`subscriptions.cycle_lessons_delivered` is named for an era that is
+  gone.** It counts sessions. Renaming it means touching `derived_tasks_view`
+  and several readers, so it is a deliberate change, not a sweep.
+- ⚠️ **`cron-rough-draft-cleanup` reports `succeeded` while deleting nothing**,
+  118 runs and counting. Phase 3 unschedules it when prod catches up, so this
+  resolves itself ; but the shape is worth remembering, because a pg_cron job
+  whose body is `cron_fire(...)` reports on the DISPATCH and can never report on
+  the work. It now fires daily at a bucket that no longer exists, which is still
+  harmless.
+- ⚠️ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19).
+  Prices unchanged for now: 4 sessions for $56, $24 single. Marketing still
+  promises *"Slides and voiceover delivered to keep"* and *"watches a short
+  lesson video, takes notes, and gets quizzed on it"*.
+
 
 ## Locked product decisions
 
@@ -682,7 +1048,7 @@ XPL_Keyed/
 │   │   ├── api/play/discord-join/route.ts ← POST. Trust-based marker. Inserts quest_completions.join_discord on click after kid opens Tim's coaching server invite.
 │   │   ├── admin/                         ← Tim's coach dashboard. page.tsx Server Component: coach gate (auth_user_id match OR auto-link via service-role on first email-match sign in) → fetches all subscriptions joined with player/parent/quests/vod/prep + waitlist stats. AdminClient.tsx: stats strip (Paying/12, Trials this week, Waitlist, Revenue MTD stub), New Trials cards with inline Discord URL form, Active Clients list. page.module.css scoped (functional palette, no rarity gamification).
 │   │   ├── api/admin/players/[id]/route.ts ← PATCH. Coach-only (cookie session + defensive coach lookup). Updates players.discord_channel_url. Scoped narrowly today; coach-edited player fields land here.
-│   │   ├── auth/callback/route.ts  ← GET. Accepts both ?code=<pkce> and ?token_hash=<otp>&type=. Calls exchangeCodeForSession / verifyOtp. Validates ?next= via safeNextPath. Failure 302 → /login?error=<code>&next=<original>.
+│   │   ├── auth/callback/page.tsx  ← ⚠️ A CLIENT COMPONENT PAGE, NOT A ROUTE HANDLER (this line said `route.ts` until 2026-09-19). Handles PKCE ?code, OTP ?token_hash&type, AND the implicit #hash, which is why it must be client side: the browser strips the fragment before a server route ever sees it. **Consequence for any test harness: you cannot sign a user in with `fetch` against this URL** ; it returns 200 HTML and the session is established by JavaScript. Let `@supabase/ssr`'s own cookie adapter serialize the session instead (see scripts/verify-coaching-session.mjs).
 │   │   ├── api/auth/send-magic-link/route.ts  ← POST. Zod {email, role, next?}. Dispatches to sendParentMagicLink / sendPlayerMagicLink. No-enumeration: unknown emails return 200; only infra failures 502.
 │   │   ├── api/auth/signout/route.ts          ← POST. supabase.auth.signOut(). Idempotent.
 │   │   └── sw.ts                   ← Serwist service worker entry
@@ -1025,7 +1391,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
 - Dash sweep visual verification at `localhost:3002` (2026-05-17). Resolved by acceptance of current state: markdown bullets `-` and HR `---` in `parent-upsell-copy.md` kept (render as `•` and `<hr>`, no visible dash); `Tesch-Römer` proper-name hyphen kept (factual academic citation); `archive/index.html` kept long-term as a parity reference.
 - **Local toolchain installed (2026-05-17):** OrbStack (chosen over Docker Desktop because the cask install needed interactive sudo to create `/usr/local/cli-plugins`; OrbStack's install doesn't). Supabase CLI 2.98.2 via `brew install supabase/tap/supabase`. Stripe CLI 1.40.0 was already on the machine.
 - **`supabase/config.toml` fix (2026-05-17):** removed the legacy `[functions] verify_jwt = false` block; newer Supabase CLI parses `[functions.<name>]` per-function and rejected the old top-level form with "expected a map or struct, got 'bool'". Default `verify_jwt=true` is correct for our cron functions since `cron_fire()` already sends the service role JWT.
-- **Local Supabase stack running (2026-05-17):** `npm run db:start` applies all 5 migrations cleanly. Studio at http://127.0.0.1:54323, Mailpit at http://127.0.0.1:54324, API at http://127.0.0.1:54321.
+- **Local Supabase stack running (2026-05-17):** `npm run db:start` applies all 5 migrations cleanly. **⚠️ PORTS MOVED 2026-09-19, see below.** Studio http://127.0.0.1:54423, Mailpit http://127.0.0.1:54424, API http://127.0.0.1:54421.
 - **`npm run gen:types` (2026-05-17):** `src/types/db.ts` regenerated off the live local schema. 18 business tables visible.
 - **`.env.local` populated for local dev (2026-05-17):**
   - Supabase: URL + legacy `anon` and `service_role` JWTs from `supabase status -o env`. Chose legacy JWT format over the new `sb_publishable_*` / `sb_secret_*` keys so Edge Runtime `verify_jwt=true` keeps working when `cron_fire()` invokes Edge Functions with the service role key as bearer.

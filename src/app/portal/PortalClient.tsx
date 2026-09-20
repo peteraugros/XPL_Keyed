@@ -104,7 +104,7 @@ export function ManagePaymentButton() {
 }
 
 // Cancel + re-enable auto renew. Lives on /portal/billing. When the
-// parent cancels, current cycle still completes through lesson 4; the
+// parent cancels, current cycle still completes through session 4; the
 // next-cycle charge does not fire. Parent can re-enable any time the
 // subscription is still active (i.e. before the cycle wraps and the
 // cron transitions it to canceled).
@@ -192,7 +192,7 @@ export function AutoRenewToggle({
     return (
       <div className={styles.playerLinkRow}>
         <div className={styles.playerLinkInfo}>
-          End auto renew now? The cycle still finishes through lesson 4.
+          End auto renew now? The cycle still finishes through session 4.
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
@@ -201,7 +201,7 @@ export function AutoRenewToggle({
             disabled={busy}
             className={styles.playerLinkBtn}
           >
-            {busy ? "Ending..." : "Yes, end after lesson 4"}
+            {busy ? "Ending..." : "Yes, end after session 4"}
           </button>
           <button
             type="button"

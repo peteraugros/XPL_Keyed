@@ -22,18 +22,13 @@ type SlotRow = {
   id: string;
   curriculum_id: string;
   week_number: number;
-  is_vod_review: boolean;
-  lesson_id: string | null;
   live_call_at: string;
   live_call_event_id: string | null;
+  coach_note: string | null;
+  training_routine: string | null;
+  parent_summary: string | null;
 };
 type CurriculumRow = { id: string; player_id: string; status: string };
-type LessonRow = {
-  id: string;
-  fortnite_label: string;
-  parent_label: string;
-  parent_skill_description: string;
-};
 type PlayerRow = {
   id: string;
   first_name: string;
@@ -90,7 +85,7 @@ export default async function CalendarPage() {
   const slotsResp = await supabase
     .from("curriculum_slots")
     .select(
-      "id, curriculum_id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id, delivered_at",
+      "id, curriculum_id, week_number, live_call_at, live_call_event_id, delivered_at, coach_note, training_routine, parent_summary",
     )
     .not("live_call_at", "is", null)
     .gte("live_call_at", windowStartIso)
@@ -120,21 +115,6 @@ export default async function CalendarPage() {
     }
   }
   const liveSlots = slots.filter((s) => activeCurriculaIds.has(s.curriculum_id));
-
-  // Pull lessons for titles
-  const lessonIds = Array.from(
-    new Set(liveSlots.map((s) => s.lesson_id).filter((id): id is string => !!id)),
-  );
-  const lessonsById = new Map<string, LessonRow>();
-  if (lessonIds.length > 0) {
-    const lessonResp = await supabase
-      .from("lessons")
-      .select("id, fortnite_label, parent_label, parent_skill_description")
-      .in("id", lessonIds);
-    for (const l of (lessonResp.data ?? []) as LessonRow[]) {
-      lessonsById.set(l.id, l);
-    }
-  }
 
   // Pull cancel reasons for any cancelled slots. Two sources:
   //   * coach_cancels.reason (Tim cancelled) — keyed by curriculum_slot_id
@@ -235,7 +215,6 @@ export default async function CalendarPage() {
     const player = playersById.get(playerId);
     if (!player) continue;
     const parent = parentByFamily.get(player.family_id);
-    const lesson = s.lesson_id ? lessonsById.get(s.lesson_id) ?? null : null;
     const cancelled = (s.live_call_event_id ?? "").startsWith("cancelled:");
     const cancelInfo = cancelReasonBySlot.get(s.id);
     events.push({
@@ -244,7 +223,6 @@ export default async function CalendarPage() {
       when_iso: s.live_call_at,
       delivered_at: s.delivered_at,
       week_number: s.week_number,
-      is_vod_review: s.is_vod_review,
       slot_id: s.id,
       player_id: player.id,
       kid_first_name: player.first_name,
@@ -253,10 +231,9 @@ export default async function CalendarPage() {
       kid_current_rank: player.current_rank,
       parent_first_name: parent?.first_name ?? null,
       parent_email: parent?.email ?? null,
-      lesson_fortnite_label: lesson?.fortnite_label ?? null,
-      lesson_parent_label: lesson?.parent_label ?? null,
-      lesson_skill_description: lesson?.parent_skill_description ?? null,
-      lesson_is_stub: !lesson, // genuine stub means no lesson_id resolved
+      coach_note: s.coach_note,
+      training_routine: s.training_routine,
+      parent_summary: s.parent_summary,
       cancelled,
       cancel_reason: cancelInfo?.label ?? null,
       cancel_source: cancelInfo?.source ?? null,

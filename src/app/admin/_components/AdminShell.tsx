@@ -23,7 +23,6 @@ const NAV: NavItem[] = [
   { href: "/admin/inbox", label: "Inbox" },
   { href: "/admin/waitlist", label: "Waitlist" },
   { href: "/admin/calendar", label: "Calendar" },
-  { href: "/admin/lessons", label: "Lessons" },
   { href: "/admin/money", label: "Money" },
 ];
 
@@ -130,9 +129,10 @@ export default function AdminShell({
     router.refresh();
   }
 
-  // Active matching: exact match, except for nested routes (/admin/lessons/new
-  // should still highlight Lessons). startsWith is good enough; root /admin
-  // gets exact-match treatment so it doesn't claim every sub-route.
+  // Active matching: exact match, except for nested routes
+  // (/admin/clients/<id> should still highlight Clients). startsWith is good
+  // enough; root /admin gets exact-match treatment so it doesn't claim every
+  // sub-route.
   function isActive(href: string): boolean {
     if (href === "/admin") return pathname === "/admin";
     return pathname === href || pathname.startsWith(`${href}/`);

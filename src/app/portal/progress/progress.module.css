@@ -249,6 +249,31 @@
   margin-top: 6px;
   line-height: 1.5;
 }
+/* Training routine on a session row. Same plate as .coachNote but the body
+   preserves newlines.
+
+   white-space: pre-wrap is LOAD BEARING, not styling. A routine is a list
+   Tim types across lines ("20 min edit course, then 10 box fights"). With
+   the default collapsing, every newline becomes a space and the list
+   arrives as one run on paragraph. Do not remove it. .coachNote itself is
+   left alone because a note is prose, and changing it would alter how
+   every existing note renders. */
+.routine {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(199, 255, 61, 0.06);
+  border-left: 3px solid var(--lime);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.routineBody {
+  display: block;
+  white-space: pre-wrap;
+}
+
 .coachNoteLabel {
   display: block;
   font-family: var(--font-display);

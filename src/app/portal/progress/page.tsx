@@ -2,8 +2,8 @@
 //
 // Parent-facing program view. Shows what's been done, what's coming,
 // and where the kid started. Surfaces only data we actually have today
-// (cycles + slots + lesson labels + the trial Q2 goal); items that
-// need new schema (rank-over-time, per-lesson coach notes, milestones)
+// (cycles + slots + the session write ups + the trial Q2 goal); items
+// that need new schema (rank-over-time, milestones)
 // stay in the deferred footer so parents see them as on the roadmap.
 
 import { requireParentSession } from "../_lib/session";
@@ -99,8 +99,7 @@ type SlotLookup = {
   id: string;
   curriculum_id: string;
   week_number: number;
-  is_vod_review: boolean;
-  lesson_id: string | null;
+
   live_call_at: string | null;
   live_call_event_id: string | null;
   live_call_completed_at: string | null;
@@ -108,15 +107,10 @@ type SlotLookup = {
   delivered_at: string | null;
   coach_note: string | null;
   coach_note_at: string | null;
+  training_routine: string | null;
+  parent_summary: string | null;
 };
 
-type LessonLookup = {
-  id: string;
-  fortnite_label: string;
-  parent_label: string;
-  video_url?: string | null;
-  parent_skill_description: string;
-};
 
 const Q2_GOALS: Record<string, string> = {
   stop_dying: "stop dying so fast",
@@ -234,7 +228,7 @@ function onboardingStatusBody(
 ): string {
   if (!sub) return "";
   if (sub.lifecycle_state === "PENDING_PAYMENT") {
-    return `${firstName}'s slots are reserved. Complete payment on the Sessions page to lock them in. The 4 week cycle starts on your first lesson date.`;
+    return `${firstName}'s slots are reserved. Complete payment on the Sessions page to lock them in. The 4 week cycle starts on your first call.`;
   }
   if (sub.lifecycle_state === "SCHEDULING_IN_PROGRESS") {
     return "Finish booking the remaining sessions. Payment unlocks after all 4 are picked.";
@@ -269,30 +263,16 @@ export default async function ProgressPage() {
   const curricula = (curriculaResp.data ?? []) as CurriculumLookup[];
 
   let slots: SlotLookup[] = [];
-  const lessonsById = new Map<string, LessonLookup>();
   if (curricula.length > 0) {
     const ids = curricula.map((c) => c.id);
     const slotsResp = await supabase
       .from("curriculum_slots")
       .select(
-        "id, curriculum_id, week_number, is_vod_review, lesson_id, live_call_at, live_call_event_id, live_call_completed_at, no_show_at, delivered_at, coach_note, coach_note_at",
+        "id, curriculum_id, week_number, live_call_at, live_call_event_id, live_call_completed_at, no_show_at, delivered_at, coach_note, coach_note_at, training_routine, parent_summary",
       )
       .in("curriculum_id", ids)
       .order("week_number", { ascending: true });
     slots = (slotsResp.data ?? []) as SlotLookup[];
-
-    const lessonIds = Array.from(
-      new Set(slots.map((s) => s.lesson_id).filter((id): id is string => !!id)),
-    );
-    if (lessonIds.length > 0) {
-      const lessonsResp = await supabase
-        .from("lessons")
-        .select("id, fortnite_label, parent_label, parent_skill_description, video_url")
-        .in("id", lessonIds);
-      for (const l of (lessonsResp.data ?? []) as LessonLookup[]) {
-        lessonsById.set(l.id, l);
-      }
-    }
   }
 
   const prepResp = await supabase
@@ -509,30 +489,19 @@ export default async function ProgressPage() {
               ) : null}
               <ul className={progressStyles.weekList}>
                 {pendingSlots.map((s) => {
-                  const lesson = s.lesson_id
-                    ? lessonsById.get(s.lesson_id) ?? null
-                    : null;
                   return (
                     <li key={s.id} className={progressStyles.weekRow}>
                       <span className={progressStyles.weekNum}>
                         Week {s.week_number}
                       </span>
                       <span className={progressStyles.weekCopy}>
+                        {/* Was a lesson title plus its Hard rule #4
+                            translation. A session that has not happened yet
+                            has no content to preview: what the parent needs
+                            to know is whether it is booked. */}
                         <span className={progressStyles.weekTitle}>
-                          {lesson?.parent_label ??
-                            (s.is_vod_review ? "VOD review" : "Lesson")}
+                          Coaching session
                         </span>
-                        {lesson?.parent_skill_description ? (
-                          <span className={progressStyles.weekSkill}>
-                            {lesson.parent_skill_description}
-                            {lesson.fortnite_label ? " " : null}
-                            {lesson.fortnite_label ? (
-                              <em className={progressStyles.fortniteTerm}>
-                                (Fortnite term: {lesson.fortnite_label}.)
-                              </em>
-                            ) : null}
-                          </span>
-                        ) : null}
                         {s.live_call_at ? (
                           <span className={progressStyles.weekWhen}>
                             {formatDateTime(s.live_call_at)}
@@ -589,60 +558,21 @@ export default async function ProgressPage() {
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>Single session</div>
           <h2 className={styles.cardTitle}>
-            {(() => {
-              const slot = activeSlots[0];
-              const lesson = slot?.lesson_id ? lessonsById.get(slot.lesson_id) ?? null : null;
-              if (lesson?.parent_label) return lesson.parent_label;
-              if (slot?.live_call_at) return "Your coaching session";
-              return "Tim is preparing your session";
-            })()}
+            {activeSlots[0]?.live_call_at
+              ? "Your coaching session"
+              : "Booking your session"}
           </h2>
           <p className={styles.cardBody}>
-            {(() => {
-              const slot = activeSlots[0];
-              const lesson = slot?.lesson_id ? lessonsById.get(slot.lesson_id) ?? null : null;
-              if (lesson?.parent_skill_description) {
-                return (
-                  <>
-                    {lesson.parent_skill_description}
-                    {lesson.fortnite_label ? (
-                      <>
-                        {" "}
-                        <em className={progressStyles.fortniteTerm}>
-                          (Fortnite term: {lesson.fortnite_label}.)
-                        </em>
-                      </>
-                    ) : null}
-                  </>
-                );
-              }
-              return "One coaching call with Tim plus a lesson he picks based on what you told him. Once it's assigned, both you and your kid can rewatch it any time.";
-            })()}
+            {activeSlots[0]?.parent_summary ??
+              "One coaching call with Tim. Afterwards he writes up what he saw and a routine to work on, and both of you can read it here."}
           </p>
-          {(() => {
-            const slot = activeSlots[0];
-            const lesson = slot?.lesson_id ? lessonsById.get(slot.lesson_id) ?? null : null;
-            const videoUrl = lesson?.video_url;
-            if (!videoUrl) return null;
-            return (
-              <a
-                href={videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={progressStyles.watchLink}
-                style={{ marginTop: 8 }}
-              >
-                Watch the lesson video →
-              </a>
-            );
-          })()}
         </section>
       ) : phase === "active" && sub ? (
         <section className={styles.card}>
           <div className={styles.cardEyebrow}>This cycle</div>
           <h2 className={styles.cardTitle}>
             {sub.lifecycle_state === "ACTIVE"
-              ? `Lesson ${Math.min(sub.cycle_lessons_delivered + 1, 4)} of 4`
+              ? `Session ${Math.min(sub.cycle_lessons_delivered + 1, 4)} of 4`
               : sub.lifecycle_state.toLowerCase().replace(/_/g, " ")}
           </h2>
           <div className={progressStyles.statRow}>
@@ -676,50 +606,51 @@ export default async function ProgressPage() {
           <ul className={progressStyles.weekList}>
             {activeSlots.map((s) => {
               const status = classifySlot(s, nowMs);
-              const lesson = s.lesson_id ? lessonsById.get(s.lesson_id) ?? null : null;
               const label = statusLabel(status);
               return (
                 <li key={s.id} className={progressStyles.weekRow}>
                   <span className={progressStyles.weekNum}>Week {s.week_number}</span>
                   <span className={progressStyles.weekCopy}>
+                    {/* Just the session. What it worked on is parent_summary,
+                        rendered a few lines below under its own heading, so a
+                        title line here would say it twice. */}
                     <span className={progressStyles.weekTitle}>
-                      {lesson?.parent_label ??
-                        (s.is_vod_review ? "VOD review" : "Lesson")}
+                      Coaching session
                     </span>
-                    {lesson?.parent_skill_description ? (
-                      <span className={progressStyles.weekSkill}>
-                        {lesson.parent_skill_description}
-                        {lesson.fortnite_label
-                          ? ` `
-                          : null}
-                        {lesson.fortnite_label ? (
-                          <em className={progressStyles.fortniteTerm}>
-                            (Fortnite term: {lesson.fortnite_label}.)
-                          </em>
-                        ) : null}
-                      </span>
-                    ) : null}
                     {status.kind === "upcoming" || status.kind === "completed" ? (
                       <span className={progressStyles.weekWhen}>
                         {formatDateTime(status.at)}
                       </span>
                     ) : null}
+                    {/* Order is deliberate and is Hard rule #4. parent_summary
+                        is the parent legible line and leads; coach_note and
+                        training_routine are written for the player in the
+                        game's vocabulary and follow, because the parent is
+                        entitled to read everything but should not have to
+                        decode it to find out what happened. */}
+                    {s.parent_summary ? (
+                      <span className={progressStyles.coachNote}>
+                        <span className={progressStyles.coachNoteLabel}>What this session worked on</span>
+                        {s.parent_summary}
+                      </span>
+                    ) : null}
                     {s.coach_note ? (
                       <span className={progressStyles.coachNote}>
-                        <span className={progressStyles.coachNoteLabel}>Note from Tim</span>
+                        <span className={progressStyles.coachNoteLabel}>
+                          Note from Tim to {player.first_name}
+                        </span>
                         {s.coach_note}
                       </span>
                     ) : null}
-                    {lesson?.video_url && (status.kind === "delivered" || status.kind === "completed") ? (
-                      <a
-                        href={lesson.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={progressStyles.watchLink}
-                      >
-                        Watch the lesson video →
-                      </a>
+                    {s.training_routine ? (
+                      <span className={progressStyles.routine}>
+                        <span className={progressStyles.coachNoteLabel}>
+                          {player.first_name}&apos;s routine until the next call
+                        </span>
+                        <span className={progressStyles.routineBody}>{s.training_routine}</span>
+                      </span>
                     ) : null}
+
                   </span>
                   <span
                     className={`${progressStyles.weekStatus} ${progressStyles[`weekStatus_${label.tone}`] ?? ""}`}
@@ -776,22 +707,24 @@ export default async function ProgressPage() {
                     </span>
                   </div>
                   <ul className={progressStyles.cycleTopics}>
-                    {cycleSlots.map((s) => {
-                      const lesson = s.lesson_id
-                        ? lessonsById.get(s.lesson_id) ?? null
-                        : null;
-                      return (
-                        <li key={s.id} className={progressStyles.cycleTopic}>
-                          <span className={progressStyles.cycleTopicNum}>
-                            W{s.week_number}
-                          </span>
-                          <span className={progressStyles.cycleTopicLabel}>
-                            {lesson?.parent_label ??
-                              (s.is_vod_review ? "VOD review" : "Lesson")}
-                          </span>
-                        </li>
-                      );
-                    })}
+                    {/* Past cycle contents. Was a lesson label per week; a
+                        past session is best described by what it worked on,
+                        which is the summary Tim wrote for you. */}
+                    {cycleSlots.map((s) => (
+                      <li key={s.id} className={progressStyles.cycleTopic}>
+                        <span className={progressStyles.cycleTopicNum}>
+                          W{s.week_number}
+                        </span>
+                        <span className={progressStyles.cycleTopicLabel}>
+                          {s.parent_summary ??
+                            (s.live_call_completed_at
+                              ? "Session completed"
+                              : s.no_show_at
+                                ? "Missed"
+                                : "Session")}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 </li>
               );

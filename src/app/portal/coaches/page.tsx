@@ -46,11 +46,11 @@ export default function CoachesPage() {
 
       <section className={styles.card}>
         <div className={styles.cardEyebrow}>How coaching runs</div>
-        <h2 className={styles.cardTitle}>Async first, with a weekly live call</h2>
+        <h2 className={styles.cardTitle}>A weekly live call, then a routine to work</h2>
         <ul className={styles.bullets}>
-          <li>Every Sunday Tim drops slides with voiceover for the week&apos;s topic. Your kid watches when they have time.</li>
-          <li>Mid-week there is a 30 minute live call on Discord voice. Tim watches your kid play, gives real time feedback, and reviews a clip together.</li>
-          <li>Curriculum is approved in 4 week chunks. You see the plan before each cycle starts.</li>
+          <li>Once a week there is a 30 minute live call on Discord voice. Tim watches your kid play, gives real time feedback, and reviews a clip together.</li>
+          <li>After each call Tim writes your kid personal advice on what to change, plus a specific training routine for the week in between.</li>
+          <li>You get a plain summary of each session, without the game jargon. Sessions are booked in 4 week cycles.</li>
           <li>All Discord interaction happens in a private channel for your family. Tim never DMs your kid. You are invited as an observer.</li>
         </ul>
       </section>

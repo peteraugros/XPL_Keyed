@@ -9,9 +9,9 @@
 //         /api/portal/sessions/:slot_id/reschedule. Free if delta is
 //         within 7 days; otherwise consumes a skip.
 //       State B (<24hr): "Cancel the live call" confirm only. Counts
-//         as a skip; kid keeps the materials.
+//         as a skip.
 //   * Counter strip above the list. 3/3 = auto renew off, cycle still
-//     completes to lesson 4.
+//     completes to session 4.
 
 import Script from "next/script";
 import { useEffect, useMemo, useState } from "react";
@@ -21,12 +21,8 @@ import styles from "./sessions.module.css";
 type Slot = {
   id: string;
   week_number: number;
-  is_vod_review: boolean;
   live_call_at: string | null;
   live_call_event_id: string | null;
-  fortnite_label: string | null;
-  parent_label: string | null;
-  parent_skill_description: string | null;
 };
 
 type CalendlyMessage = {
@@ -108,11 +104,8 @@ export default function ActiveCycleManager({
                 key={s.id}
                 className={`${styles.weekRow} ${needsReschedule ? styles.weekRowNeedsReschedule : ""} ${predicted ? styles.weekRowPredicted : ""}`}
               >
-                <span className={styles.weekNum}>Week {s.week_number}</span>
+                <span className={styles.weekNum}>Session {s.week_number}</span>
                 <span className={styles.weekCopy}>
-                  <span className={styles.weekLabel}>
-                    {s.fortnite_label ?? (s.is_vod_review ? "VOD review" : "Lesson")}
-                  </span>
                   <span className={styles.weekTime}>
                     {s.live_call_at
                       ? <>
@@ -229,7 +222,7 @@ function SkipCounter({
   if (!autoRenewEnabled) {
     return (
       <div className={styles.skipCounterOff}>
-        Auto renew is off for the next cycle. This cycle still finishes through lesson 4.
+        Auto renew is off for the next cycle. This cycle still finishes through session 4.
       </div>
     );
   }
@@ -352,16 +345,16 @@ function WithinDayState({
   return (
     <>
       <div className={styles.modalEyebrow}>Less than 24 hours away</div>
-      <h2 className={styles.modalTitle}>Cancel Week {slot.week_number}'s live call</h2>
+      <h2 className={styles.modalTitle}>Cancel session {slot.week_number}'s live call</h2>
       <p className={styles.modalBody}>
-        It's less than 24 hours before this call, so it can't be moved.{" "}
-        {kidFirstName} still gets the slides and voiceover for the week. Only
-        the live call is lost.
+        It's less than 24 hours before this call, so it can't be moved. The
+        call is the session, so this one is lost. {kidFirstName} keeps every
+        write up from the sessions already done.
       </p>
       <p className={styles.modalPolicy}>
         This counts as 1 skip ({wouldBe === 3 ? "your 3rd this cycle" : `${wouldBe} of 2 used this cycle`}).{" "}
         {wouldHitCap
-          ? "This will turn off auto renew. Your current cycle continues through lesson 4, then ends."
+          ? "This will turn off auto renew. Your current cycle continues through session 4, then ends."
           : "3 skips turns off auto renew."}
       </p>
       {error ? <p className={styles.modalError}>{error}</p> : null}
@@ -542,7 +535,7 @@ function OutsideDayState({
               ? `That was your 3rd skip this cycle.`
               : `This counts as 1 skip (${result.skips_used} of 2 used this cycle).`}
           {!result.auto_renew_enabled
-            ? " Auto renew is off for the next cycle. The current cycle continues through lesson 4."
+            ? " Auto renew is off for the next cycle. The current cycle continues through session 4."
             : ""}
         </p>
         <div className={styles.modalRow}>

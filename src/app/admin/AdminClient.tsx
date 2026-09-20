@@ -10,6 +10,7 @@ import styles from "./page.module.css";
 import MessageThread, { type MessageRow } from "@/components/MessageThread";
 import { playChime } from "@/lib/sound/chime";
 import { getSoundEnabled } from "@/lib/sound/prefs";
+import { isProtectedTask } from "@/lib/tasks/protected";
 
 const Q1_LABELS: Record<string, string> = {
   lose_fights: "Loses fights they should win",
@@ -100,26 +101,24 @@ export type ActiveRow = {
   curricula: CurriculumWithSlots[];
 };
 
-export type LessonSummary = {
-  id: string;
-  fortnite_label: string;
-  parent_label: string;
-  is_published: boolean;
-};
-
+// A coaching session. Was a curriculum slot carrying a lesson or a VOD;
+// LessonSummary and the lesson / lesson_id / vod_url / is_vod_review fields
+// came off in Phase 4.
+//
+// delivered_at STAYS. It does not mean "materials were delivered", it means
+// "this session is settled": a completed call stamps it, a no show stamps it,
+// a coach cancel stamps it, and the scheduling and cancel paths all read it.
 export type CurriculumSlotRow = {
   id: string;
   week_number: number;
-  is_vod_review: boolean;
-  lesson_id: string | null;
-  vod_url: string | null;
   live_call_at: string | null;
   live_call_event_id: string | null;
   delivered_at: string | null;
   live_call_completed_at: string | null;
   no_show_at: string | null;
   coach_note: string | null;
-  lesson: LessonSummary | null;
+  training_routine: string | null;
+  parent_summary: string | null;
 };
 
 export type CurriculumWithSlots = {
@@ -617,10 +616,8 @@ function FocusedHome({
   const isVodDropped = topTask.task_type === "vod_dropped";
   const isPrepAnswered = topTask.task_type === "prep_answered";
   const isAutoRenewOff = topTask.task_type === "subscription_auto_renew_off";
-  const isLessonStub = topTask.task_type === "lesson_authoring_needed";
   const isOutcomePending = topTask.task_type === "call_outcome_pending";
   const isDragOut = topTask.task_type === "cycle_drag_out";
-  const isLibraryLow = topTask.task_type === "library_running_low";
   const isRefundPending = topTask.task_type === "refund_request_pending";
   const isAwareness =
     isTrialBooked || isParentScheduling || isPendingPayment || isVodDropped || isPrepAnswered || isAutoRenewOff;
@@ -681,14 +678,10 @@ function FocusedHome({
           <span className={styles.newTrialPill}>PREP IN</span>
         ) : isAutoRenewOff ? (
           <span className={styles.pastDuePill}>AUTO RENEW OFF</span>
-        ) : isLessonStub ? (
-          <span className={styles.pastDuePill}>LESSON STUB</span>
         ) : isOutcomePending ? (
           <span className={styles.pastDuePill}>POST CALL</span>
         ) : isDragOut ? (
           <span className={styles.pastDuePill}>CYCLE DRAG</span>
-        ) : isLibraryLow ? (
-          <span className={styles.newTrialPill}>LIBRARY</span>
         ) : isRefundPending ? (
           <span className={styles.pastDuePill}>REFUND</span>
         ) : (
@@ -707,8 +700,12 @@ function FocusedHome({
         <span className={styles.focusedHomeAge}>{ageStr}</span>
         <span className={styles.focusedHomeDot}>·</span>
         <StuckButton task={topTask} variant="link" />
-        <span className={styles.focusedHomeDot}>·</span>
-        <DismissButton task={topTask} variant="link" />
+        {isProtectedTask(topTask.task_type) ? null : (
+          <>
+            <span className={styles.focusedHomeDot}>·</span>
+            <DismissButton task={topTask} variant="link" />
+          </>
+        )}
       </div>
 
       {isWelcome ? (
@@ -782,18 +779,6 @@ function FocusedHome({
           subscriptionId={(topTask.task_payload?.subscription_id as string) ?? ""}
           onDone={() => router.refresh()}
         />
-      ) : isLessonStub ? (
-        <div className={styles.inlineReplyRow}>
-          <a href={"/admin/lessons" as never} className={styles.focusedHomeCta}>
-            Open lesson library
-          </a>
-          <a
-            href={`/admin/clients?client=${topTask.client_id}`}
-            className={styles.inlineReplySecondary}
-          >
-            Open client card
-          </a>
-        </div>
       ) : isOutcomePending ? (
         <div className={styles.inlineReplyRow}>
           <a href={"/admin/calendar" as never} className={styles.focusedHomeCta}>
@@ -804,18 +789,6 @@ function FocusedHome({
             className={styles.inlineReplySecondary}
           >
             Open client card
-          </a>
-        </div>
-      ) : isLibraryLow ? (
-        <div className={styles.inlineReplyRow}>
-          <a href={"/admin/lessons/new" as never} className={styles.focusedHomeCta}>
-            Author a lesson
-          </a>
-          <a
-            href={"/admin/lessons" as never}
-            className={styles.inlineReplySecondary}
-          >
-            See library
           </a>
         </div>
       ) : isRefundPending ? (
@@ -855,7 +828,13 @@ function FocusedHome({
                       <span className={styles.focusedHomeMoreName}>{t.client_name}</span>
                       <span className={styles.focusedHomeMoreSubtitle}>{p.title}</span>
                       <span className={styles.focusedHomeMoreAge}>
-                        {formatAge(t.age_in_state)} · <StuckButton task={t} variant="link" /> · <DismissButton task={t} variant="link" />
+                        {formatAge(t.age_in_state)} · <StuckButton task={t} variant="link" />
+                        {isProtectedTask(t.task_type) ? null : (
+                          <>
+                            {" · "}
+                            <DismissButton task={t} variant="link" />
+                          </>
+                        )}
                       </span>
                     </div>
                     <a href={`/admin/clients?client=${t.client_id}`} className={styles.focusedHomeMoreCta}>
@@ -1230,6 +1209,11 @@ function DismissButton({
   variant?: "link" | "button";
 }) {
   const router = useRouter();
+
+  // Guard lives here, not at the call sites, so a future render of this
+  // button inherits it. The dismiss route refuses these too (409); this just
+  // stops offering an action that cannot succeed. See lib/tasks/protected.ts.
+  const protectedTask = isProtectedTask(task.task_type);
   const [stage, setStage] = useState<"idle" | "submitting" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -1258,6 +1242,8 @@ function DismissButton({
       setStage("idle");
     }
   }
+
+  if (protectedTask) return null;
 
   if (stage === "done") {
     return <span className={styles.stuckSent}>Dismissed</span>;
@@ -1393,7 +1379,7 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
       const payload = (t.task_payload ?? {}) as { slots_booked?: number };
       const booked = payload.slots_booked ?? 0;
       return {
-        title: `${name}'s parent is booking lessons.`,
+        title: `${name}'s parent is booking sessions.`,
         body:
           booked === 0
             ? "They opened the scheduler. No slots reserved yet."
@@ -1405,7 +1391,7 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
     }
     case "pending_payment":
       return {
-        title: `${name}'s lessons are awaiting payment.`,
+        title: `${name}'s sessions are awaiting payment.`,
         body: "All four slots reserved. Parent is on the Stripe page.",
         cta: "Open card",
       };
@@ -1419,8 +1405,8 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         title: `${name}'s card was declined.`,
         body:
           days === 0
-            ? "Stripe is auto retrying. Lessons paused while it sorts out."
-            : `Day ${days}. Stripe is still retrying. Lessons paused.`,
+            ? "Stripe is auto retrying. Sessions paused while it sorts out."
+            : `Day ${days}. Stripe is still retrying. Sessions paused.`,
         cta: "Open card",
       };
     }
@@ -1430,15 +1416,6 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         title: `${name} dropped a clip.`,
         body: payload.vod_url ? "Watch it before the call so you walk in informed." : "Watch it before the call so you walk in informed.",
         cta: "Open card",
-      };
-    }
-    case "library_running_low": {
-      const payload = (t.task_payload ?? {}) as { published_count?: number };
-      const count = payload.published_count ?? 0;
-      return {
-        title: "Your lesson library is running low.",
-        body: `Only ${count} published ${count === 1 ? "lesson" : "lessons"} in the library. Auto renew starts repeating or falling back to stubs at this level. Author a few more when you have a free hour.`,
-        cta: "Author a lesson",
       };
     }
     case "cycle_drag_out": {
@@ -1459,7 +1436,7 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
       const cancels = payload.coach_cancels_count ?? 0;
       return {
         title: `${name}'s cycle is dragging.`,
-        body: `${weeks} weeks running, only ${delivered} of 4 lessons delivered. ${skips} parent ${skips === 1 ? "skip" : "skips"}, ${cancels} of your own ${cancels === 1 ? "cancel" : "cancels"}. Worth a check in.`,
+        body: `${weeks} weeks running, only ${delivered} of 4 sessions done. ${skips} parent ${skips === 1 ? "skip" : "skips"}, ${cancels} of your own ${cancels === 1 ? "cancel" : "cancels"}. Worth a check in.`,
         cta: "Open card",
       };
     }
@@ -1473,65 +1450,8 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
       const when_label = hours < 4 ? `${hours}h ago` : when ? when.toLocaleDateString("en-US", { weekday: "short" }) : "earlier";
       return {
         title: `How did ${name}'s call go?`,
-        body: `Live call was ${when_label}. Mark it done, no show, or a late cancel so the family's records close out.`,
+        body: `Live call was ${when_label}. Marking it done is what counts the session toward their cycle, so nothing renews until you settle it.`,
         cta: "Mark outcome",
-      };
-    }
-    case "single_session_needs_lesson": {
-      const payload = (t.task_payload ?? {}) as {
-        intake_note?: string | null;
-        live_call_at?: string | null;
-      };
-      const note = (payload.intake_note ?? "").trim();
-      const when = payload.live_call_at ? new Date(payload.live_call_at) : null;
-      const dateLabel = when
-        ? when.toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-          })
-        : null;
-      const quote =
-        note.length > 0
-          ? `"${note.slice(0, 180)}${note.length > 180 ? "..." : ""}"`
-          : null;
-      let body: string;
-      if (quote && dateLabel) {
-        body = `${quote} . Call on ${dateLabel}. Pick a lesson from the library or build one.`;
-      } else if (quote) {
-        body = `${quote} . Call not scheduled yet. Pick a lesson when you're ready.`;
-      } else if (dateLabel) {
-        body = `Single session call on ${dateLabel}. Pick a lesson before then.`;
-      } else {
-        body = "Single session purchased. Pick a lesson when you're ready.";
-      }
-      return {
-        title: `${name} bought a single session. Pick a lesson.`,
-        body,
-        cta: "Open card",
-      };
-    }
-    case "lesson_authoring_needed": {
-      const payload = (t.task_payload ?? {}) as {
-        week_number?: number;
-        live_call_at?: string | null;
-      };
-      const week = payload.week_number ?? 0;
-      const when = payload.live_call_at
-        ? new Date(payload.live_call_at)
-        : null;
-      const days = when
-        ? Math.max(0, Math.floor((when.getTime() - Date.now()) / 86_400_000))
-        : null;
-      return {
-        title: `${name}'s Week ${week} lesson is still a stub.`,
-        body:
-          days === null
-            ? "Slides + voiceover aren't authored yet. Sunday delivery will be empty."
-            : days === 0
-              ? "Live call is today. Author the slides + voiceover before delivery."
-              : `Live call in ${days} ${days === 1 ? "day" : "days"}. Author the slides + voiceover before then.`,
-        cta: "Author lesson",
       };
     }
     case "subscription_auto_renew_off": {
@@ -1544,7 +1464,7 @@ function phraseForTask(t: DerivedTask): { title: string; body: string | null; ct
         title: `${name}'s auto renew is off.`,
         body:
           remaining > 0
-            ? `${remaining} ${remaining === 1 ? "lesson" : "lessons"} left in the cycle, then the subscription ends. Reach out if you want to keep them.`
+            ? `${remaining} ${remaining === 1 ? "session" : "sessions"} left in the cycle, then the subscription ends. Reach out if you want to keep them.`
             : "The cycle is done. The subscription ends at the next cron run.",
         cta: "Open card",
       };
@@ -1820,18 +1740,6 @@ type StageCMode =
   | { kind: "submitted_decline" }
   | { kind: "error"; message: string };
 
-type Week = {
-  kid_facing_title: string;
-  parent_facing_skill: string;
-  is_vod_review: boolean;
-};
-
-const EMPTY_WEEK: Week = {
-  kid_facing_title: "",
-  parent_facing_skill: "",
-  is_vod_review: false,
-};
-
 function StageCPanel({
   playerId,
   kidFirstName,
@@ -1843,25 +1751,9 @@ function StageCPanel({
 }) {
   const [mode, setMode] = useState<StageCMode>({ kind: "idle" });
   const [note, setNote] = useState("");
-  const [weeks, setWeeks] = useState<Week[]>([
-    { ...EMPTY_WEEK },
-    { ...EMPTY_WEEK },
-    { ...EMPTY_WEEK },
-    { ...EMPTY_WEEK },
-  ]);
-
-  function updateWeek(i: number, patch: Partial<Week>) {
-    setWeeks((prev) => prev.map((w, idx) => (idx === i ? { ...w, ...patch } : w)));
-  }
 
   function canSubmit(): boolean {
-    if (note.trim().length < 1) return false;
-    for (const w of weeks) {
-      if (!w.is_vod_review && (w.kid_facing_title.trim().length < 1 || w.parent_facing_skill.trim().length < 1)) {
-        return false;
-      }
-    }
-    return true;
+    return note.trim().length > 0;
   }
 
   async function submitTakeOn() {
@@ -1873,11 +1765,6 @@ function StageCPanel({
         body: JSON.stringify({
           player_id: playerId,
           personalization_note: note.trim(),
-          weeks: weeks.map((w) => ({
-            kid_facing_title: w.kid_facing_title.trim(),
-            parent_facing_skill: w.parent_facing_skill.trim(),
-            is_vod_review: w.is_vod_review,
-          })),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -2001,52 +1888,13 @@ function StageCPanel({
       {mode.kind === "drafting" || mode.kind === "submitting_takeon" ? (
         <div className={styles.drafter}>
           <div className={styles.cardBody}>
-            Draft {kidFirstName}&apos;s 4 week plan. The parent gets the
-            translation in their email, so make the parent skill describe a
-            real-world capability, not the Fortnite move.
+            Taking {kidFirstName} on sets up four coaching sessions. You decide
+            what each one covers on the call itself, so there is no plan to
+            draft here. Write the parent a short note on why you are taking
+            {kidFirstName} on.
           </div>
-          {weeks.map((w, i) => (
-            <div key={i} className={styles.weekBlock}>
-              <div className={styles.weekHeader}>
-                <span className={styles.weekLabel}>Week {i + 1}</span>
-                <label className={styles.weekVodToggle}>
-                  <input
-                    type="checkbox"
-                    checked={w.is_vod_review}
-                    onChange={(e) => updateWeek(i, { is_vod_review: e.target.checked })}
-                  />
-                  VOD review week
-                </label>
-              </div>
-              {w.is_vod_review ? (
-                <div className={styles.weekVodNote}>
-                  VOD week. Defaults to {kidFirstName}&apos;s most recent clip.
-                  You can swap the URL and add talking points later.
-                </div>
-              ) : (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Kid facing title (Fortnite term, e.g. Tunneling)"
-                    value={w.kid_facing_title}
-                    onChange={(e) => updateWeek(i, { kid_facing_title: e.target.value })}
-                    className={styles.input}
-                    maxLength={120}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Parent facing skill (e.g. Defensive building under pressure)"
-                    value={w.parent_facing_skill}
-                    onChange={(e) => updateWeek(i, { parent_facing_skill: e.target.value })}
-                    className={styles.input}
-                    maxLength={240}
-                  />
-                </>
-              )}
-            </div>
-          ))}
           <textarea
-            placeholder={`Two sentence personalization note for ${kidFirstName}'s parent. Why this plan, why now.`}
+            placeholder={`Two sentence note for ${kidFirstName}'s parent. What you saw on the call, why you want to keep working with them.`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className={styles.input}
@@ -2073,7 +1921,7 @@ function StageCPanel({
           </div>
           {!canSubmit() ? (
             <div className={styles.hint}>
-              Fill in both fields for every non VOD week and write the personalization note to enable Send.
+              Write the personalization note to enable Send.
             </div>
           ) : null}
         </div>

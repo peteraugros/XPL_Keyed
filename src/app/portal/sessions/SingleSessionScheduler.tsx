@@ -112,20 +112,21 @@ export default function SingleSessionScheduler({
         </div>
         {completed ? (
           <p className={styles.body}>
-            Tim&apos;s wrapped the call. Slides, voiceover, and his note land
-            in the player view for {kidFirstName} to review.
+            Tim&apos;s wrapped the call. His advice and the training routine
+            land in the player view for {kidFirstName}, and you get a plain
+            summary of what they worked on.
           </p>
         ) : isPast ? (
           <p className={styles.body}>
-            Tim&apos;s wrapping up the session details. The lesson materials
-            and his note land in the player view shortly.
+            Tim&apos;s writing up the session. His advice and the training
+            routine land in the player view shortly.
           </p>
         ) : (
           <>
             <p className={styles.body}>
               Tim sends {kidFirstName} the XPL Keyed Discord server invite
-              before the call. After the session, the slides and voiceover
-              land in the player view so {kidFirstName} can review.
+              before the call. Afterwards he writes up the advice and a
+              training routine in the player view.
             </p>
             <p className={styles.subtle}>
               Need to reschedule? Use the link in your Calendly confirmation

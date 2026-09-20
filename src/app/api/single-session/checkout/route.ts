@@ -139,8 +139,8 @@ export async function POST(req: Request) {
           product_data: {
             name: `${player.first_name}'s single coaching session`,
             description: noteShort
-              ? `30 min Discord call with Tim plus lesson materials. Topic: "${noteShort}${noteTail}".`
-              : `30 min Discord call with Tim plus lesson materials.`,
+              ? `30 min Discord call with Tim, plus written advice and a training routine afterwards. Topic: "${noteShort}${noteTail}".`
+              : `30 min Discord call with Tim, plus written advice and a training routine afterwards.`,
           },
           unit_amount: PRICE_CENTS,
         },

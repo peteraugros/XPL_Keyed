@@ -497,7 +497,6 @@ const CRON_TRIGGER_EXPECTATIONS: Array<{
   label: string;
   staleAfterHours: number;
 }> = [
-  { trigger: "sunday_lesson_delivery", label: "Sunday lesson delivery", staleAfterHours: 24 * 8 },
   { trigger: "dunning_reminder_day3", label: "Dunning day 3", staleAfterHours: 24 * 30 },
   { trigger: "dunning_reminder_day6", label: "Dunning day 6", staleAfterHours: 24 * 30 },
   { trigger: "pending_cancel_reminder_day3", label: "Pending cancel day 3", staleAfterHours: 24 * 30 },
