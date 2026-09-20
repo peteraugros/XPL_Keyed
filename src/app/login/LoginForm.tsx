@@ -182,6 +182,18 @@ export default function LoginForm({
             >
               {secretSubmitting ? "Signing in..." : "Sign in"}
             </button>
+            {/* The magic link path existed and was reachable only by typing
+                ?role=coach by hand: nothing in the app linked to it, and the
+                Coach option only renders once that param is already set, so
+                there was no first click that got you there. This is that
+                first click, put where someone who just failed to remember a
+                password is already looking. */}
+            <a
+              className={styles.linkBtn}
+              href={`/login?role=coach${next ? `&next=${encodeURIComponent(next)}` : ""}`}
+            >
+              Forgot your password? Email me a sign in link
+            </a>
             <button
               type="button"
               className={styles.secondaryBtn}

@@ -191,3 +191,28 @@
   border-color: var(--lime);
   color: var(--lime);
 }
+
+/* Text weight action inside the coach panel. Same family as the buttons but
+   borderless, so the card does not end in three controls of equal weight.
+   Keeps the 44px touch target the other controls use. */
+.linkBtn {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 1.2px;
+  background: transparent;
+  color: var(--text-faint);
+  border: none;
+  padding: 12px 4px;
+  min-height: 44px;
+  margin-top: 6px;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
+}
+.linkBtn:hover {
+  color: var(--lime);
+}

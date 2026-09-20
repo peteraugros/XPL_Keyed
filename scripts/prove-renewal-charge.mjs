@@ -151,7 +151,13 @@ async function main() {
     console.error(`  ${FUNCTIONS_URL}/cron-auto-renew-detection answered ${up.status || "no response"}`);
     if (up.text) console.error(`  ${up.text.slice(0, 160)}`);
     console.error(`\nStart the Edge Function runtime first:`);
-    console.error(`  npx supabase functions serve --env-file <env with TEST Stripe keys> --no-verify-jwt`);
+    console.error(`  npx supabase functions serve --env-file <env> --no-verify-jwt`);
+    console.error(`\nThe env file needs all of these, not just Stripe:`);
+    console.error(`  STRIPE_SECRET_KEY (sk_test_), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,`);
+    console.error(`  RESEND_API_KEY, RESEND_FROM_EMAIL`);
+    console.error(`Omitting RESEND_FROM_EMAIL does not fail loudly: the charge still works and`);
+    console.error(`only the email path dies, as "Resend 422: Missing from field" in`);
+    console.error(`notification_log, which reads like a product defect and is not one.`);
     process.exit(2);
   }
 
