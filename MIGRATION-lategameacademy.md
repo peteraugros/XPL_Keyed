@@ -145,13 +145,17 @@ signing secret is unchanged and `STRIPE_WEBHOOK_SECRET` needed no edit. All 5
 events intact, still exactly one endpoint. Verified by reading Stripe back AND
 by delivering a genuinely signed event to the new URL, which returned 200.
 
-**🔴 5b. Stripe statement descriptor. BLOCKED, and it needs dashboard access.**
-Still reads **`XPL KEYED`**, which is what prints on a parent's bank statement.
-**The API REFUSES it**: `403 You cannot use this method on your own account: you
-may only use it on connected accounts.` Stripe allows editing your own account
-settings only from the dashboard.
+**5b. Stripe statement descriptor. DONE 2026-09-21, from the dashboard.**
+Now reads `LATE GAME ACADEMY` with prefix `LGA`, verified by reading the account
+back through the API.
 
-**🔴 AND NOBODY CAN CURRENTLY SIGN INTO THAT ACCOUNT.** `acct_1TY0tWLQGJ57M1t9`
+⚠️ **Kept because the reason matters next time: the API REFUSES this edit.**
+`403 You cannot use this method on your own account: you may only use it on
+connected accounts.` Stripe allows editing your own account settings only from
+the dashboard, so no amount of scripting gets there.
+
+**AND FOR A WHILE NOBODY COULD SIGN INTO THAT ACCOUNT. Resolved 2026-09-21.**
+`acct_1TY0tWLQGJ57M1t9`
 is a STANDALONE standard account (`controller: {type: account}`), not a
 connected account under Elementsofchess, and Peter's login does not list it.
 Its contact email is `elementsofchess.platform@gmail.com`, which is the address
@@ -236,11 +240,21 @@ no `redirect_to` at all, which today means anything triggered from the Supabase
 dashboard itself. Read it back the same way it was read here: generate a link
 with no `redirect_to` and look at where it points.
 
-**2. The Stripe statement descriptor still reads `XPL KEYED`.** This is the text
-a parent sees on their bank statement, and an unrecognised charge is the leading
-cause of disputes. It cannot be fixed from the API and nobody can currently sign
-into `acct_1TY0tWLQGJ57M1t9`. See 5b below; that access gap matters well beyond
-the rename.
+**2. Stripe. DONE 2026-09-21, and the access gap closed with it.** Read back
+from the API rather than trusted to the dashboard:
+
+```
+acct_1TY0tWLQGJ57M1t9
+business_profile.name                      = Late Game Academy
+settings.payments.statement_descriptor     = LATE GAME ACADEMY
+settings.card_payments.descriptor_prefix    = LGA
+```
+
+That is what prints on a parent's bank statement, so the leading cause of
+disputes is now removed. **The larger win is that somebody got into the account
+at all**: disputes, refunds and payouts for Tim's business all live there, and a
+dispute has a response deadline. Write down how that sign in works before it is
+needed under time pressure.
 
 **3. `xplkeyed.com` is deliberately still attached to Railway and still serving.**
 Leave it. Old links in old inboxes keep working. Retire it only once nothing is
