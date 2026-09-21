@@ -1,6 +1,6 @@
 # Domain move: xplkeyed.com to lategameacademy.com
 
-**Started 2026-09-20. PAUSED at step 3, waiting on Tim.**
+**Started 2026-09-20. Steps 1 to 3 DONE and proven. Remaining: 4, 5, 6.**
 Delete this file when the move is finished.
 
 Full rebrand was chosen, not just a domain swap: the product becomes
@@ -10,9 +10,7 @@ Full rebrand was chosen, not just a domain swap: the product becomes
 
 ## Where it stopped
 
-**Waiting on Tim to click one link.** Cloudflare emailed a verification link to
-`timothyaugros2384@gmail.com`. Until he clicks it, that destination stays
-`Pending` and no mail routes. He was asleep at his mum's on the 20th.
+**Steps 4, 5 and 6 remain, all dashboard work.** See REMAINING below.
 
 ---
 
@@ -43,7 +41,27 @@ peteraugros@gmail.com came back `last_event: delivered`.
 `send.lategameacademy.com CNAME send.forge.rmta.net`. This is current Resend,
 not a fault. Do not try to make it match the old domain.
 
-**3a. Email Routing, partially.** Enabled, root MX records live
+**3. Email Routing. DONE and proven.** `tim@lategameacademy.com` -> 
+`timothyaugros2384@gmail.com`, rule Active, and a real message to that address
+came back `delivered`. **This is the first time that contact address has ever
+been able to receive mail.**
+
+⚠️ **Catch-all is DISABLED with action Drop.** Mail to anything other than
+`tim@` is silently discarded, so only advertise `tim@`. Switch it to forward if
+a misaddressed parent email should not vanish.
+
+⚠️ **A bounce puts an address on RESEND'S SUPPRESSION LIST and later sends come
+back `suppressed`, which looks like a routing fault and is not.** The first test
+bounced (no rule yet), which suppressed the address; the fix was
+`DELETE https://api.resend.com/suppressions/{id}`. **Check
+`GET /suppressions` first if a real email ever silently fails.** One stale entry
+remains: `peteraugors+sarah@gmail.com`, a typo of Peter's address.
+
+⚠️ **Open question, deliberately not decided:** the destination is a 14 year
+old's personal Gmail, so Instagram account recovery for the business account
+lands there. Adding Peter as a second destination was offered and not chosen.
+
+**3a. Email Routing DNS.** Root MX records live
 (`route1/2/3.mx.cloudflare.net`), root SPF added.
 
 🔵 **The two SPF records do NOT collide, and that was checked rather than
@@ -56,17 +74,6 @@ this domain, re-check that they are still on different names.
 ---
 
 ## REMAINING, in order
-
-**3b. Finish Email Routing.**
-- Tim clicks the Cloudflare verification link in `timothyaugros2384@gmail.com`
-  (check spam; it comes from Cloudflare, not from our domain).
-- Routing rules -> Create address: `tim` @ `lategameacademy.com` -> send to that
-  Gmail.
-- Consider the **catch-all** to the same inbox so `hello@`, `support@` etc do
-  not bounce on a new domain.
-- ⚠️ **Open question, deliberately not decided:** the destination is a 14 year
-  old's personal Gmail, so Instagram account recovery for the business account
-  lands there. Adding Peter as a second destination was offered and not chosen.
 
 **4. Supabase auth.** Dashboard -> project `xpl-keyed-prod` -> Authentication ->
 URL Configuration. **ADD** `https://lategameacademy.com/auth/callback`, keep the
