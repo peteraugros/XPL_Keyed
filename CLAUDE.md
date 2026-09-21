@@ -839,6 +839,25 @@ naming an unknown column outright**, so the reverse order would have broken
 `/play` for every student. Deploy verified by COMMIT HASH (`7e9974e`, SUCCESS),
 not by a status page.
 
+### 🔴 IN PROGRESS: domain move to lategameacademy.com (paused 2026-09-20)
+
+**Read `MIGRATION-lategameacademy.md` before touching DNS, Resend, Stripe or the
+Railway env vars.** It holds the full state, what is proven, and the three
+things a blind rename would break.
+
+**Paused waiting on one click**: Tim must verify the Cloudflare Email Routing
+destination in `timothyaugros2384@gmail.com`.
+
+Done and proven: the new domain serves the app (verified by `x-railway-*`
+headers, not a status page), and Resend sends from it (verified by a real
+message reaching Gmail, `last_event: delivered`). Remaining: finish Email
+Routing, add the Supabase callback URL, **EDIT** the Stripe webhook URL rather
+than adding a second endpoint, then flip three Railway env vars.
+
+**⚠️ `e78a9ec` "Rebrand to Late Game Academy" is COMMITTED AND NOT PUSHED**, so
+the live site still says XPL Keyed. Pushing deploys it. It goes out together
+with the env flip so the name and the URL change in one move.
+
 ### Still to do
 
 - 🔴 **DISCORD HAS NEVER BEEN CONFIGURED IN ANY ENVIRONMENT, AND THE VALUES DO
