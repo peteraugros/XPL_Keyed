@@ -1,9 +1,14 @@
 # Domain move: xplkeyed.com to lategameacademy.com
 
-**Started 2026-09-20. ALL SIX STEPS DONE AND PROVEN END TO END 2026-09-21.**
-The move itself is finished. Three loose ends remain, none of which blocks a
-parent or a student; they are listed under STILL OPEN. Delete this file once
-those are closed.
+**Started 2026-09-20. FINISHED AND PROVEN END TO END 2026-09-21.**
+Every step is done and every one was read back rather than assumed. Nothing here
+is outstanding work any more.
+
+**Kept rather than deleted, on purpose.** What is left in this file is the
+reasoning, and three of those notes are landmines that would cost a real outage
+if someone rediscovered them the hard way: the two SPF records, the Calendly
+account slug, and the `xplkeyed.internal` auth domain that two live kid
+identities still carry.
 
 Full rebrand was chosen, not just a domain swap: the product becomes
 **Late Game Academy** and the sender becomes **tim@lategameacademy.com**.
@@ -227,18 +232,25 @@ is the first time that contact address becomes true.
 
 ---
 
-## STILL OPEN
+## The last three, all closed
 
-**1. Supabase Site URL is still `https://xplkeyed.com`.** Dashboard ->
-`xpl-keyed-prod` -> Authentication -> URL Configuration -> Site URL. It was
-deliberately left until step 6 landed, and step 6 has now landed.
+**1. Supabase Site URL. DONE 2026-09-21**, now `https://lategameacademy.com`.
+It was deliberately left until step 6 landed so that nothing pointed at the new
+domain before the new domain was ready.
 
-Low risk, not zero. The app always passes an explicit `redirect_to`, and the
-allow list honours it, so every magic link the app sends already goes to the new
-domain (proven above). Site URL is only the FALLBACK, used when a link carries
-no `redirect_to` at all, which today means anything triggered from the Supabase
-dashboard itself. Read it back the same way it was read here: generate a link
-with no `redirect_to` and look at where it points.
+Read back with controls rather than taken on trust, because a negative is only
+worth anything if the probe could have said otherwise:
+
+```
+explicit new domain -> itself          (the field reflects what is passed)
+explicit OLD domain -> itself          (old links in old inboxes still work)
+disallowed host     -> lategameacademy.com   (this IS the Site URL)
+no redirect_to      -> lategameacademy.com
+```
+
+The second line is the one to notice. `xplkeyed.com` is still on the allow list
+on purpose, so every magic link already sitting in a parent's inbox continues to
+resolve. Removing it is what would break them, not leaving it.
 
 **2. Stripe. DONE 2026-09-21, and the access gap closed with it.** Read back
 from the API rather than trusted to the dashboard:
@@ -256,9 +268,14 @@ at all**: disputes, refunds and payouts for Tim's business all live there, and a
 dispute has a response deadline. Write down how that sign in works before it is
 needed under time pressure.
 
-**3. `xplkeyed.com` is deliberately still attached to Railway and still serving.**
-Leave it. Old links in old inboxes keep working. Retire it only once nothing is
-pointing at it, and not on the same day as anything else.
+**3. `xplkeyed.com` is deliberately still attached, and that is the finished
+state rather than a loose end.** It still serves, it is still on the Supabase
+allow list, and both are on purpose: old links in old inboxes keep working.
+Retire it only once nothing points at it, and not on the same day as anything
+else.
+
+**The one thing genuinely not checked: nobody has looked at the L icon on a
+phone.** Everything else in this move was measured.
 
 ---
 
