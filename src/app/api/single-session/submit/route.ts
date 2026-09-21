@@ -109,6 +109,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "parent_auth_failed" }, { status: 500 });
   }
 
+  // 🔴 `xplkeyed.internal` is an internal auth domain, not copy. See the note
+  // on SYNTHETIC_KID_DOMAIN in api/intake/submit: renaming it to match the
+  // brand splits existing kid identities from new ones.
   const kidSyntheticEmail = `kid+${crypto.randomUUID()}@xplkeyed.internal`;
   const kidAuth = await supabase.auth.admin.createUser({
     email: kidSyntheticEmail,

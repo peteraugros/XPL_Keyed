@@ -21,6 +21,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./sessions.module.css";
 
+// ⚠️ `xpl-keyed` here is Tim's Calendly ACCOUNT SLUG, not brand copy.
+// It survived the Late Game Academy rename on purpose. Renaming it in the
+// code breaks every booking link; it changes only if Tim renames the account
+// inside Calendly, and then all 5 call sites change together.
 const PAID_LESSON_CALENDLY_URL =
   "https://calendly.com/xpl-keyed/paid-lesson";
 

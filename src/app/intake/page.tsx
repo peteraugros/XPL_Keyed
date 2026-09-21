@@ -51,6 +51,10 @@ function playChime(notes: number[], audioCtxRef: { current: AudioContext | null 
 const LEVEL_UP_NOTES = [523.25, 783.99]; // C5, G5
 const SUCCESS_NOTES  = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
 
+// ⚠️ `xpl-keyed` here is Tim's Calendly ACCOUNT SLUG, not brand copy.
+// It survived the Late Game Academy rename on purpose. Renaming it in the
+// code breaks every booking link; it changes only if Tim renames the account
+// inside Calendly, and then all 5 call sites change together.
 const CALENDLY_EVENT_URL = "https://calendly.com/xpl-keyed/intro-call";
 // NOTE: Calendly custom-question IDs are assumed to be a1..a5 in the order
 // set up at https://calendly.com/event_types/.../edit:

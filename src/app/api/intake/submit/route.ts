@@ -24,6 +24,11 @@ import { sendParentMagicLink } from "@/lib/supabase/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// 🔴 DO NOT RENAME THIS TO MATCH THE BRAND. It is an internal auth domain,
+// never a piece of copy, and it survived the Late Game Academy rename on
+// purpose. Real production kid identities already carry addresses at this
+// domain; changing the constant splits existing kids from new ones, silently,
+// and nothing would surface it until a kid could not sign in.
 const SYNTHETIC_KID_DOMAIN = "xplkeyed.internal";
 
 const BodySchema = z.object({

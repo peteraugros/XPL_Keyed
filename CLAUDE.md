@@ -839,27 +839,66 @@ naming an unknown column outright**, so the reverse order would have broken
 `/play` for every student. Deploy verified by COMMIT HASH (`7e9974e`, SUCCESS),
 not by a status page.
 
-### 🔴 IN PROGRESS: domain move to lategameacademy.com (paused 2026-09-20)
+### ✅ DONE: the product is Late Game Academy (finished 2026-09-21)
 
-**Read `MIGRATION-lategameacademy.md` before touching DNS, Resend, Stripe or the
-Railway env vars.** It holds the full state, what is proven, and the three
-things a blind rename would break.
+`lategameacademy.com` is the live domain and `tim@lategameacademy.com` is the
+sender. DNS, Resend sending, Cloudflare Email Routing, Supabase auth, the Stripe
+webhook, the Stripe statement descriptor, the Railway env and the rebranded code
+are all live, and every one was **read back rather than assumed**.
+`MIGRATION-lategameacademy.md` was deleted once finished; what mattered from it
+is below and in comments beside the code it governs.
 
-**Paused waiting on one click**: Tim must verify the Cloudflare Email Routing
-destination in `timothyaugros2384@gmail.com`.
+**The whole chain was closed by ONE real production email rather than by four
+separate assertions.** A coach magic link was requested from the live route and
+read back out of Resend: it came from `tim@lategameacademy.com`, carried the new
+brand in its subject, was `delivered`, and its `redirect_to` pointed at
+`https://lategameacademy.com/auth/callback?next=%2Fadmin`. That single message
+proves `RESEND_FROM_EMAIL` and `NEXT_PUBLIC_APP_URL` both reached the container,
+that the rebranded code is what is running, and that mail actually lands.
 
-Done and proven: the new domain serves the app (verified by `x-railway-*`
-headers, not a status page), and Resend sends from it (verified by a real
-message reaching Gmail, `last_event: delivered`). Remaining: finish Email
-Routing, add the Supabase callback URL, **EDIT** the Stripe webhook URL rather
-than adding a second endpoint, then flip three Railway env vars.
+**🔴 THREE THINGS A BLIND RENAME BREAKS. All three survived on purpose and two
+now carry a warning in the code.**
+- **`calendly.com/xpl-keyed`** is Tim's Calendly ACCOUNT SLUG, in 5 booking
+  links. Renaming it in the code breaks every booking. It changes only if Tim
+  renames the account inside Calendly.
+- **`xplkeyed.internal`** is the synthetic auth domain for kid identities, and
+  **real production identities already carry it**. Changing the constant splits
+  existing kids from new ones, silently, surfacing only when a kid cannot sign
+  in.
+- **`xplkeyed.com` is still attached to Railway AND still on the Supabase
+  redirect allow list**, deliberately. Magic links already sitting in parents'
+  inboxes resolve through it. Removing either is what breaks them.
 
-**⚠️ `e78a9ec` "Rebrand to Late Game Academy" is COMMITTED AND NOT PUSHED**, so
-the live site still says XPL Keyed. Pushing deploys it. It goes out together
-with the env flip so the name and the URL change in one move.
+**⚠️ `lategameacademy.com` HAS TWO ROOT SPF RECORDS AND TWO SPF RECORDS MEAN
+BOTH ARE IGNORED.** Cloudflare Email Routing added one for receiving; Resend
+sends from the `send.` SUBDOMAIN, which is the only reason the two coexist
+without already having broken deliverability. **Re-check they are still on
+different names before touching SPF on this domain.** DMARC is set on neither
+domain.
+
+**⚠️ ORDER TRAP, worth knowing before any future env rename: `NEXT_PUBLIC_*`
+values are inlined by Next at BUILD time, server code included.** A build that
+runs before the variable is saved compiles the old value in, and no restart
+fixes it. Save the variables first, then push.
 
 ### Still to do
 
+- 🔵 **Stripe payouts go to Peter's CHECKING account; Tim wants them going to a
+  SAVINGS account** so the business money stops mixing with personal (Peter,
+  2026-09-20, for 2026-09-21). Stripe Dashboard -> Settings -> Business ->
+  Bank accounts, add the new account, verify it, THEN set it as the payout
+  default. **⚠️ Do not remove the checking account until a real payout has
+  landed in the savings account**; an unverified external account pauses payouts
+  rather than failing loudly. Two things to check at the bank first: the account
+  must accept ACH credits, and **a savings account can have a different routing
+  number from checking at the same bank** (and the wire routing number is often
+  not the ACH one). The account holder name must also match the Stripe account's
+  legal entity, which is Peter rather than Tim.
+- ⚠️ **Nobody has looked at the L app icon on a phone.** It replaced the K in
+  the rename. An L is roughly 43% less ink at the same size, so it may read
+  light in a home screen grid, and it had to be nudged off centre by hand
+  (`x=250`, `x=252`) because `text-anchor="middle"` centres the glyph BOX rather
+  than the ink. Only `public/icons/icon.svg` and `icon-maskable.svg` change.
 - 🔴 **DISCORD HAS NEVER BEEN CONFIGURED IN ANY ENVIRONMENT, AND THE VALUES DO
   NOT EXIST ANYWHERE TO COPY.** Measured 2026-09-20: `DISCORD_BOT_TOKEN`,
   `DISCORD_TIM_USER_ID` and `DISCORD_GUILD_ID` are the literal string `...` in

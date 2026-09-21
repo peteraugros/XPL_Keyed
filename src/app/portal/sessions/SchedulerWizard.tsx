@@ -25,6 +25,10 @@ type Slot = {
 
 // Hardcoded for now. When Peter sets up the "Paid lesson 30 min" event
 // type in Calendly, the slug should land here (or move to an env var).
+// ⚠️ `xpl-keyed` here is Tim's Calendly ACCOUNT SLUG, not brand copy.
+// It survived the Late Game Academy rename on purpose. Renaming it in the
+// code breaks every booking link; it changes only if Tim renames the account
+// inside Calendly, and then all 5 call sites change together.
 const PAID_LESSON_CALENDLY_URL =
   "https://calendly.com/xpl-keyed/paid-lesson";
 
