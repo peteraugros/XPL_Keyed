@@ -107,7 +107,28 @@ payment_intent.payment_failed, invoice.paid, invoice.payment_failed.
 A brief gap is safe: Stripe retries for up to 3 days, and as of 2026-09-20 a
 redelivery can no longer double provision a cycle.
 
-**5b. Stripe statement descriptor. NOT a code change.**
+**5. Stripe webhook. DONE via the API 2026-09-20.** Endpoint
+`we_1TZeMiLQGJ57M1t9f3JpICRH` now points at
+`https://lategameacademy.com/api/stripe-webhook`. Same endpoint id, so the
+signing secret is unchanged and `STRIPE_WEBHOOK_SECRET` needed no edit. All 5
+events intact, still exactly one endpoint. Verified by reading Stripe back AND
+by delivering a genuinely signed event to the new URL, which returned 200.
+
+**🔴 5b. Stripe statement descriptor. BLOCKED, and it needs dashboard access.**
+Still reads **`XPL KEYED`**, which is what prints on a parent's bank statement.
+**The API REFUSES it**: `403 You cannot use this method on your own account: you
+may only use it on connected accounts.` Stripe allows editing your own account
+settings only from the dashboard.
+
+**🔴 AND NOBODY CAN CURRENTLY SIGN INTO THAT ACCOUNT.** `acct_1TY0tWLQGJ57M1t9`
+is a STANDALONE standard account (`controller: {type: account}`), not a
+connected account under Elementsofchess, and Peter's login does not list it.
+Its contact email is `elementsofchess.platform@gmail.com`, which is the address
+to try. **This matters well beyond the rename: disputes, refunds and payouts
+for Tim's business all live in an account nobody can open, and a dispute has a
+response deadline.**
+
+**5b-OLD. Statement descriptor, original note.**
 Stripe Settings -> Business -> Public details. It currently reads **`XPL KEYED`**,
 which is the literal text printed on a parent's bank statement. After the
 rebrand they pay Late Game Academy and see XPL KEYED, and an unrecognised
