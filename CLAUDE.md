@@ -883,17 +883,44 @@ fixes it. Save the variables first, then push.
 
 ### Still to do
 
-- 🔵 **Stripe payouts go to Peter's CHECKING account; Tim wants them going to a
-  SAVINGS account** so the business money stops mixing with personal (Peter,
-  2026-09-20, for 2026-09-21). Stripe Dashboard -> Settings -> Business ->
-  Bank accounts, add the new account, verify it, THEN set it as the payout
-  default. **⚠️ Do not remove the checking account until a real payout has
-  landed in the savings account**; an unverified external account pauses payouts
-  rather than failing loudly. Two things to check at the bank first: the account
-  must accept ACH credits, and **a savings account can have a different routing
-  number from checking at the same bank** (and the wire routing number is often
-  not the ACH one). The account holder name must also match the Stripe account's
-  legal entity, which is Peter rather than Tim.
+- ✅ **DONE 2026-09-21. Stripe payouts now go to a SEPARATE BUSINESS ACCOUNT
+  rather than Peter's personal checking**, so the business money stops mixing
+  with personal. ⚠️ It ended up a CHECKING account, not the savings account
+  planned on 2026-09-20, which is the better outcome anyway: the savings
+  specific traps (different routing number from checking at the same bank,
+  banks refusing third party ACH credits, withdrawal limits) all evaporate.
+
+  🔴 **THE PATH IS EDIT, NOT ADD, AND ADD SENDS YOU SOMEWHERE WRONG.** Stripe
+  allows ONE bank account per currency under "Bank accounts for your payments
+  balance", so with a USD account already there, **USD is greyed out in the Add
+  dialog** and only CAD, EUR and GBP are offered. Picking one of those starts
+  building a FOREIGN payout destination: the dialog retitles itself "We'll send
+  your CAD payouts to this bank account" and asks for a transit number and an
+  institution number, which are Canadian fields a US account does not have.
+  **Use Edit on the existing USD row instead.**
+
+  ⚠️ **There are TWO sections on that page and only one is payouts.** "Bank
+  accounts for your payments balance" is where payouts come from; "Bank accounts
+  for your Treasury accounts" is a different product. An account that lands only
+  under Treasury changes nothing about payouts and nothing looks wrong.
+
+  ⚠️ **Changing the payout destination triggers a Google identity check in a
+  POPUP**, and Safari blocks it by default. The failure reads "Unable to sign in
+  with Google", which points at Google and is nothing to do with Google: the
+  address bar says "Pop-up Window Blocked". Allow popups for `stripe.com`.
+
+  ⚠️ **COS CANNOT VERIFY ANY OF THIS FROM THE API.** The production
+  `STRIPE_SECRET_KEY` is a RESTRICTED key and returns `403
+  more_permissions_required` on external accounts. It can read the account
+  (payouts_enabled, schedule, descriptor) and nothing about bank accounts.
+  Verify payout changes in the dashboard, by eye.
+
+  **Confirmed state:** payments balance holds `USD / Default / U.S. Bank /
+  ****8480`, which is the row payouts come from. ⚠️ **A DIFFERENT account,
+  `****3421`, is parked UNVERIFIED under "Bank accounts for Treasury"**, left
+  over from the failed attempts. It is inert: **the app references Treasury,
+  financial accounts and Issuing NOWHERE**, measured. Removable whenever, purely
+  to stop the Verify button nagging.
 - ✅ **DONE. Kept because THE APP ICON LIVES IN THREE PLACES AND ONLY TWO ARE
   SVG FILES, which is worth knowing before the next rename.** Found the hard
   way 2026-09-21: the rename changed `public/icons/icon.svg` and
@@ -1687,7 +1714,7 @@ Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or oper
 
 #### Peter setup (outside code)
 
-- **Separate bank for Stripe payouts, still open, and the plan CHANGED.** This entry said Mercury or Relay; Peter's call 2026-09-20 is a SAVINGS ACCOUNT at his existing bank. See the entry in "Still to do" for the traps; do not follow the Mercury/Relay wording here.
+- ✅ **DONE 2026-09-21: Stripe payouts go to a separate business account.** This entry said Mercury or Relay and then a savings account; neither is what happened. See "Still to do" for what the dashboard actually requires, including that the path is Edit rather than Add.
 - ✅ **DONE 2026-09-21: inbound mail works, at `tim@lategameacademy.com`.** Cloudflare Email Routing forwards it to Tim's Gmail, proven by a real delivered message. ⚠️ **`tim@xplkeyed.com` NEVER worked**: that domain has no MX records at all, and 11 places in the app told parents to write to it, so those messages went nowhere for the life of the product.
 - **Confirm Stripe live-mode KYC review is fully clear** — the "Action required" banner cleared during activation but worth a check for any pending follow-up info requests.
 - **Subscribe Tim's mobile to Calendly notifications** so he sees new bookings as they land. He has Calendly + Google Calendar on his phone per spec; just confirm the push notif is on.
@@ -1853,7 +1880,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
     10. Wiped test rows from prod via SQL Editor (DELETE from quest_completions → vod_uploads → prep_responses → messages → curriculum_slots → curricula → cancellation_events → coach_cancels → notification_log → stuck_events → task_completions → subscriptions → players → parents → families → pending_intake_verifications + auth.users WHERE email='peteraugros@gmail.com' OR email LIKE 'kid+%@xplkeyed.internal').
   - **17 Railway env vars all live.** Final state: 14 from spec + `CALENDLY_PAID_LESSON_EVENT_TYPE_URI` + 3 inert DISCORD_* (Peter left them; harmless). The two placeholders (`STRIPE_WEBHOOK_SECRET`, `STRIPE_PORTAL_URL`) are now updated/legacy: webhook secret = real value, portal URL = still placeholder but never read.
   - **Still deferred (not blocking launch, captured for follow-up):**
-    1. **Separate bank for Stripe payouts. STILL OPEN, and SUPERSEDED IN PLAN.** This said Mercury or Relay; Peter's call 2026-09-20 is a savings account at his existing bank so the business money stops mixing with personal. Live guidance is in "Still to do" near the top of this file.
+    1. ✅ **DONE 2026-09-21.** Payouts go to a separate business account. This said Mercury or Relay, which is not what happened; the live record is in "Still to do" near the top of this file.
     2. ✅ **DONE 2026-09-21.** Inbound mail works at `tim@lategameacademy.com` via Cloudflare Email Routing, proven by a real delivered message. `tim@xplkeyed.com` never worked at all: no MX records ever existed on that domain.
     3. **Calendly invitee confirmation email still ON.** 🔧 Setup item 1c — both Calendly's stock email AND our branded one currently fire on intro-call booking. Tim asked for the stock one to be toggled OFF; not done yet. Calendly's calendar invite notification should stay ON.
     4. **Embedded Stripe Elements vs hosted Checkout.** First-cut uses hosted Checkout per the Locked Decisions (single-endpoint refactor when polish time comes). Working in prod; revisit only when conversion polish becomes important.
@@ -1861,7 +1888,7 @@ This section is the running source of truth for what's on Peter's plate. Update 
 
 - **Stripe live activation + Railway deploy + DNS (2026-05-21, deploy steps 6/8/9 mostly done).** App is serving on Railway behind the production domain; just waiting on Let's Encrypt TLS to land. Two webhook re-registrations (Stripe + Calendly) are the remaining cross-step work, both blocked on TLS being active.
   - **Stripe live mode activated.** Account: **XPL_Keyed** (separate from Day & Knight in Peter's Stripe login). Business type: **Sole proprietorship**. Statement descriptor: **`XPL KEYED`** (22-char cap, all caps; appears on parent credit card statements). Shortened descriptor skipped. Tax category: General → Services. Stripe Tax skipped (free until first registration; not relevant for US-only single-state pre-revenue). Climate contributions skipped.
-    - **Bank for payouts: Peter's PERSONAL account, placeholder.** Decision: use personal now to unblock deploy; swap to a dedicated business bank (Mercury or Relay, both ~1hr online onboarding, free) before Tim takes a real customer. Swap procedure = ~5min admin task in Stripe dashboard + 1-2 day micro-deposit verification. No code/webhook changes; Stripe account-level `acct_xxx` ID stays the same, only the external destination changes. Tax 1099-K is account-level, so swapping banks doesn't fragment reporting.
+    - ✅ **SUPERSEDED 2026-09-21: payouts now go to a separate business account. Kept as the record of why personal was used at launch.** **Bank for payouts: Peter's PERSONAL account, placeholder.** Decision: use personal now to unblock deploy; swap to a dedicated business bank (Mercury or Relay, both ~1hr online onboarding, free) before Tim takes a real customer. Swap procedure = ~5min admin task in Stripe dashboard + 1-2 day micro-deposit verification. No code/webhook changes; Stripe account-level `acct_xxx` ID stays the same, only the external destination changes. Tax 1099-K is account-level, so swapping banks doesn't fragment reporting.
     - **Smart Retries left ON (8 attempts over 2 weeks).** Vestigial for our PaymentIntent-based architecture — those settings apply to Stripe **Subscription** invoices, which our code never creates. Harmless to leave at default.
     - **Customer-facing dunning emails: OFF.** Our branded D3/D6 emails from `cron-dunning-parent-reminders` own that voice. Bank-debit-failed: OFF (we don't accept bank debits). **Card-expiration emails: ON** — Stripe's 30/15/7-day expiry warnings stay; we don't replicate that flow.
     - **Live API keys captured** (pk_live + sk_live) and saved to Peter's password manager. `STRIPE_SECRET_KEY` added to Supabase Edge Function secrets via dashboard UI.
