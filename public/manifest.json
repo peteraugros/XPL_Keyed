@@ -1,7 +1,7 @@
 {
-  "name": "XPL Keyed",
-  "short_name": "XPL Keyed",
-  "description": "Fortnite coaching from XPL Keyed",
+  "name": "Late Game Academy",
+  "short_name": "Late Game",
+  "description": "Fortnite coaching from Late Game Academy",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
