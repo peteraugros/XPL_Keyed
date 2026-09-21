@@ -894,11 +894,20 @@ fixes it. Save the variables first, then push.
   number from checking at the same bank** (and the wire routing number is often
   not the ACH one). The account holder name must also match the Stripe account's
   legal entity, which is Peter rather than Tim.
-- ⚠️ **Nobody has looked at the L app icon on a phone.** It replaced the K in
-  the rename. An L is roughly 43% less ink at the same size, so it may read
-  light in a home screen grid, and it had to be nudged off centre by hand
-  (`x=250`, `x=252`) because `text-anchor="middle"` centres the glyph BOX rather
-  than the ink. Only `public/icons/icon.svg` and `icon-maskable.svg` change.
+- ⚠️ **THE APP ICON LIVES IN THREE PLACES AND ONLY TWO ARE SVG FILES.** Found
+  the hard way 2026-09-21: the rename changed `public/icons/icon.svg` and
+  `icon-maskable.svg`, the installed PWA still showed a K, and it was not a
+  cache. **iOS ignores the manifest icons outright and honors only
+  `apple-touch-icon`**, which is a PNG raster copy that does not track the SVG,
+  and the browser tab favicon is an inline SVG **data URI in `layout.tsx`** that
+  no icon file search would ever surface. All three are L now.
+  **Re-rasterize the PNG in a BROWSER, never with sharp**: the glyph offset in
+  `icon.svg` was measured from a browser render, so a different rasterizer picks
+  a different font and moves it. **And iOS caches the icon at INSTALL time**, so
+  an already installed app keeps the old one until it is removed from the home
+  screen and added again; without knowing that, a correct fix looks broken.
+  The L is legible and lighter than the K was, which is expected: it is roughly
+  43% less ink at the same size.
 - 🔴 **DISCORD HAS NEVER BEEN CONFIGURED IN ANY ENVIRONMENT, AND THE VALUES DO
   NOT EXIST ANYWHERE TO COPY.** Measured 2026-09-20: `DISCORD_BOT_TOKEN`,
   `DISCORD_TIM_USER_ID` and `DISCORD_GUILD_ID` are the literal string `...` in
