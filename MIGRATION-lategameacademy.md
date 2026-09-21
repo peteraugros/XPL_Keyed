@@ -1,16 +1,47 @@
 # Domain move: xplkeyed.com to lategameacademy.com
 
-**Started 2026-09-20. Steps 1 to 3 DONE and proven. Remaining: 4, 5, 6.**
-Delete this file when the move is finished.
+**Started 2026-09-20. ALL SIX STEPS DONE AND PROVEN END TO END 2026-09-21.**
+The move itself is finished. Three loose ends remain, none of which blocks a
+parent or a student; they are listed under STILL OPEN. Delete this file once
+those are closed.
 
 Full rebrand was chosen, not just a domain swap: the product becomes
 **Late Game Academy** and the sender becomes **tim@lategameacademy.com**.
 
 ---
 
-## Where it stopped
+## Proven end to end, 2026-09-21
 
-**Steps 4, 5 and 6 remain, all dashboard work.** See REMAINING below.
+One real production email closes the whole chain at once. A coach magic link
+was requested from `https://lategameacademy.com/api/auth/send-magic-link` and
+read back out of Resend:
+
+```
+from:    Late Game Academy <tim@lategameacademy.com>
+subject: Sign in to Late Game Academy admin
+status:  delivered
+link:    https://fmsekesjdkjpvvleefpu.supabase.co/auth/v1/verify
+         ?redirect_to=https://lategameacademy.com/auth/callback?next=%2Fadmin
+```
+
+That single message proves four separate things: `RESEND_FROM_EMAIL` reached the
+container, `NEXT_PUBLIC_APP_URL` reached the container, the rebranded copy is
+what is running, and the mail actually lands. **And note the `redirect_to`
+carries a query string**, which is precisely the case an exact path allow list
+entry would have missed, so the wildcard added in step 4 is doing real work
+rather than sitting there.
+
+Alongside it:
+
+- Deploy `c87a011` reported SUCCESS, checked by commit hash rather than by a
+  status line.
+- `https://lategameacademy.com/login` renders LATE GAME ACADEMY and contains
+  zero occurrences of the old name.
+- `manifest.json` reads `Late Game Academy` / `Late Game`, the icon glyph is L.
+- A genuinely signed Stripe event to the new webhook URL returned 200 and a
+  forged one returned 400, so the check is enforcing rather than waving things
+  through.
+- `https://xplkeyed.com` still returns 200, so links already in inboxes live.
 
 ---
 
@@ -73,7 +104,7 @@ this domain, re-check that they are still on different names.
 
 ---
 
-## REMAINING, in order
+## The six steps, and what each one turned out to need
 
 **4. Supabase auth. DONE and proven.** Both
 `https://lategameacademy.com/auth/callback` and
@@ -143,23 +174,33 @@ regression, never set. Worth doing sometime, not part of this move.
 XPL_Keyed**, under the same login as Elementsofchess. One Stripe login holds
 several accounts; use the switcher at the top left.
 
-**6. Railway env, the actual cutover.** Only after 3b is routing mail:
+**6. Railway env, the actual cutover. DONE 2026-09-21.** All three set on
+service `Late Game Academy` and read back from Railway rather than trusted to
+the dashboard:
 ```
 NEXT_PUBLIC_APP_URL = https://lategameacademy.com
 RESEND_FROM_EMAIL   = tim@lategameacademy.com
 VAPID_SUBJECT       = mailto:tim@lategameacademy.com
 ```
-**Then push the held commit** so the name and the URL change together.
+The eight held commits were pushed immediately afterwards so the name and the
+URL changed in the same deploy, rather than the site spending time on the new
+domain still calling itself XPL Keyed.
+
+⚠️ **The order mattered more than it looks.** `NEXT_PUBLIC_*` values are inlined
+by Next at BUILD time, including in server code, so a build that ran before the
+variables were saved would have compiled the old URL in and no restart would
+have fixed it. The variables were saved first and the push triggered the build
+that carries them.
 
 **Leave `xplkeyed.com` attached to Railway afterwards.** Old links keep working.
 
 ---
 
-## The held commit
+## The held commits, now pushed
 
-**`e78a9ec` "Rebrand to Late Game Academy" is COMMITTED AND NOT PUSHED.**
-Pushing deploys immediately and puts the new name live at the old URL, which is
-why it is held. 61 brand strings across 44 files, the wordmark, the email sender
+**`e78a9ec` through `c87a011`, eight commits, PUSHED 2026-09-21.**
+They were held because pushing deploys immediately and would have put the new
+name live at the old URL before the domain was ready. 61 brand strings across 44 files, the wordmark, the email sender
 name, the parent facing contact address.
 
 🔴 **Three things it deliberately did NOT rename. A blind replace breaks two.**
@@ -182,14 +223,41 @@ is the first time that contact address becomes true.
 
 ---
 
+## STILL OPEN
+
+**1. Supabase Site URL is still `https://xplkeyed.com`.** Dashboard ->
+`xpl-keyed-prod` -> Authentication -> URL Configuration -> Site URL. It was
+deliberately left until step 6 landed, and step 6 has now landed.
+
+Low risk, not zero. The app always passes an explicit `redirect_to`, and the
+allow list honours it, so every magic link the app sends already goes to the new
+domain (proven above). Site URL is only the FALLBACK, used when a link carries
+no `redirect_to` at all, which today means anything triggered from the Supabase
+dashboard itself. Read it back the same way it was read here: generate a link
+with no `redirect_to` and look at where it points.
+
+**2. The Stripe statement descriptor still reads `XPL KEYED`.** This is the text
+a parent sees on their bank statement, and an unrecognised charge is the leading
+cause of disputes. It cannot be fixed from the API and nobody can currently sign
+into `acct_1TY0tWLQGJ57M1t9`. See 5b below; that access gap matters well beyond
+the rename.
+
+**3. `xplkeyed.com` is deliberately still attached to Railway and still serving.**
+Leave it. Old links in old inboxes keep working. Retire it only once nothing is
+pointing at it, and not on the same day as anything else.
+
+---
+
 ## Open decisions for Tim
 
-**The app icon is the letter K, for Keyed.** Both `public/icons/icon.svg` and
-`icon-maskable.svg` are a single white K on navy. It is what sits under the app
-on a phone home screen and it means nothing under the new name. The obvious
-substitutes are L, LG or A, but this is a design call and was deliberately left
-rather than guessed. The manifest text and the screen reader labels are already
-updated; only the glyph is outstanding.
+**The app icon is now the letter L, chosen as a placeholder.** Both
+`public/icons/icon.svg` and `icon-maskable.svg` carry it. ⚠️ **It has not been
+looked at on a real phone**, and it should be: an L is roughly 43% less ink than
+a K at the same size, so it reads lighter in a home screen grid. It also had to
+be nudged off centre by hand (`x=250` and `x=252` rather than 256), because an L
+is visually left heavy and `text-anchor="middle"` centres the glyph BOX rather
+than the ink; the offsets were measured from a render, not guessed. If Tim wants
+LG or A instead, only those two files change.
 
 **Cloudflare security settings differ between the zones.** `xplkeyed.com`
 refuses a scripted user agent with 403 while `lategameacademy.com`, a fresh
