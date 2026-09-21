@@ -80,7 +80,7 @@ export default function MessageThread({
   }, [playerId, viewerRole]);
 
   function labelFor(senderRole: MessageRow["sender_role"]): string {
-    if (senderRole === "bot") return "XPL Keyed";
+    if (senderRole === "bot") return "Late Game Academy";
     if (senderRole === "coach") return viewerRole === "coach" ? "You (Tim)" : "Tim";
     // sender_role === 'player'
     if (viewerRole === "player") return "You";

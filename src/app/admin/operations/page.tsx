@@ -7,7 +7,7 @@ export default function OperationsPage() {
     <StubPage
       eyebrow="Operations"
       title="Platform health"
-      intro="Real time status of every system XPL Keyed depends on. Today the integrations are healthy by virtue of not breaking; this surface gives Tim a glance check."
+      intro="Real time status of every system Late Game Academy depends on. Today the integrations are healthy by virtue of not breaking; this surface gives Tim a glance check."
       comingSoon={[
         "Stripe webhook delivery success rate (last 24 hours)",
         "Discord bot heartbeat and rate limit headroom",

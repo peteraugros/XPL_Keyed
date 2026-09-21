@@ -75,11 +75,11 @@ export async function sendParentMagicLink(
 
   return await deliver({
     to: lookup.data.email,
-    subject: opts.subject ?? "Sign in to XPL Keyed",
+    subject: opts.subject ?? "Sign in to Late Game Academy",
     headline: opts.headline ?? `Welcome back, ${escapeHtml(lookup.data.first_name)}`,
     bodyHtml:
       opts.bodyHtml ??
-      `<p>Tap the button to sign in to your XPL Keyed dashboard. The link is good for one hour.</p>`,
+      `<p>Tap the button to sign in to your Late Game Academy dashboard. The link is good for one hour.</p>`,
     ctaLabel: opts.ctaLabel ?? "Open your dashboard",
     ctaHref: linkResult.data.properties.action_link,
     recipientType: "parent",
@@ -120,7 +120,7 @@ export async function sendCoachMagicLink(
 
   return await deliver({
     to: coach.email,
-    subject: "Sign in to XPL Keyed admin",
+    subject: "Sign in to Late Game Academy admin",
     headline: `Welcome back, ${escapeHtml(coach.display_name)}`,
     bodyHtml: `<p>Tap the button to open the coach admin. The link is good for one hour.</p>`,
     ctaLabel: "Open admin",
@@ -203,7 +203,7 @@ export async function sendPlayerMagicLink(
     to: parentRow.data.email,
     subject: `Sign in link for ${playerRow.data.first_name}`,
     headline: `${escapeHtml(playerRow.data.first_name)}'s sign in link`,
-    bodyHtml: `<p>This link signs ${escapeHtml(playerRow.data.first_name)} in to their XPL Keyed quest log. Hand them the device or forward this email. The link is good for one hour.</p>
+    bodyHtml: `<p>This link signs ${escapeHtml(playerRow.data.first_name)} in to their Late Game Academy quest log. Hand them the device or forward this email. The link is good for one hour.</p>
 <p style="font-size:13px;color:rgba(255,255,255,0.6);">You have full read access to ${escapeHtml(playerRow.data.first_name)}'s messages and lessons from your own parent dashboard. This link is only for the player view.</p>`,
     ctaLabel: `Open ${escapeHtml(playerRow.data.first_name)}'s portal`,
     ctaHref: linkResult.data.properties.action_link,
@@ -235,7 +235,7 @@ async function deliver(opts: {
 }): Promise<MagicLinkResult> {
   // Every magic-link email gets a bookmark/login fallback footer so the
   // recipient has a durable way back even if this email is deleted. Display
-  // text is always xplkeyed.com/login (brand-stable); the href points at
+  // text is always lategameacademy.com/login (brand-stable); the href points at
   // APP_URL so dev environments still work.
   const loginDisplay = APP_URL.replace(/^https?:\/\//, "");
   const bodyWithFooter = `${opts.bodyHtml}

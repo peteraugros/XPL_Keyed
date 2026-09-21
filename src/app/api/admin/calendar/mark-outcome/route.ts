@@ -494,7 +494,7 @@ ${
       .eq("id", slot.id);
 
     // Parent email with reschedule CTA
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://xplkeyed.com";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://lategameacademy.com";
     if (parent && process.env.RESEND_API_KEY) {
       const html = brandedEmailHtml({
         headline: copy.subject,

@@ -149,7 +149,7 @@ export default function AuthCallbackPage() {
             marginBottom: "16px",
           }}
         >
-          XPL KEYED
+          LATE GAME ACADEMY
         </div>
         <div style={{ fontSize: "15px", color: "rgba(255,255,255,0.85)" }}>
           {message}

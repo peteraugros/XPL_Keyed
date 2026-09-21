@@ -361,7 +361,7 @@ export default async function PortalHome({
       <div className={styles.heroActionCard}>
         <div className={styles.actionsTitle}>Pick this back up</div>
         <div className={styles.actionsBody}>
-          Email Tim at <span className={styles.code}>tim@xplkeyed.com</span> to
+          Email Tim at <span className={styles.code}>tim@lategameacademy.com</span> to
           restart. Account and history stay put.
         </div>
       </div>

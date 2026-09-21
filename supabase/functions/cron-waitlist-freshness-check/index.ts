@@ -20,12 +20,12 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL")!;
-const NEXT_PUBLIC_APP_URL = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? "https://xplkeyed.com";
+const NEXT_PUBLIC_APP_URL = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? "https://lategameacademy.com";
 
 function freshnessBody(kidName: string, yesUrl: string, stopUrl: string) {
   return brandedEmailHtml({
     headline: `Still interested in coaching for ${kidName}?`,
-    bodyHtml: `<p>You've been on my waitlist for a while. I check in every 60 days so the list stays honest.</p><p>Tap "Yes, keep me on" to stay on the list, or "Remove me" if coaching isn't on the table anymore.</p><p style="margin:24px 0;"><a href="${yesUrl}" style="display:inline-block;background:#C7FF3D;color:#0B1538;padding:14px 22px;border-radius:6px;font-weight:600;text-decoration:none;letter-spacing:0.5px;margin-right:12px;">Yes, keep me on</a><a href="${stopUrl}" style="display:inline-block;color:#fff;padding:14px 22px;border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;font-weight:600;text-decoration:none;letter-spacing:0.5px;">Remove me</a></p><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+    bodyHtml: `<p>You've been on my waitlist for a while. I check in every 60 days so the list stays honest.</p><p>Tap "Yes, keep me on" to stay on the list, or "Remove me" if coaching isn't on the table anymore.</p><p style="margin:24px 0;"><a href="${yesUrl}" style="display:inline-block;background:#C7FF3D;color:#0B1538;padding:14px 22px;border-radius:6px;font-weight:600;text-decoration:none;letter-spacing:0.5px;margin-right:12px;">Yes, keep me on</a><a href="${stopUrl}" style="display:inline-block;color:#fff;padding:14px 22px;border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;font-weight:600;text-decoration:none;letter-spacing:0.5px;">Remove me</a></p><p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">Late Game Academy</span></p>`,
   });
 }
 

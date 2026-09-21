@@ -96,7 +96,7 @@ export default function DadClient({
   return (
     <div className={styles.frame}>
       <header className={styles.topBar}>
-        <div className={styles.brand}>XPL KEYED · DAD</div>
+        <div className={styles.brand}>LATE GAME ACADEMY · DAD</div>
         <div className={styles.topMeta}>
           <a href="/admin" className={styles.viewAsTimBtn}>View as Tim →</a>
           <span className={styles.coachName}>{dadName}</span>

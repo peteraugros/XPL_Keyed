@@ -215,7 +215,7 @@ export default async function MembershipPage() {
         </p>
         <p className={styles.cardSubtle}>
           The multi-kid flow is coming next phase. For now, email{" "}
-          <span className={styles.code}>tim@xplkeyed.com</span> with your second
+          <span className={styles.code}>tim@lategameacademy.com</span> with your second
           kid&apos;s first name and age, and he&apos;ll send a fresh intake link.
         </p>
       </section>

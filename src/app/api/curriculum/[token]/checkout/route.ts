@@ -143,7 +143,7 @@ export async function POST(
           currency: "usd",
           product_data: {
             name: `${player.first_name}'s 4 coaching sessions`,
-            description: "XPL Keyed coaching. $56 for 4 weekly calls, each with written advice and a training routine.",
+            description: "Late Game Academy coaching. $56 for 4 weekly calls, each with written advice and a training routine.",
           },
           unit_amount: 5600,
         },

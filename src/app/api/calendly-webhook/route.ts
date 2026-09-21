@@ -287,7 +287,7 @@ async function notifyParentAutoRenewOff(
 <p>${kidFirstName} hit their 3rd skip this cycle, so auto renew is off for the next cycle. The current cycle still finishes through session 4 as planned. No surprise charges.</p>
 <p>If you want to keep going after this cycle, sign back into your dashboard and book a new cycle. Your progress and history are saved.</p>
 <p>Anything to share? Have ${kidFirstName} message me in the chat. You see everything in your dashboard.</p>
-<p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,
+<p>Peter<br/>(Tim's dad, who runs the back end of Late Game Academy)</p>`,
   });
   await sendBrandedEmail({
     to: p.email,
@@ -637,7 +637,7 @@ async function handlePaidLessonCreated(
     bodyHtml: `<p>Hi ${parent.first_name},</p>
 <p>Week ${slot.week_number} of ${totalSlots} is on the calendar for ${player.first_name}: ${fullDate} at ${timeStr}. The call happens on Discord.</p>
 ${closingLine}
-<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">Late Game Academy</span></p>`,
     ctaLabel: bookedCount >= totalSlots ? "Complete checkout" : "Open dashboard",
     ctaHref: `${APP_URL}/portal/sessions`,
   });
@@ -740,7 +740,7 @@ function bookingConfirmationHtml(args: {
 <p>${subject} all set for our 30 minute free intro call.</p>
 <p>
   <strong>When:</strong> ${esc(args.fullDate)} at ${esc(args.timeStr)}<br/>
-  <strong>Where:</strong> Discord (XPL Keyed coaching server)
+  <strong>Where:</strong> Discord (Late Game Academy coaching server)
 </p>
 <p><strong>What happens next:</strong> in the next day or so, be sure to accept the Discord invite I'll send to ${kidPossessive} username${discordParen}. That's where the call will happen.</p>
 <p><strong>A few reminders:</strong></p>
@@ -749,11 +749,11 @@ function bookingConfirmationHtml(args: {
   <li>I never call or text your phone.</li>
   <li>No payment info needed today.</li>
 </ul>
-<p>Questions? Sign in to your XPL Keyed dashboard and message me in the Messages panel. I see it on my end and reply there. Otherwise, see you ${esc(args.fullDate.split(",")[0])}.</p>
-<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>
+<p>Questions? Sign in to your Late Game Academy dashboard and message me in the Messages panel. I see it on my end and reply there. Otherwise, see you ${esc(args.fullDate.split(",")[0])}.</p>
+<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">Late Game Academy</span></p>
 <p style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.6);border-top:1px solid rgba(255,255,255,0.12);padding-top:16px;">Need to come back later? Sign in any time at <a href="${APP_URL}/login" style="color:#C7FF3D;">${APP_URL.replace(/^https?:\/\//, "")}/login</a>.</p>
 </div>
-<p style="margin-top:32px;font-size:12px;color:rgba(255,255,255,0.5);">XPL Keyed. Independent Fortnite coaching.</p>
+<p style="margin-top:32px;font-size:12px;color:rgba(255,255,255,0.5);">Late Game Academy. Independent Fortnite coaching.</p>
 </div>
 </body></html>`;
 }

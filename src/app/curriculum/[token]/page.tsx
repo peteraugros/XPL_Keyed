@@ -94,7 +94,7 @@ export default async function CurriculumApprovalPage({
   return (
     <div className={styles.shell}>
       <div className={styles.frame}>
-        <div className={styles.brand}>XPL KEYED</div>
+        <div className={styles.brand}>LATE GAME ACADEMY</div>
 
         {curriculum.status === "active" ? (
           <div className={styles.card}>
@@ -189,7 +189,7 @@ function NotFound() {
   return (
     <div className={styles.shell}>
       <div className={styles.frame}>
-        <div className={styles.brand}>XPL KEYED</div>
+        <div className={styles.brand}>LATE GAME ACADEMY</div>
         <div className={styles.card}>
           <h1 className={styles.headline}>Link not found</h1>
           <p className={styles.body}>

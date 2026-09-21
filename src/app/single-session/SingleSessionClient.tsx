@@ -498,7 +498,7 @@ function SingleSessionInner() {
           >
             SOUND OFF
           </button>
-          <div className={styles.brand}>XPL KEYED</div>
+          <div className={styles.brand}>LATE GAME ACADEMY</div>
           <button
             type="button"
             className={styles.soundToggle}
@@ -663,7 +663,7 @@ function Level1({
         />
         {ageOutOfRange && (
           <span className={styles.fieldError}>
-            Coaching is for ages 8 to 18. Reach out at tim@xplkeyed.com if
+            Coaching is for ages 8 to 18. Reach out at tim@lategameacademy.com if
             you&apos;re outside that range.
           </span>
         )}
@@ -1068,7 +1068,7 @@ function Level4({
           {submitError && (
             <p className={pay.payError}>
               Something went wrong (<code>{submitError}</code>). Try again, or
-              email <a href="mailto:tim@xplkeyed.com">tim@xplkeyed.com</a> if
+              email <a href="mailto:tim@lategameacademy.com">tim@lategameacademy.com</a> if
               it keeps failing.
             </p>
           )}
@@ -1124,7 +1124,7 @@ function Level4({
       {submitError && (
         <p className={pay.payError}>
           Something went wrong (<code>{submitError}</code>). Try again, or
-          email <a href="mailto:tim@xplkeyed.com">tim@xplkeyed.com</a> if
+          email <a href="mailto:tim@lategameacademy.com">tim@lategameacademy.com</a> if
           it keeps failing.
         </p>
       )}

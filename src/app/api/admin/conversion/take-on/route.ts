@@ -215,7 +215,7 @@ ${inlineCta}
 <p>Here is what you get:</p>
 ${whatYouGetHtml}
 <p>It is $56 for 4 sessions, one a week. Cancel any time. Up to 2 cancellations per 4 session cycle. A 3rd cancel ends the subscription.</p>
-<p style="margin-top:24px;">Talk soon,<br/>${escapeHtml(coach.display_name)}<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+<p style="margin-top:24px;">Talk soon,<br/>${escapeHtml(coach.display_name)}<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">Late Game Academy</span></p>`,
     ctaLabel: "Reserve session times",
     ctaHref: approvalUrl,
   });

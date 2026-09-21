@@ -100,7 +100,7 @@ export async function sendSingleSessionPaidEmail(subscriptionId: string) {
     : `${escapeHtml(player.first_name)}'s session is paid`;
   const bodyHtml = `<p>Hi ${escapeHtml(parent.first_name)},</p>
 <p>Payment received. ${escapeHtml(player.first_name)}'s single coaching session is locked in${callDateTime ? ` for <strong>${escapeHtml(callDateTime)}</strong>` : ""}.</p>
-<p>The call happens on Discord. Tim will send ${escapeHtml(player.first_name)} the XPL Keyed server invite before we start.</p>
+<p>The call happens on Discord. Tim will send ${escapeHtml(player.first_name)} the Late Game Academy server invite before we start.</p>
 <p>Tap below to open your dashboard. The session details, your intake note, and the message thread with Tim live there.</p>
 <p style="font-size:13px;color:rgba(255,255,255,0.6);">After the call, Tim writes up the advice and a training routine in the player view for ${escapeHtml(player.first_name)}, plus a plain summary for you.</p>`;
 

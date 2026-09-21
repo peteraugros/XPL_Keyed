@@ -605,7 +605,7 @@ export default function PlayClient({
             </span>
           </header>
           <p className={styles.questCopy}>
-            Tim will send you an invite to the XPL Keyed coaching server. Look
+            Tim will send you an invite to the Late Game Academy coaching server. Look
             for it in Discord, accept it, then tap below. Your private channel
             goes live after you join.
           </p>
@@ -646,7 +646,7 @@ function labelFor(options: Option[], slug: string): string {
 // Renders nothing if the call has already happened (>2hr past).
 // Shows a countdown until 15 min before. Then enables the "Join Discord
 // call" button, deep-linking to the kid's private channel URL if Tim
-// has pasted one; otherwise points at xplkeyed.com (a fallback that
+// has pasted one; otherwise points at lategameacademy.com (a fallback that
 // won't help, but Tim should always paste the channel URL before the
 // call).
 // ---------------------------------------------------------------------------
@@ -710,7 +710,7 @@ function TrialCallCard({
       )}
       {joinable ? (
         <a
-          href={discordChannelUrl ?? "https://xplkeyed.com"}
+          href={discordChannelUrl ?? "https://lategameacademy.com"}
           target="_blank"
           rel="noreferrer noopener"
           className={styles.trialCallJoinBtn}

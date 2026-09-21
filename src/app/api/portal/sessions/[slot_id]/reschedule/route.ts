@@ -231,7 +231,7 @@ async function sendAutoRenewOffEmail(
 <p>${kidFirstName} hit their 3rd skip this cycle, so auto renew is off for the next cycle. The current cycle still finishes through session 4 as planned. No surprise charges.</p>
 <p>If you want to keep going after this cycle, sign back into your dashboard and book a new cycle. Your progress and history are saved.</p>
 <p>Anything to share? Have ${kidFirstName} message me in the chat. You see everything in your dashboard.</p>
-<p>Peter<br/>(Tim's dad, who runs the back end of XPL Keyed)</p>`,
+<p>Peter<br/>(Tim's dad, who runs the back end of Late Game Academy)</p>`,
   });
   await sendBrandedEmail({
     to: parentEmail,

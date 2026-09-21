@@ -48,7 +48,7 @@ type PushPayload = {
 };
 
 self.addEventListener("push", (event: PushEvent) => {
-  let payload: PushPayload = { title: "XPL Keyed" };
+  let payload: PushPayload = { title: "Late Game Academy" };
   try {
     if (event.data) payload = event.data.json() as PushPayload;
   } catch {

@@ -11,7 +11,7 @@ export default function HomePage() {
         <div className="nav-inner">
           <a href="#top" className="logo">
             <div className="logo-mark">K</div>
-            <div className="logo-text">XPL KEYED</div>
+            <div className="logo-text">LATE GAME ACADEMY</div>
           </a>
           <div className="nav-links">
             <a href="#how" className="link">How it works</a>
@@ -65,7 +65,7 @@ export default function HomePage() {
             </h1>
             <p className="hero-sub">
               Personalized coaching from{" "}
-              <span className="keyed">XPL Keyed</span>, an Unreal ranked tournament player with{" "}
+              <span className="keyed">Late Game Academy</span>, an Unreal ranked tournament player with{" "}
               <span className="js-years-since-c2s2">6</span> years of competitive experience since Chapter 2 Season 2.
             </p>
             <div className="hero-ctas">
@@ -306,7 +306,7 @@ export default function HomePage() {
               <p>Cancel the subscription anytime, no penalty. For an individual scheduled session, give at least 24 hours&apos; notice and you get full credit toward a future session.</p>
             </details>
             <details>
-              <summary>Who is XPL Keyed?</summary>
+              <summary>Who is Late Game Academy?</summary>
               <p>
                 A 14 year old Unreal ranked Fortnite player who&apos;s been competing since Chapter 2 Season 2; that&apos;s{" "}
                 <span className="js-years-since-c2s2">6</span> years of high level experience. He plays in tournaments and now coaches other players climbing the ranks.
@@ -340,7 +340,7 @@ export default function HomePage() {
         <div className="blob blob-b"></div>
         <div className="container">
           <h2 className="reveal">Ready to drop in?</h2>
-          <p className="reveal">First call is free. 30 minutes with XPL Keyed.</p>
+          <p className="reveal">First call is free. 30 minutes with Late Game Academy.</p>
           <a href="/intake" className="btn btn-primary reveal">Claim your free trial call</a>
         </div>
       </section>
@@ -348,7 +348,7 @@ export default function HomePage() {
       <footer>
         <div className="container">
           <div className="footer-inner">
-            <div>© XPL Keyed · Independent Fortnite coaching</div>
+            <div>© Late Game Academy · Independent Fortnite coaching</div>
             <div>Not affiliated with Epic Games or XP League.</div>
           </div>
         </div>

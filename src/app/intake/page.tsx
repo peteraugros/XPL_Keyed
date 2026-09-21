@@ -458,7 +458,7 @@ function IntakePageInner() {
           <button className={`${styles.soundToggle} ${styles.topRowSpacer}`} tabIndex={-1} aria-hidden="true">
             SOUND OFF
           </button>
-          <div className={styles.brand}>XPL KEYED</div>
+          <div className={styles.brand}>LATE GAME ACADEMY</div>
           <button
             type="button"
             className={styles.soundToggle}
@@ -607,7 +607,7 @@ function Level1({ state, setField, ageNum, needsCoppa, coppa, canSendVerificatio
         />
         {ageOutOfRange && (
           <span className={styles.fieldError}>
-            Coaching is for ages 8 to 18. Reach out at tim@xplkeyed.com if you're outside that range.
+            Coaching is for ages 8 to 18. Reach out at tim@lategameacademy.com if you're outside that range.
           </span>
         )}
       </label>

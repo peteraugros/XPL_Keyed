@@ -120,7 +120,7 @@ export async function GET(
   const calLines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//XPL Keyed//Coaching Sessions//EN",
+    "PRODID:-//Late Game Academy//Coaching Sessions//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
   ];
@@ -130,17 +130,17 @@ export async function GET(
     const start = new Date(s.live_call_at);
     // 30 min sessions per the spec.
     const end = new Date(start.getTime() + 30 * 60 * 1000);
-    const summary = `XPL Keyed: ${player.first_name}, session ${s.week_number}`;
+    const summary = `Late Game Academy: ${player.first_name}, session ${s.week_number}`;
     const desc = `30 minute coaching call on Discord with ${player.first_name}. Afterwards Tim writes up the advice and a training routine.`;
     calLines.push(
       "BEGIN:VEVENT",
-      fold(`UID:${s.id}@xplkeyed.com`),
+      fold(`UID:${s.id}@lategameacademy.com`),
       fold(`DTSTAMP:${toIcalUtc(now)}`),
       fold(`DTSTART:${toIcalUtc(start)}`),
       fold(`DTEND:${toIcalUtc(end)}`),
       fold(`SUMMARY:${escapeText(summary)}`),
       fold(`DESCRIPTION:${escapeText(desc)}`),
-      fold(`LOCATION:Discord (XPL Keyed coaching server)`),
+      fold(`LOCATION:Discord (Late Game Academy coaching server)`),
       "END:VEVENT",
     );
   }

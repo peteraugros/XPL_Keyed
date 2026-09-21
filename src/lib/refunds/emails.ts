@@ -6,7 +6,14 @@
 import { sendBrandedEmail } from "@/lib/email/send";
 import { brandedEmailHtml } from "@/lib/email/template";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://xplkeyed.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://lategameacademy.com";
+
+// Derived, never written out. These three emails tell a parent where to sign
+// in, and during a domain move a hardcoded host is a broken instruction in the
+// worst email to get one: the site is still on the old domain until
+// NEXT_PUBLIC_APP_URL flips, so a literal would point at a host that does not
+// resolve yet. Deriving it means the copy corrects itself at the cutover.
+const LOGIN_DISPLAY = `${APP_URL.replace(/^https?:\/\//, "")}/login`;
 
 function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2).replace(/\.00$/, "")}`;
@@ -57,14 +64,14 @@ export async function sendRefundRequestReceivedEmail(args: ReceivedArgs): Promis
         ${formatUsd(args.amountCents)} charge from ${formatChargeDate(args.chargeDateIso)}.
       </p>
       <p>
-        Peter (Tim's dad, who runs the back end of XPL Keyed) reviews
+        Peter (Tim's dad, who runs the back end of Late Game Academy) reviews
         every refund personally. You'll hear back within 24 hours.
       </p>
       <p>
         If you want to add more context in the meantime, have your kid message Tim from the player view. We'll pick it up before the decision lands.
       </p>
       <p style="margin-top:18px;color:rgba(255,255,255,0.6);font-size:13px;">
-        Need to come back later? Sign in any time at xplkeyed.com/login.
+        Need to come back later? Sign in any time at ${LOGIN_DISPLAY}.
       </p>
     `,
     ctaLabel: "Open dashboard",
@@ -107,7 +114,7 @@ export async function sendRefundApprovedEmail(args: ApprovedArgs): Promise<void>
         ${args.parentFirstName} ever wants to come back.
       </p>
       <p style="margin-top:18px;color:rgba(255,255,255,0.6);font-size:13px;">
-        Need to come back later? Sign in any time at xplkeyed.com/login.
+        Need to come back later? Sign in any time at ${LOGIN_DISPLAY}.
       </p>
     `,
     ctaLabel: "Open dashboard",
@@ -143,7 +150,7 @@ export async function sendRefundDeniedEmail(args: DeniedArgs): Promise<void> {
         If you want to talk it through, message Tim from the player view and Peter will jump in.
       </p>
       <p style="margin-top:18px;color:rgba(255,255,255,0.6);font-size:13px;">
-        Need to come back later? Sign in any time at xplkeyed.com/login.
+        Need to come back later? Sign in any time at ${LOGIN_DISPLAY}.
       </p>
     `,
     ctaLabel: "Open dashboard",

@@ -22,7 +22,7 @@ export default function CoachesPage() {
 
       <section className={styles.card}>
         <div className={styles.cardEyebrow}>Coach profile</div>
-        <h2 className={styles.cardTitle}>Tim, also known as XPL Keyed</h2>
+        <h2 className={styles.cardTitle}>Tim, also known as Late Game Academy</h2>
         <div className={styles.metaRow}>
           <span className={`${styles.pill} ${styles.pillActive}`}>Unreal ranked</span>
           <span className={styles.pill}>14 years old</span>

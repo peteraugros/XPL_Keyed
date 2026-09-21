@@ -124,7 +124,7 @@ export default function SingleSessionScheduler({
         ) : (
           <>
             <p className={styles.body}>
-              Tim sends {kidFirstName} the XPL Keyed Discord server invite
+              Tim sends {kidFirstName} the Late Game Academy Discord server invite
               before the call. Afterwards he writes up the advice and a
               training routine in the player view.
             </p>

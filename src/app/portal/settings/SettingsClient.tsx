@@ -166,7 +166,7 @@ export default function SettingsClient({
           </div>
           <p id="parent-email-note" className={styles.formNote}>
             Email change has to be done by Tim so your sign in links keep working.
-            Reach out at tim@xplkeyed.com.
+            Reach out at tim@lategameacademy.com.
           </p>
           <div className={styles.formActions}>
             <button

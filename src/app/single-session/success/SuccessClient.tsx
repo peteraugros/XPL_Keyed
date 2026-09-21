@@ -153,8 +153,8 @@ export default function SuccessClient({
             }}
           >
             Email not showing up? Check spam, or write{" "}
-            <a href="mailto:tim@xplkeyed.com" style={{ color: "var(--lime)" }}>
-              tim@xplkeyed.com
+            <a href="mailto:tim@lategameacademy.com" style={{ color: "var(--lime)" }}>
+              tim@lategameacademy.com
             </a>
             .
           </p>

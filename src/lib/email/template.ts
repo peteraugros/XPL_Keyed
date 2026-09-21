@@ -20,7 +20,7 @@ export function brandedEmailHtml(opts: {
 <h1 style="font-family:'Anton',Impact,sans-serif;font-size:28px;letter-spacing:1px;margin:0 0 16px;color:#C7FF3D;">${opts.headline}</h1>
 <div style="font-size:15px;color:rgba(255,255,255,0.85);">${opts.bodyHtml}</div>
 ${cta}
-<p style="margin-top:32px;font-size:12px;color:rgba(255,255,255,0.5);">XPL Keyed. Independent Fortnite coaching.</p>
+<p style="margin-top:32px;font-size:12px;color:rgba(255,255,255,0.5);">Late Game Academy. Independent Fortnite coaching.</p>
 </div>
 </body></html>`;
 }

@@ -22,7 +22,7 @@ import type { TablesUpdate } from "@/types/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://xplkeyed.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://lategameacademy.com";
 
 const BodySchema = z.object({
   player_id: z.string().uuid(),
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 </ul>
 <p>Your account stays open. If anything changes later, you can come back any time.</p>
 <p>Have fun out there.</p>
-<p style="margin-top:24px;">Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`,
+<p style="margin-top:24px;">Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">Late Game Academy</span></p>`,
   });
 
   const r = await sendBrandedEmail({

@@ -2,15 +2,15 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "XPL Keyed | Fortnite Coaching",
+  title: "Late Game Academy | Fortnite Coaching",
   description:
-    "Personalized Fortnite coaching from XPL Keyed, Unreal ranked tournament player. A live 30 minute Discord call each week, then personal advice and a training routine to work between calls. First call free.",
+    "Personalized Fortnite coaching from Late Game Academy, Unreal ranked tournament player. A live 30 minute Discord call each week, then personal advice and a training routine to work between calls. First call free.",
   manifest: "/manifest.json",
-  applicationName: "XPL Keyed",
+  applicationName: "Late Game Academy",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "XPL Keyed",
+    title: "Late Game Academy",
   },
   icons: {
     icon: [

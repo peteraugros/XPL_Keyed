@@ -63,7 +63,7 @@ type SendArgs = {
   relatedEntityId?: string | null;
 };
 
-const FROM_STRIPPED = `XPL Keyed <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`;
+const FROM_STRIPPED = `Late Game Academy <${FROM_EMAIL.replace(/^.*<|>$/g, "")}>`;
 
 export async function sendBrandedEmail(args: SendArgs): Promise<{ ok: boolean }> {
   const service = createServiceRoleClient();

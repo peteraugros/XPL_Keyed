@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   const html = brandedEmailHtml({
     headline: "Confirm your child's coaching trial",
     bodyHtml: `<p>Hi ${escapeHtml(parsed.parent_first_name)},</p>
-<p>Your child is starting a free trial with XPL Keyed. Because your child is under 13, we need you to confirm before we go any further.</p>
+<p>Your child is starting a free trial with Late Game Academy. Because your child is under 13, we need you to confirm before we go any further.</p>
 <p>Tap the button below from the same device where the form was started. The link is good for 24 hours.</p>
 <p style="font-size:13px;color:rgba(255,255,255,0.6);">If you did not start this trial, you can ignore this email. No account is created until you click.</p>`,
     ctaLabel: "Confirm and continue",

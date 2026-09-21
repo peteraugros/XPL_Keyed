@@ -45,7 +45,7 @@ async function fetchTargets(
   return (data ?? []) as DunningTarget[];
 }
 
-const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`;
+const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">Late Game Academy</span></p>`;
 
 function bodyDay3(firstName: string): string {
   return brandedEmailHtml({

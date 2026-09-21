@@ -24,9 +24,9 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL")!;
 const NEXT_PUBLIC_APP_URL =
-  Deno.env.get("NEXT_PUBLIC_APP_URL") ?? "https://xplkeyed.com";
+  Deno.env.get("NEXT_PUBLIC_APP_URL") ?? "https://lategameacademy.com";
 
-const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">XPL Keyed</span></p>`;
+const SIGNATURE = `<p style="margin-top:24px;">Talk soon,<br/>Tim<br/><span style="color:rgba(255,255,255,0.6);font-size:13px;">Late Game Academy</span></p>`;
 
 type SubRow = {
   id: string;

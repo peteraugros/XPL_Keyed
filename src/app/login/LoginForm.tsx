@@ -130,7 +130,7 @@ export default function LoginForm({
           type="button"
           className={styles.brand}
           onClick={onBrandTap}
-          aria-label="XPL Keyed"
+          aria-label="Late Game Academy"
           style={{
             background: "none",
             border: "none",
@@ -140,7 +140,7 @@ export default function LoginForm({
             display: "block",
           }}
         >
-          XPL KEYED
+          LATE GAME ACADEMY
         </button>
 
         {secretRevealed ? (

@@ -1,7 +1,7 @@
 // Discord REST helpers shared across cron Edge Functions.
 //
 // Per `decision_tim_notifications`: bot is outbound only, no persistent gateway.
-// Speaks as "XPL Keyed Bot", never as Tim (honest framing per CLAUDE.md
+// Speaks as "Late Game Academy Bot", never as Tim (honest framing per CLAUDE.md
 // "Discord bot architecture").
 
 const DISCORD_API = "https://discord.com/api/v10";
