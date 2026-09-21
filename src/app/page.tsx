@@ -115,7 +115,7 @@ export default function HomePage() {
             <div className="step step-1 reveal">
               <div className="step-day">Before</div>
               <div className="step-title">Drop a clip</div>
-              <div className="step-desc">Student sends a game clip and says what they want fixed, so Keyed walks into the call already knowing their gaps.</div>
+              <div className="step-desc">Student sends a game clip and says what they want fixed, so your coach walks into the call already knowing their gaps.</div>
             </div>
             <div className="step step-2 reveal">
               <div className="step-day">The session</div>
@@ -125,7 +125,7 @@ export default function HomePage() {
             <div className="step step-3 reveal">
               <div className="step-day">After</div>
               <div className="step-title">Advice, in writing</div>
-              <div className="step-desc">Keyed writes up what he saw and the one thing to change next, in the student&apos;s own language.</div>
+              <div className="step-desc">Your coach writes up what he saw and the one thing to change next, in the student&apos;s own language.</div>
             </div>
             <div className="step step-4 reveal">
               <div className="step-day">The week</div>
