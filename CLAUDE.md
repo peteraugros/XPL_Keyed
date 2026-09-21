@@ -910,19 +910,46 @@ fixes it. Save the variables first, then push.
   Confirmed on Peter's own device after reinstalling: "its a nice big L now".
   It is lighter than the K was, which is expected at roughly 43% less ink, and
   it reads fine at home screen size.
-- 🔴 **DISCORD HAS NEVER BEEN CONFIGURED IN ANY ENVIRONMENT, AND THE VALUES DO
-  NOT EXIST ANYWHERE TO COPY.** Measured 2026-09-20: `DISCORD_BOT_TOKEN`,
-  `DISCORD_TIM_USER_ID` and `DISCORD_GUILD_ID` are the literal string `...` in
-  `.env.local` AND on Railway (service `XPL_Keyed`, project
-  `astonishing-ambition`), straight out of `.env.local.example`. They are the
-  only 3 of Railway's 31 variables that are placeholders, so this is specific
-  rather than a general state of neglect. **They must be created**: the bot
-  token from the Discord Developer Portal, Tim's user id from Discord with
-  Developer Mode on. `DISCORD_GUILD_ID` is needed by no Edge Function.
-  ⚠️ **Do not paste them into a chat transcript**; put them in `.env.local`,
-  which is how they reach both Supabase and Railway without being printed.
-  Nothing is broken today because every Discord path no-ops at 0 past due
-  subscriptions, but it must be real before the first family is taken on.
+- ⚪ **DISCORD BOT CREDENTIALS ARE UNSET AND THAT IS FINE. DECIDED 2026-09-21
+  (Peter): DO NOTHING.** This entry previously said they "must be real before
+  the first family is taken on", which measurement does not support. Corrected
+  rather than deleted, because the reason is the useful part.
+
+  🔴 **DISCORD IS TWO UNRELATED THINGS IN THIS APP AND ONLY ONE NEEDS A
+  TOKEN.** Most of the ~28 files that mention Discord use it as the COACHING
+  VENUE: `discord_username` on the player, rendered on the portal, the play
+  surface and the admin. **That needs no credentials and works today**, and it
+  is the reason the product uses Discord at all.
+
+  **The BOT is exactly three messages, and all three go to Tim or Peter**
+  (measured 2026-09-21, these are the only importers of `src/lib/discord/bot.ts`
+  and `supabase/functions/_shared/discord.ts`): a family hitting cancel 3 of 3
+  (`calendly-webhook`), Tim marking himself stuck (`api/admin/stuck`), and day 7
+  of past due (`cron-day7-dunning-ping`). **Nothing parent facing, nothing
+  student facing.**
+
+  **Every one of the three already surfaces where the operator looks anyway**,
+  which is why nothing is lost: stuck writes a `stuck_events` row AND flips
+  `waiting_on` to DAD so it lands on the admin home, `pending_cancel` is on
+  `/admin/clients` sorted by urgency, and `past_due` is both a home stat and a
+  `past_due_opened` derived task. The DM was a poke at a phone, not the record.
+
+  ⚠️ **The two with a clock on them are day 7 of past due (14 day auto end) and
+  cancel 3 of 3 (7 days to pending cancel confirming).** If a phone alert for
+  those is ever wanted, **put them on WEB PUSH rather than standing up a bot**:
+  the VAPID keys on Railway are real, there is a live subscription, and
+  `sendPushToCoach` already fires for new trials and slot bookings. One system
+  instead of two, and three fewer credentials.
+
+  **None of it can fire today regardless**: production holds 2 subscriptions and
+  both are `declined`, so there is no active, past due or pending cancel family
+  in existence.
+
+  ⚠️ If the bot is ever wanted after all: bot token from the Discord Developer
+  Portal, Tim's user id from Discord with Developer Mode on, `DISCORD_GUILD_ID`
+  is needed by no Edge Function. **Do not paste them into a chat transcript**;
+  put them in `.env.local`, which is how they reach both Supabase and Railway
+  without being printed.
 - ✅ **The unit is a coaching SESSION, not a lesson** (Peter, 2026-09-19), and
   **the marketing now says so.** ⚠️ This entry read *"Marketing still promises
   Slides and voiceover delivered to keep"* until 2026-09-20; measured against
@@ -1660,8 +1687,8 @@ Nothing in this list blocks Tim's n=1 launch. Each item closes a real UX or oper
 
 #### Peter setup (outside code)
 
-- **Dedicated business bank for Stripe payouts** (Mercury or Relay, ~1hr online onboarding) **before first paying customer** — currently routing to personal bank as placeholder.
-- **MX records / forwarding for `tim@xplkeyed.com`** — not load-bearing (in-app messaging is the contact channel) but useful for stray replies.
+- **Separate bank for Stripe payouts, still open, and the plan CHANGED.** This entry said Mercury or Relay; Peter's call 2026-09-20 is a SAVINGS ACCOUNT at his existing bank. See the entry in "Still to do" for the traps; do not follow the Mercury/Relay wording here.
+- ✅ **DONE 2026-09-21: inbound mail works, at `tim@lategameacademy.com`.** Cloudflare Email Routing forwards it to Tim's Gmail, proven by a real delivered message. ⚠️ **`tim@xplkeyed.com` NEVER worked**: that domain has no MX records at all, and 11 places in the app told parents to write to it, so those messages went nowhere for the life of the product.
 - **Confirm Stripe live-mode KYC review is fully clear** — the "Action required" banner cleared during activation but worth a check for any pending follow-up info requests.
 - **Subscribe Tim's mobile to Calendly notifications** so he sees new bookings as they land. He has Calendly + Google Calendar on his phone per spec; just confirm the push notif is on.
 
@@ -1826,8 +1853,8 @@ This section is the running source of truth for what's on Peter's plate. Update 
     10. Wiped test rows from prod via SQL Editor (DELETE from quest_completions → vod_uploads → prep_responses → messages → curriculum_slots → curricula → cancellation_events → coach_cancels → notification_log → stuck_events → task_completions → subscriptions → players → parents → families → pending_intake_verifications + auth.users WHERE email='peteraugros@gmail.com' OR email LIKE 'kid+%@xplkeyed.internal').
   - **17 Railway env vars all live.** Final state: 14 from spec + `CALENDLY_PAID_LESSON_EVENT_TYPE_URI` + 3 inert DISCORD_* (Peter left them; harmless). The two placeholders (`STRIPE_WEBHOOK_SECRET`, `STRIPE_PORTAL_URL`) are now updated/legacy: webhook secret = real value, portal URL = still placeholder but never read.
   - **Still deferred (not blocking launch, captured for follow-up):**
-    1. **Dedicated business bank for Stripe payouts.** Currently routing to Peter's personal bank as placeholder. Open Mercury or Relay (free, ~1hr online onboarding) and update Stripe → Settings → Payouts → External accounts before Tim's first real paying customer lands. ~5min admin task in Stripe + 1-2 day micro-deposit verification.
-    2. **MX records / forwarding for `tim@xplkeyed.com`.** Per locked decision, in-app messaging is the long-term contact channel, so MX is no longer load-bearing. Could still be useful for stray "reply" hits on transactional emails. Cheap registrar-side forwarding or Google Workspace ($6/mo) when ready.
+    1. **Separate bank for Stripe payouts. STILL OPEN, and SUPERSEDED IN PLAN.** This said Mercury or Relay; Peter's call 2026-09-20 is a savings account at his existing bank so the business money stops mixing with personal. Live guidance is in "Still to do" near the top of this file.
+    2. ✅ **DONE 2026-09-21.** Inbound mail works at `tim@lategameacademy.com` via Cloudflare Email Routing, proven by a real delivered message. `tim@xplkeyed.com` never worked at all: no MX records ever existed on that domain.
     3. **Calendly invitee confirmation email still ON.** 🔧 Setup item 1c — both Calendly's stock email AND our branded one currently fire on intro-call booking. Tim asked for the stock one to be toggled OFF; not done yet. Calendly's calendar invite notification should stay ON.
     4. **Embedded Stripe Elements vs hosted Checkout.** First-cut uses hosted Checkout per the Locked Decisions (single-endpoint refactor when polish time comes). Working in prod; revisit only when conversion polish becomes important.
     5. **AI-suggest cost monitoring.** Anthropic API is metered; for safety, watch the Anthropic dashboard for unexpected spend if Tim starts authoring lessons heavily.
