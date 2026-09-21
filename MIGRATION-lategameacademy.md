@@ -75,7 +75,21 @@ this domain, re-check that they are still on different names.
 
 ## REMAINING, in order
 
-**4. Supabase auth.** Dashboard -> project `xpl-keyed-prod` -> Authentication ->
+**4. Supabase auth. DONE and proven.** Both
+`https://lategameacademy.com/auth/callback` and
+`https://lategameacademy.com/**` are on the allow list, the old entries kept.
+
+🔴 **THE WILDCARD IS THE ONE THAT MATTERS AND THE EXACT PATH IS NOT ENOUGH.**
+The app sends `${APP_URL}/auth/callback?next=<path>`, and an exact path entry
+does NOT match a URL carrying a query string: Supabase silently falls back to
+the Site URL. Tested before and after; with only the exact entry, every magic
+link after the cutover would have landed on the old domain with no error
+anywhere. A negative control (`evil-example.test`) is correctly rejected, so
+the list is genuinely enforcing.
+
+⚠️ Leave the **Site URL** on `https://xplkeyed.com` until step 6.
+
+**4-OLD. Supabase auth (original instruction, kept for the reasoning).** Dashboard -> project `xpl-keyed-prod` -> Authentication ->
 URL Configuration. **ADD** `https://lategameacademy.com/auth/callback`, keep the
 old one. Magic links already in inboxes point at the old domain and die if it is
 removed.
@@ -92,6 +106,21 @@ checkout.session.completed, payment_intent.succeeded,
 payment_intent.payment_failed, invoice.paid, invoice.payment_failed.
 A brief gap is safe: Stripe retries for up to 3 days, and as of 2026-09-20 a
 redelivery can no longer double provision a cycle.
+
+**5b. Stripe statement descriptor. NOT a code change.**
+Stripe Settings -> Business -> Public details. It currently reads **`XPL KEYED`**,
+which is the literal text printed on a parent's bank statement. After the
+rebrand they pay Late Game Academy and see XPL KEYED, and an unrecognised
+charge is the leading cause of disputes. Max 22 characters; LATE GAME ACADEMY
+is 17. The `statement_descriptor_prefix` is `XPL` and wants the same treatment.
+⚠️ Not in the repo, so no amount of grepping finds it.
+
+⚠️ **Checkout branding is empty** (no logo, no icon, no primary colour). Not a
+regression, never set. Worth doing sometime, not part of this move.
+
+⚠️ **The XPL Keyed Stripe account is `acct_1TY0tWLQGJ57M1t9`, display name
+XPL_Keyed**, under the same login as Elementsofchess. One Stripe login holds
+several accounts; use the switcher at the top left.
 
 **6. Railway env, the actual cutover.** Only after 3b is routing mail:
 ```
