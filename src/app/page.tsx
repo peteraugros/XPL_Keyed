@@ -1,4 +1,5 @@
 import MarketingClient from "@/components/MarketingClient";
+import { coachAge } from "@/lib/coach/age";
 
 // Marketing landing — ported from the static design at the project root `index.html`.
 // All visual styling lives in globals.css under the same class names as the source.
@@ -64,8 +65,8 @@ export default function HomePage() {
               <span className="line-2">Unreal Rank.</span>
             </h1>
             <p className="hero-sub">
-              Personalized coaching from{" "}
-              <span className="keyed">Late Game Academy</span>, an Unreal ranked tournament player with{" "}
+              Personalized coaching from an{" "}
+              <span className="keyed">Unreal ranked tournament player</span> with{" "}
               <span className="js-years-since-c2s2">6</span> years of competitive experience since Chapter 2 Season 2.
             </p>
             <div className="hero-ctas">
@@ -119,7 +120,7 @@ export default function HomePage() {
             <div className="step step-2 reveal">
               <div className="step-day">The session</div>
               <div className="step-title">30 min live call</div>
-              <div className="step-desc">On Discord. Keyed watches them play, breaks down the clip, and drills the concepts in real time.</div>
+              <div className="step-desc">On Discord. Your coach watches them play, breaks down the clip, and drills the concepts in real time.</div>
             </div>
             <div className="step step-3 reveal">
               <div className="step-day">After</div>
@@ -221,7 +222,7 @@ export default function HomePage() {
               <div className="price-amount">$0</div>
               <div className="price-cycle">One 30 minute intro call</div>
               <ul className="price-features">
-                <li>Meet Keyed, no commitment</li>
+                <li>Meet your coach, no commitment</li>
                 <li>Skill assessment</li>
                 <li>Goal setting conversation</li>
               </ul>
@@ -291,7 +292,7 @@ export default function HomePage() {
           <div className="faq reveal">
             <details>
               <summary>How is this different from YouTube tutorials?</summary>
-              <p>YouTube is general. This is built around your specific weaknesses. Keyed watches your gameplay, works out what&apos;s holding you back, and drills exactly that on the call. Then he writes you a routine that targets it.</p>
+              <p>YouTube is general. This is built around your specific weaknesses. Your coach watches your gameplay, works out what&apos;s holding you back, and drills exactly that on the call. Then he writes you a routine that targets it.</p>
             </details>
             <details>
               <summary>What platform does my kid need to play on?</summary>
@@ -299,22 +300,22 @@ export default function HomePage() {
             </details>
             <details>
               <summary>How are the live calls done?</summary>
-              <p>Discord voice call. 30 minutes, scheduled during the week, in a private channel in Keyed&apos;s coaching server so parents have full visibility. Voice only. No screen sharing or webcam needed.</p>
+              <p>Discord voice call. 30 minutes, scheduled during the week, in a private channel in your coach&apos;s server so parents have full visibility. Voice only. No screen sharing or webcam needed.</p>
             </details>
             <details>
               <summary>What&apos;s the cancellation policy?</summary>
               <p>Cancel the subscription anytime, no penalty. For an individual scheduled session, give at least 24 hours&apos; notice and you get full credit toward a future session.</p>
             </details>
             <details>
-              <summary>Who is Late Game Academy?</summary>
+              <summary>Who is your coach?</summary>
               <p>
-                A 14 year old Unreal ranked Fortnite player who&apos;s been competing since Chapter 2 Season 2; that&apos;s{" "}
+                A <span className="js-coach-age">{coachAge()}</span> year old Unreal ranked Fortnite player who&apos;s been competing since Chapter 2 Season 2; that&apos;s{" "}
                 <span className="js-years-since-c2s2">6</span> years of high level experience. He plays in tournaments and now coaches other players climbing the ranks.
               </p>
             </details>
             <details>
               <summary>What if my kid is a total beginner?</summary>
-              <p>That&apos;s fine, the free intro call is partly a skill assessment. If the fit is right, coaching starts from wherever the student is. If not, Keyed will say so honestly.</p>
+              <p>That&apos;s fine, the free intro call is partly a skill assessment. If the fit is right, coaching starts from wherever the student is. If not, your coach will say so honestly.</p>
             </details>
           </div>
 
@@ -340,7 +341,7 @@ export default function HomePage() {
         <div className="blob blob-b"></div>
         <div className="container">
           <h2 className="reveal">Ready to drop in?</h2>
-          <p className="reveal">First call is free. 30 minutes with Late Game Academy.</p>
+          <p className="reveal">First call is free. 30 minutes with your coach.</p>
           <a href="/intake" className="btn btn-primary reveal">Claim your free trial call</a>
         </div>
       </section>

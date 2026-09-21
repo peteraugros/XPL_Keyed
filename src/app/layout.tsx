@@ -4,7 +4,21 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Late Game Academy | Fortnite Coaching",
   description:
-    "Personalized Fortnite coaching from Late Game Academy, Unreal ranked tournament player. A live 30 minute Discord call each week, then personal advice and a training routine to work between calls. First call free.",
+    // 🔴 THE COACH IS NOT NAMED ON ANY PUBLIC PAGE, AND THAT IS DELIBERATE.
+    // Tim's request 2026-09-21 was "your coach" rather than his name, which is
+    // also the safest answer: this string is the META DESCRIPTION, the text
+    // search engines index and display, so it is the most public field in the
+    // codebase. He is a minor and the audience is other minors and their
+    // parents. A first name is someone you recognise; a full legal name is
+    // someone you can find on every other platform he uses, permanently,
+    // because search indexes do not forget. His full name belongs behind
+    // login, where the reader has already identified themselves.
+    //
+    // ⚠️ The appositive has to describe a PERSON. The rebrand briefly left this
+    // reading "from Late Game Academy, Unreal ranked tournament player", which
+    // says an academy holds a rank. The credential carries the sentence now, so
+    // nothing has to stand in for a name at all.
+    "Personalized Fortnite coaching from an Unreal ranked tournament player at Late Game Academy. A live 30 minute Discord call each week, then personal advice and a training routine to work between calls. First call free.",
   manifest: "/manifest.json",
   applicationName: "Late Game Academy",
   appleWebApp: {

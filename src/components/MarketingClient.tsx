@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { coachAge } from "@/lib/coach/age";
 
 // Attaches all the interactive behavior the static marketing markup expects:
 //   1. Hamburger toggle (body.menu-open class, escape key, backdrop click, link-tap close)
 //   2. Scroll-reveal IntersectionObserver for `.reveal` elements
 //   3. Count-up timer since C2S2 launch (2020-02-20), also updates `.js-years-since-c2s2` spans
+//   4. Corrects `.js-coach-age` spans, because the home page is prerendered and
+//      cached for a year so its server rendered age freezes at BUILD time
 //
 // Renders nothing — pure side-effects so the static markup in page.tsx stays a Server Component.
 export default function MarketingClient() {
@@ -59,6 +62,16 @@ export default function MarketingClient() {
     } else {
       reveals.forEach((el) => el.classList.add("is-visible"));
     }
+
+    // -------- Coach age --------
+    // Written here rather than during render on purpose: the server already
+    // put a build time value in the HTML, and replacing it mid render would be
+    // a hydration mismatch. After hydration it is just a text update.
+    document
+      .querySelectorAll<HTMLElement>(".js-coach-age")
+      .forEach((el) => {
+        el.textContent = String(coachAge());
+      });
 
     // -------- Count-up timer since Feb 20, 2020 (Chapter 2 Season 2 launch) --------
     const startDate = new Date("2020-02-20T00:00:00");

@@ -6,6 +6,7 @@
 // keyed off the coaches table; for now it's just Tim.
 
 import styles from "../_components/inner-page.module.css";
+import { coachAge } from "@/lib/coach/age";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default function CoachesPage() {
           rep work, and small focused fixes per session.
         </p>
         <p className={styles.cardSubtle}>
-          Tim is a 14 year old coaching 8 to 14 year olds. Same generation,
+          Tim is a {coachAge()} year old coaching 8 to 14 year olds. Same generation,
           same vocabulary, same frustrations as your kid. The trust model
           here is built around that: your kid talks to Tim, your kid sees
           your kid&apos;s peer, and you have full read access to every
