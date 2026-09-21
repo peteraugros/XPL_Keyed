@@ -74,6 +74,9 @@ old one. Magic links already in inboxes point at the old domain and die if it is
 removed.
 
 **5. Stripe. EDIT the existing webhook endpoint's URL. Do NOT add a second one.**
+✅ **Already de-risked 2026-09-20**: the new domain verified a genuinely signed
+event with the LIVE secret (200) and refused a forged one (400), so the endpoint
+is known to work before the switch.
 The route verifies against a single `STRIPE_WEBHOOK_SECRET`, and a second
 endpoint gets its own secret, so its events would fail signature verification
 and be dropped silently. Editing the URL keeps the secret. Change it to
@@ -121,6 +124,24 @@ address.** Those messages have gone nowhere for the life of the product. Step 3b
 is the first time that contact address becomes true.
 
 ---
+
+## Open decisions for Tim
+
+**The app icon is the letter K, for Keyed.** Both `public/icons/icon.svg` and
+`icon-maskable.svg` are a single white K on navy. It is what sits under the app
+on a phone home screen and it means nothing under the new name. The obvious
+substitutes are L, LG or A, but this is a design call and was deliberately left
+rather than guessed. The manifest text and the screen reader labels are already
+updated; only the glyph is outstanding.
+
+**Cloudflare security settings differ between the zones.** `xplkeyed.com`
+refuses a scripted user agent with 403 while `lategameacademy.com`, a fresh
+zone, allows it. Stripe's own user agent passes on both, so nothing is broken,
+but the new zone is currently more permissive than the one it replaces. Worth
+matching after the move.
+
+**DMARC is not set on either domain.** Optional, improves deliverability, and
+best added after Email Routing so the reports have an inbox to land in.
 
 ## Verify it from a terminal
 
