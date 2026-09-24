@@ -1,4 +1,6 @@
-// Session refresh helper invoked from the root `middleware.ts`.
+// Session refresh helper invoked from `src/middleware.ts`. It must live in src/:
+// Next ignores a root middleware.ts in a src/ project, silently, and this one
+// sat at the root and never ran, so token refreshes were never saved.
 // @supabase/ssr requires this so JWTs don't expire mid-navigation.
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
